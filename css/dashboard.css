@@ -1,0 +1,149 @@
+/* =============================================================
+   dashboard.css  —  Overview dashboard cards & charts
+   ============================================================= */
+
+/* ── Stat Cards ────────────────────────────────────────────── */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  padding: 20px 18px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: transform var(--transition), box-shadow var(--transition);
+  cursor: default;
+}
+.stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.stat-icon {
+  font-size: 1.6rem;
+  margin-bottom: 4px;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: .78rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.stat-delta {
+  font-size: .78rem;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.stat-delta.up   { color: var(--green); }
+.stat-delta.down { color: var(--red); }
+.stat-delta.flat { color: var(--text-muted); }
+
+/* Accent bar on left edge */
+.stat-card[data-accent="blue"]   { border-left: 3px solid var(--blue); }
+.stat-card[data-accent="green"]  { border-left: 3px solid var(--green); }
+.stat-card[data-accent="purple"] { border-left: 3px solid var(--purple); }
+.stat-card[data-accent="orange"] { border-left: 3px solid var(--orange); }
+.stat-card[data-accent="yellow"] { border-left: 3px solid var(--yellow); }
+.stat-card[data-accent="red"]    { border-left: 3px solid var(--red); }
+
+/* ── Dashboard Grid ────────────────────────────────────────── */
+.dash-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 960px) {
+  .dash-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Chart Card ────────────────────────────────────────────── */
+.chart-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  padding: 20px;
+}
+
+.chart-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.chart-card-title {
+  font-size: .95rem;
+  font-weight: 700;
+}
+
+.chart-canvas-wrap {
+  position: relative;
+  width: 100%;
+}
+
+canvas.bar-chart {
+  width: 100% !important;
+  height: 200px !important;
+  display: block;
+}
+
+/* ── Ministry Health List ──────────────────────────────────── */
+.ministry-health-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ministry-health-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ministry-health-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: .83rem;
+  font-weight: 600;
+}
+
+.progress-bar-track {
+  height: 7px;
+  background: var(--surface-2);
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: var(--accent);
+  transition: width .6s ease;
+}
+
+/* ── Quick-Actions ─────────────────────────────────────────── */
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 24px;
+}
