@@ -1,0 +1,228 @@
+/* =============================================================
+   impact.js  —  Community Impact Dashboard
+   Aggregated metrics from all Community Care modules
+   ============================================================= */
+
+Navigation.register('impact', function render(page) {
+  const today = Storage.today();
+  const thisMonth = today.slice(0,7); // YYYY-MM
+  const lastMonth  = (() => { const d=new Date(today); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,7); })();
+
+  // Helpers
+  const inMonth = (dateStr, ym) => dateStr && dateStr.startsWith(ym);
+  const count = (arr, filterFn) => arr.filter(filterFn).length;
+
+  // --- Aggregate data ---
+  const allPantry  = Storage.getAll('pantry_inventory') || [];
+  const allDists   = Storage.getAll('foodpantry') || [];      // distributions
+  const allFamAid  = Storage.getAll('family_assistance') || [];
+  const allCare    = Storage.getAll('care') || [];
+  const allVolCtr  = Storage.getAll('volunteer_profiles') || [];
+  const allVols    = Storage.getAll('volunteers') || [];
+  const allPrayer  = Storage.getAll('prayer') || [];
+  const allVisit   = Storage.getAll('visitors') || [];
+  const allMembers = Storage.getAll('members') || [];
+  const allCommEv  = Storage.getAll('community_events') || [];
+
+  // Current month metrics
+  const m = {
+    familiesServed:  count(allFamAid, r => inMonth(r.dateAssisted || r.dateRequested, thisMonth)),
+    foodDistributions: count(allDists, r => inMonth(r.date, thisMonth)),
+    prayerRequests:  count(allPrayer, r => inMonth(r.createdAt, thisMonth)),
+    careVisits:      count(allCare, r => inMonth(r.lastContact || r.date, thisMonth)),
+    newVisitors:     count(allVisit, r => inMonth(r.createdAt, thisMonth)),
+    outreachEvents:  count(allCommEv, r => inMonth(r.date, thisMonth)),
+    activeVolunteers: allVols.length, // all roster entries are active volunteers
+    totalMembers:    allMembers.filter(m=>m.status==='Active').length,
+  };
+
+  const lm = {
+    familiesServed:  count(allFamAid, r => inMonth(r.dateAssisted || r.dateRequested, lastMonth)),
+    foodDistributions: count(allDists, r => inMonth(r.date, lastMonth)),
+    prayerRequests:  count(allPrayer, r => inMonth(r.createdAt, lastMonth)),
+    careVisits:      count(allCare, r => inMonth(r.lastContact || r.date, lastMonth)),
+    newVisitors:     count(allVisit, r => inMonth(r.createdAt, lastMonth)),
+    outreachEvents:  count(allCommEv, r => inMonth(r.date, lastMonth)),
+  };
+
+  function delta(curr, prev) {
+    if (!prev) return curr > 0 ? `<span class="stat-delta up">+${curr} vs last mo.</span>` : '';
+    const d = curr - prev;
+    const pct = Math.round((d/prev)*100);
+    const cls = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
+    const sign = d > 0 ? '+' : '';
+    return `<span class="stat-delta ${cls}">${sign}${d} (${sign}${pct}%) vs last mo.</span>`;
+  }
+
+  // Pantry totals
+  const totalItems = allPantry.reduce((s,i) => s + (Number(i.qty)||0), 0);
+  const lowStockCount = allPantry.filter(i => (Number(i.qty)||0) <= (Number(i.minStock)||0)).length;
+
+  // Active care
+  const activeCare = allCare.filter(c => c.status !== 'Completed' && c.status !== 'Closed').length;
+  const overdueFollowUp = allFamAid.filter(r => r.followUpNeeded && r.followUpDate && r.followUpDate < today && r.status !== 'Completed').length;
+
+  // Recent outreach events (completed in past 90 days)
+  const past90 = new Date(); past90.setDate(past90.getDate() - 90);
+  const recentEvents = allCommEv
+    .filter(e => e.status === 'Completed')
+    .sort((a,b) => b.date.localeCompare(a.date))
+    .slice(0,5);
+
+  const totalFamiliesEver = allCommEv.reduce((s,e)=>s+(Number(e.familiesImpacted)||0),0)
+    + allFamAid.filter(r=>r.status==='Completed').length;
+
+  // --- Build 6-month trend data ---
+  function buildTrend(arr, dateFn, months=6) {
+    const labels=[], vals=[];
+    for (let i=months-1;i>=0;i--) {
+      const d=new Date(today); d.setMonth(d.getMonth()-i);
+      const ym=d.toISOString().slice(0,7);
+      const mon=d.toLocaleDateString('en-US',{month:'short'});
+      labels.push(mon);
+      vals.push(arr.filter(r=>{ const dt=dateFn(r); return dt && dt.startsWith(ym); }).length);
+    }
+    return {labels,vals};
+  }
+
+  const famTrend = buildTrend(allFamAid, r=>r.dateAssisted||r.dateRequested);
+  const visitorTrend = buildTrend(allVisit, r=>r.createdAt);
+  const careTrend = buildTrend(allCare, r=>r.lastContact||r.date);
+
+  const displayMonth = new Date(today+'T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+
+  page.innerHTML = `
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">📊 Community Impact Dashboard</h2>
+        <div class="section-subtitle">Aggregated metrics across all care & outreach ministries — ${displayMonth}</div>
+      </div>
+    </div>
+
+    <!-- This Month Metrics -->
+    <div class="stat-grid" style="margin-bottom:24px;">
+      <div class="stat-card" data-accent="green">
+        <div class="stat-icon">🏠</div>
+        <div class="stat-value">${m.familiesServed}</div>
+        <div class="stat-label">Families Assisted</div>
+        ${delta(m.familiesServed, lm.familiesServed)}
+      </div>
+      <div class="stat-card" data-accent="orange">
+        <div class="stat-icon">🥫</div>
+        <div class="stat-value">${m.foodDistributions}</div>
+        <div class="stat-label">Food Distributions</div>
+        ${delta(m.foodDistributions, lm.foodDistributions)}
+      </div>
+      <div class="stat-card" data-accent="blue">
+        <div class="stat-icon">🙏</div>
+        <div class="stat-value">${m.prayerRequests}</div>
+        <div class="stat-label">Prayer Requests</div>
+        ${delta(m.prayerRequests, lm.prayerRequests)}
+      </div>
+      <div class="stat-card" data-accent="purple">
+        <div class="stat-icon">❤️</div>
+        <div class="stat-value">${m.careVisits}</div>
+        <div class="stat-label">Care Contacts</div>
+        ${delta(m.careVisits, lm.careVisits)}
+      </div>
+      <div class="stat-card" data-accent="teal">
+        <div class="stat-icon">👋</div>
+        <div class="stat-value">${m.newVisitors}</div>
+        <div class="stat-label">New Visitors</div>
+        ${delta(m.newVisitors, lm.newVisitors)}
+      </div>
+      <div class="stat-card" data-accent="pink">
+        <div class="stat-icon">🌍</div>
+        <div class="stat-value">${m.outreachEvents}</div>
+        <div class="stat-label">Outreach Events</div>
+        ${delta(m.outreachEvents, lm.outreachEvents)}
+      </div>
+    </div>
+
+    <!-- Charts row -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:24px;">
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">🏠 Family Assistance Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
+        <canvas id="impact-fam-chart" height="120"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">👋 New Visitor Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
+        <canvas id="impact-vis-chart" height="120"></canvas>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">❤️ Care Ministry Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
+        <canvas id="impact-care-chart" height="120"></canvas>
+      </div>
+    </div>
+
+    <!-- Bottom row: Pantry snapshot + Care alerts + Recent events -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">🥫 Food Pantry Snapshot</h3></div>
+        <div style="display:flex;gap:20px;justify-content:space-around;padding:12px 0;text-align:center;">
+          <div><div style="font-size:2rem;font-weight:900;color:var(--accent)">${totalItems}</div><div style="font-size:.76rem;color:var(--text-muted)">Total Items in Stock</div></div>
+          <div><div style="font-size:2rem;font-weight:900;color:${lowStockCount>0?'var(--red)':'var(--green)'}">${lowStockCount}</div><div style="font-size:.76rem;color:var(--text-muted)">Low/Out of Stock</div></div>
+          <div><div style="font-size:2rem;font-weight:900;color:var(--green)">${allDists.length}</div><div style="font-size:.76rem;color:var(--text-muted)">Total Distributions</div></div>
+        </div>
+        ${lowStockCount > 0 ? `<div style="font-size:.82rem;color:var(--red);text-align:center;padding-bottom:8px;">⚠ ${lowStockCount} item${lowStockCount>1?'s':''} need restocking</div>` : ''}
+      </div>
+
+      <div class="card">
+        <div class="card-header"><h3 class="card-title">⚠️ Action Items</h3></div>
+        <div style="font-size:.86rem;display:flex;flex-direction:column;gap:8px;padding-top:4px;">
+          ${overdueFollowUp > 0
+            ? `<div style="padding:8px;background:rgba(239,68,68,.07);border-radius:6px;border-left:3px solid var(--red)">
+                <strong style="color:var(--red)">${overdueFollowUp} overdue family follow-up${overdueFollowUp>1?'s':''}</strong>
+                <div style="color:var(--text-muted);font-size:.76rem">Check Family Assistance tab</div>
+              </div>` : ''}
+          ${activeCare > 0
+            ? `<div style="padding:8px;background:rgba(234,179,8,.07);border-radius:6px;border-left:3px solid var(--yellow)">
+                <strong>${activeCare} open care case${activeCare>1?'s':''}</strong>
+                <div style="color:var(--text-muted);font-size:.76rem">Active care ministry records</div>
+              </div>` : ''}
+          ${lowStockCount > 0
+            ? `<div style="padding:8px;background:rgba(239,68,68,.07);border-radius:6px;border-left:3px solid var(--orange)">
+                <strong style="color:var(--orange)">${lowStockCount} low-stock pantry item${lowStockCount>1?'s':''}</strong>
+                <div style="color:var(--text-muted);font-size:.76rem">Check Food Pantry inventory</div>
+              </div>` : ''}
+          ${overdueFollowUp===0 && activeCare===0 && lowStockCount===0
+            ? `<div style="text-align:center;padding:20px;color:var(--text-muted)">✓ No urgent action items</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent Outreach Events -->
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">🌍 Recent Outreach Events</h3>
+        <span style="font-size:.76rem;color:var(--text-muted)">Cumulative impact: ${totalFamiliesEver.toLocaleString()} families served</span>
+      </div>
+      ${recentEvents.length ? `
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Event</th><th>Date</th><th>Attendance</th><th>Families</th><th>Items</th></tr></thead>
+            <tbody>
+              ${recentEvents.map(e=>`
+                <tr>
+                  <td><strong>${UI.esc(e.name)}</strong><div style="font-size:.74rem;color:var(--text-muted)">${UI.esc(e.type)}</div></td>
+                  <td>${UI.fmtDate(e.date)}</td>
+                  <td>${e.actualAttendance||'—'}</td>
+                  <td>${e.familiesImpacted||'—'}</td>
+                  <td>${e.itemsCollected||'—'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>` :
+        `<div class="empty-state"><div class="empty-state-icon">🌍</div><div class="empty-state-title">No completed outreach events yet</div></div>`
+      }
+    </div>
+  `;
+
+  // Draw charts
+  setTimeout(() => {
+    UI.drawBarChart('impact-fam-chart',  famTrend.labels,    famTrend.vals,   'var(--green)');
+    UI.drawBarChart('impact-vis-chart',  visitorTrend.labels, visitorTrend.vals, 'var(--blue)');
+    UI.drawBarChart('impact-care-chart', careTrend.labels,   careTrend.vals,  'var(--purple)');
+  }, 50);
+});
