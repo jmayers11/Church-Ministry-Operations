@@ -211,6 +211,10 @@
   <div id="toast-container"></div>
 
   <!-- Scripts — order matters -->
+  <script>
+    // Set true ONLY for local demos. MUST be false in production.
+    window.DEMO_MODE = false;
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="js/supabase-config.js"></script>
   <script src="js/auth-gate.js"></script>

@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ministry Request Portal</title>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -327,6 +328,7 @@
         <div class="form-group"><label class="form-label">Preferred Contact Method</label>
           <select class="form-control" name="contactMethod"><option>Email</option><option>Phone</option><option>Text</option><option>No Contact Needed</option></select>
         </div>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAADi6xQIiid0UM3O5" data-callback="_tsCb" data-expired-callback="_tsExp" style="margin:12px 0 8px;"></div>
         <button type="submit" class="btn-submit">Submit Prayer Request</button>
       </form>
     </div>
@@ -366,6 +368,7 @@
         <div class="form-group"><label class="form-label">Preferred Contact Method</label>
           <select class="form-control" name="contactMethod"><option>Phone</option><option>Text</option><option>Email</option></select>
         </div>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAADi6xQIiid0UM3O5" data-callback="_tsCb" data-expired-callback="_tsExp" style="margin:12px 0 8px;"></div>
         <button type="submit" class="btn-submit">Submit Request</button>
       </form>
     </div>
@@ -395,6 +398,7 @@
           <select class="form-control" name="pickupDay"><option>Monday</option><option>Tuesday</option><option>Wednesday</option><option>Thursday</option><option>Friday</option><option>Saturday</option><option>Any day works</option></select>
         </div>
         <div class="form-group"><label class="form-label">Anything else you'd like us to know?</label><textarea class="form-control" name="notes" placeholder="Optional notes…" rows="3"></textarea></div>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAADi6xQIiid0UM3O5" data-callback="_tsCb" data-expired-callback="_tsExp" style="margin:12px 0 8px;"></div>
         <button type="submit" class="btn-submit">Request Pantry Pickup</button>
       </form>
     </div>
@@ -433,6 +437,7 @@
           </div>
         </div>
         <div class="form-group"><label class="form-label">Notes</label><textarea class="form-control" name="notes" placeholder="Any details that would help us prepare for the visit…" rows="3"></textarea></div>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAADi6xQIiid0UM3O5" data-callback="_tsCb" data-expired-callback="_tsExp" style="margin:12px 0 8px;"></div>
         <button type="submit" class="btn-submit">Submit Care Request</button>
       </form>
     </div>
@@ -475,6 +480,7 @@
         </div>
         <div class="form-group"><label class="form-label">Skills or Experience</label><textarea class="form-control" name="skills" placeholder="Any relevant skills, experience, or certifications…" rows="3"></textarea></div>
         <div class="form-group"><label class="form-label">Anything else you'd like us to know?</label><textarea class="form-control" name="notes" placeholder="Optional notes…" rows="2"></textarea></div>
+        <div class="cf-turnstile" data-sitekey="0x4AAAAAADi6xQIiid0UM3O5" data-callback="_tsCb" data-expired-callback="_tsExp" style="margin:12px 0 8px;"></div>
         <button type="submit" class="btn-submit">Submit Interest Form</button>
       </form>
     </div>
@@ -574,6 +580,10 @@
     }
   }, true);
 
+  // ── Turnstile callbacks ──
+  window._tsCb  = function(token) { window._tsToken = token; };
+  window._tsExp = function()      { window._tsToken = null; };
+
   // ── Generate Request ID ──
   function genId() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -589,6 +599,20 @@
     e.preventDefault();
     const form = e.target;
     const submitBtn = form.querySelector('button[type=submit]');
+
+    // Require CAPTCHA completion before submitting
+    if (!window._tsToken) {
+      const errEl = form.querySelector('.portal-captcha-error') || (() => {
+        const el = document.createElement('p');
+        el.className = 'portal-captcha-error';
+        el.style.cssText = 'color:#dc2626;font-size:.85rem;margin:4px 0 8px;';
+        submitBtn.insertAdjacentElement('beforebegin', el);
+        return el;
+      })();
+      errEl.textContent = 'Please complete the CAPTCHA above before submitting.';
+      return;
+    }
+
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting…'; }
 
     const data = {};
@@ -663,6 +687,7 @@
     if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Submit Request'; }
 
     // Show success
+    window._tsToken = null;  // reset CAPTCHA token after submission
     document.getElementById('success-id').textContent = id;
     window._lastId = id;
     showForm('success');
