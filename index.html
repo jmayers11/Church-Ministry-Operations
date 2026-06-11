@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Church Dashboard</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+</head>
+<body>
+
+  <!-- ===== App Sign-In Gate (covers everything until authenticated) ===== -->
+  <div id="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-gate-title">
+    <div class="auth-gate-card">
+      <div class="auth-gate-logo">✝</div>
+      <h1 id="auth-gate-title" class="auth-gate-title">Grace Community Church</h1>
+      <p class="auth-gate-subtitle">Staff sign-in required to access the ministry dashboard.</p>
+      <form id="auth-gate-form" autocomplete="on">
+        <div class="auth-gate-field">
+          <label class="form-label" for="auth-gate-email">Email</label>
+          <input class="form-control" id="auth-gate-email" type="email" autocomplete="email"
+                 placeholder="staff@church.org" required>
+        </div>
+        <div class="auth-gate-field">
+          <label class="form-label" for="auth-gate-password">Password</label>
+          <input class="form-control" id="auth-gate-password" type="password"
+                 autocomplete="current-password" placeholder="••••••••" required>
+        </div>
+        <div id="auth-gate-error" class="auth-gate-error" role="alert"></div>
+        <div id="cf-turnstile" class="cf-turnstile"
+             data-sitekey="0x4AAAAAADi6xQIiid0UM3O5"
+             data-callback="_tsCallback"
+             data-expired-callback="_tsExpired"
+             style="margin: 4px 0 12px;"></div>
+        <button class="btn btn-primary" id="auth-gate-btn" type="submit">Sign In</button>
+      </form>
+      <p id="auth-gate-status" class="auth-gate-status"></p>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-header">
+      <div class="church-logo" id="church-logo">✝</div>
+      <div class="church-name-wrap">
+        <span id="sidebar-church-name" class="sidebar-church-name">Grace Community</span>
+        <span class="sidebar-tagline">Church Dashboard</span>
+      </div>
+      <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">&#9776;</button>
+    </div>
+
+    <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
+      <ul>
+        <!-- ── Church ── -->
+        <li class="nav-section-label">Church</li>
+        <li><a href="#" class="nav-link active" data-page="dashboard">
+          <span class="nav-icon">⊞</span><span class="nav-label">Dashboard</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="request-inbox" id="nav-inbox">
+          <span class="nav-icon">📬</span><span class="nav-label">Request Inbox</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="members">
+          <span class="nav-icon">👥</span><span class="nav-label">Members</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="visitors">
+          <span class="nav-icon">👋</span><span class="nav-label">Visitors</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="prayer">
+          <span class="nav-icon">🙏</span><span class="nav-label">Prayer Requests</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="events">
+          <span class="nav-icon">📅</span><span class="nav-label">Events</span>
+        </a></li>
+
+        <!-- ── Community Care ── -->
+        <li class="nav-section-label">Community Care</li>
+        <li><a href="#" class="nav-link" data-page="impact">
+          <span class="nav-icon">🌟</span><span class="nav-label">Impact Dashboard</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="foodpantry">
+          <span class="nav-icon">🥫</span><span class="nav-label">Food Pantry</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="family-assistance">
+          <span class="nav-icon">🏠</span><span class="nav-label">Family Assistance</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="care">
+          <span class="nav-icon">❤️</span><span class="nav-label">Care Ministry</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="community-events">
+          <span class="nav-icon">🌍</span><span class="nav-label">Community Events</span>
+        </a></li>
+
+        <!-- ── Volunteers & Resources ── -->
+        <li class="nav-section-label">People & Resources</li>
+        <li><a href="#" class="nav-link" data-page="volunteer-center">
+          <span class="nav-icon">🙌</span><span class="nav-label">Volunteer Center</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="volunteers">
+          <span class="nav-icon">📋</span><span class="nav-label">Volunteer Roster</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="resources">
+          <span class="nav-icon">📦</span><span class="nav-label">Resources</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="scorecard">
+          <span class="nav-icon">📊</span><span class="nav-label">Health Scorecard</span>
+        </a></li>
+
+        <!-- ── Stewardship & Admin ── -->
+        <li class="nav-section-label">Stewardship &amp; Admin</li>
+        <li><a href="#" class="nav-link" data-page="giving">
+          <span class="nav-icon">💰</span><span class="nav-label">Giving</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="communications">
+          <span class="nav-icon">📢</span><span class="nav-label">Communications</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="facilities">
+          <span class="nav-icon">🏛</span><span class="nav-label">Facilities</span>
+        </a></li>
+
+        <!-- ── Tools ── -->
+        <li class="nav-section-label">Tools</li>
+        <li><a href="#" class="nav-link" data-page="tasks">
+          <span class="nav-icon">✅</span><span class="nav-label">Task Manager</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="sermons">
+          <span class="nav-icon">📖</span><span class="nav-label">Sermon Library</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="ministries">
+          <span class="nav-icon">🏛️</span><span class="nav-label">Ministries</span>
+        </a></li>
+        <li><a href="#" class="nav-link" data-page="prompts">
+          <span class="nav-icon">✨</span><span class="nav-label">Message Templates</span>
+        </a></li>
+      </ul>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
+      <a href="#" class="nav-link" data-page="settings">
+        <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+      </a>
+      <button class="nav-link" id="global-signout" type="button" title="Sign out"
+              style="background:none;border:none;cursor:pointer;width:100%;text-align:left;">
+        <span class="nav-icon">🚪</span><span class="nav-label">Sign Out</span>
+        <span id="global-signout-email" class="nav-label"
+              style="display:block;font-size:.7rem;color:var(--text-muted);"></span>
+      </button>
+    </div>
+  </aside>
+
+  <main id="main-content" class="main-content">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button class="menu-btn" id="menu-btn" aria-label="Toggle menu">&#9776;</button>
+        <h1 class="page-title" id="page-title">Dashboard</h1>
+      </div>
+      <div class="topbar-right">
+        <span class="topbar-date" id="topbar-date"></span>
+        <button class="btn btn-sm btn-outline" id="export-btn" title="Export data backup">⬇ Export</button>
+        <label class="btn btn-sm btn-outline" title="Import data backup">
+          ⬆ Import
+          <input type="file" id="import-file" accept=".json" style="display:none;" />
+        </label>
+      </div>
+    </header>
+
+    <!-- All page containers -->
+    <div id="page-dashboard"         class="page active"></div>
+    <div id="page-members"           class="page"></div>
+    <div id="page-visitors"          class="page"></div>
+    <div id="page-volunteers"        class="page"></div>
+    <div id="page-prayer"            class="page"></div>
+    <div id="page-events"            class="page"></div>
+    <div id="page-foodpantry"        class="page"></div>
+    <div id="page-care"              class="page"></div>
+    <div id="page-settings"          class="page"></div>
+    <div id="page-tasks"             class="page"></div>
+    <div id="page-sermons"           class="page"></div>
+    <div id="page-ministries"        class="page"></div>
+    <div id="page-prompts"           class="page"></div>
+    <!-- Community Care & Outreach Hub -->
+    <div id="page-impact"            class="page"></div>
+    <div id="page-family-assistance" class="page"></div>
+    <div id="page-community-events"  class="page"></div>
+    <div id="page-volunteer-center"  class="page"></div>
+    <div id="page-resources"         class="page"></div>
+    <div id="page-scorecard"         class="page"></div>
+    <!-- Stewardship & Admin -->
+    <div id="page-giving"            class="page"></div>
+    <div id="page-communications"    class="page"></div>
+    <div id="page-facilities"        class="page"></div>
+    <!-- Ministry Request Inbox -->
+    <div id="page-request-inbox"     class="page"></div>
+  </main>
+
+  <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal" id="modal">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title">Modal</h2>
+        <button class="modal-close" id="modal-close" aria-label="Close modal">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body"></div>
+      <div class="modal-footer" id="modal-footer"></div>
+    </div>
+  </div>
+
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
+  <!-- Scripts — order matters -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <script src="js/supabase-config.js"></script>
+  <script src="js/auth-gate.js"></script>
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="js/dashboard.js"></script>
+  <script src="js/members.js"></script>
+  <script src="js/visitors.js"></script>
+  <script src="js/volunteers.js"></script>
+  <script src="js/prayer.js"></script>
+  <script src="js/events.js"></script>
+  <script src="js/foodpantry.js"></script>
+  <script src="js/care.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/sermons.js"></script>
+  <script src="js/ministries.js"></script>
+  <script src="js/prompts.js"></script>
+  <script src="js/giving.js"></script>
+  <script src="js/communications.js"></script>
+  <script src="js/facilities.js"></script>
+  <script src="js/impact.js"></script>
+  <script src="js/family-assistance.js"></script>
+  <script src="js/community-events.js"></script>
+  <script src="js/volunteer-center.js"></script>
+  <script src="js/resources.js"></script>
+  <script src="js/scorecard.js"></script>
+  <script src="js/request-inbox.js"></script>
+</body>
+</html>
