@@ -41,7 +41,7 @@ Navigation.register('tasks', function render(page) {
         const owner = document.getElementById('tk-owner-filter')?.value || '';
         const prio  = document.getElementById('tk-prio-filter')?.value  || '';
         const cat   = document.getElementById('tk-cat-filter')?.value   || '';
-        return allTasks.filter(t =>
+        return Storage.getAll('tasks').filter(t =>
           (!owner || t.owner === owner) &&
           (!prio  || t.priority === prio) &&
           (!cat   || t.category === cat)
@@ -121,7 +121,7 @@ Navigation.register('tasks', function render(page) {
         const prio  = document.getElementById('tl-prio-filter')?.value  || '';
         const stat  = document.getElementById('tl-stat-filter')?.value  || '';
         const cat   = document.getElementById('tl-cat-filter')?.value   || '';
-        return allTasks.filter(t => {
+        return Storage.getAll('tasks').filter(t => {
           const txt = `${t.title} ${t.description} ${t.owner} ${t.category}`.toLowerCase();
           return (!q || txt.includes(q)) && (!owner || t.owner === owner) &&
                  (!prio || t.priority === prio) && (!stat || t.status === stat) && (!cat || t.category === cat);
@@ -319,7 +319,7 @@ const Tasks = {
         ['tk-title', Validate.required(d.title,'Task title')],
       ])) return;
       var _saved = Storage.insert('tasks',d);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('tasks', _saved).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('tasks', _saved).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Task added'); Tasks._rerender();
     };
   },
@@ -331,21 +331,21 @@ const Tasks = {
               <button class="btn btn-primary" id="save-task-btn">Save</button>` });
     document.getElementById('save-task-btn').onclick = () => {
       var _updated = Storage.update('tasks',id,this._collect());
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('tasks', _updated).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('tasks', _updated).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Updated'); Tasks._rerender();
     };
   },
 
   move(id, status) {
     var _moved = Storage.update('tasks', id, { status });
-    if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _moved) SupabaseDB.tableUpsert('tasks', _moved).catch(function(e){console.warn('[Sync]',e);});
+    if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _moved) SupabaseDB.tableUpsert('tasks', _moved).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
     Tasks._rerender();
   },
 
   remove(id) {
     UI.confirm('Remove this task?', () => {
       Storage.removeItem('tasks', id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('tasks', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('tasks', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Removed'); Tasks._rerender();
     });
   },

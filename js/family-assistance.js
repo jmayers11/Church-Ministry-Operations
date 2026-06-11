@@ -147,7 +147,7 @@ Navigation.register('family-assistance', function render(page) {
     const st = document.getElementById('fa-status-filter')?.value||'';
     const tp = document.getElementById('fa-type-filter')?.value||'';
     const ov = document.getElementById('fa-overdue-only')?.checked||false;
-    return families.filter(f => {
+    return Storage.getAll('family_assistance').filter(f => {
       const txt = `${f.name} ${f.phone} ${f.email} ${f.assignedTo} ${f.notes}`.toLowerCase();
       return (!q||txt.includes(q)) && (!st||f.status===st) && (!tp||f.assistanceType===tp)
           && (!ov||overdueFollowup.find(x=>x.id===f.id));
@@ -241,7 +241,7 @@ const FamilyAid = {
         ['fa-email', Validate.email(document.getElementById('fa-email')?.value)],
       ])) return;
       var _saved = Storage.insert('family_assistance',d);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('family_assistance', _saved).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('family_assistance', _saved).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Request saved'); FamilyAid._rerender();
     };
   },
@@ -252,7 +252,7 @@ const FamilyAid = {
               <button class="btn btn-primary" id="save-fa-btn">Save</button>` });
     document.getElementById('save-fa-btn').onclick = () => {
       var _updated = Storage.update('family_assistance',id,this._collect());
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('family_assistance', _updated).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('family_assistance', _updated).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Updated'); FamilyAid._rerender();
     };
   },
@@ -277,7 +277,7 @@ const FamilyAid = {
   remove(id) {
     UI.confirm('Remove this assistance record?', () => {
       Storage.removeItem('family_assistance', id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('family_assistance', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('family_assistance', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Removed'); FamilyAid._rerender();
     });
   },

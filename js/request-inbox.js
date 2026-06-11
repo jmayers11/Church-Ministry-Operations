@@ -5,6 +5,7 @@
    ============================================================= */
 
 (function seedRequestInbox() {
+  if (!window.DEMO_MODE) return;   // no demo requests in production
   if (Storage.get('_inbox_seeded')) return;
   const uid = Storage.uid, today = Storage.today;
 

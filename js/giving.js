@@ -178,7 +178,7 @@ Navigation.register('giving', function render(page) {
       function filteredDons(){
         const q=document.getElementById('giving-search')?.value.toLowerCase()||'';
         const fid=document.getElementById('giving-fund-filter')?.value||'';
-        return donations.filter(d=>{
+        return Storage.getAll('giving_donations').filter(d=>{
           const txt=`${d.memberName} ${d.fund} ${d.note} ${d.method}`.toLowerCase();
           return txt.includes(q)&&(!fid||d.fundId===fid);
         });
@@ -387,7 +387,7 @@ const Giving = {
         ['g-date', Validate.required(d.date,'Date')],
       ])) return;
       var _saved = Storage.insert('giving_donations',d);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('giving_donations', _saved).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('giving_donations', _saved).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Gift recorded'); Giving._rerender();
     };
   },
@@ -398,14 +398,14 @@ const Giving = {
               <button class="btn btn-primary" id="save-g-btn">Save</button>` });
     document.getElementById('save-g-btn').onclick=()=>{
       var _updated = Storage.update('giving_donations',id,this._collect());
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('giving_donations', _updated).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('giving_donations', _updated).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Updated'); Giving._rerender();
     };
   },
   remove(id) {
     UI.confirm('Delete this donation record?',()=>{
       Storage.removeItem('giving_donations',id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('giving_donations', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('giving_donations', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Deleted'); Giving._rerender();
     });
   },
@@ -426,7 +426,7 @@ const Giving = {
       const n=document.getElementById('f-name')?.value?.trim();
       if(!Validate.check([['f-name', Validate.required(n,'Fund name')]])) return;
       var _savedFund = Storage.insert('giving_funds',{ name:n, description:document.getElementById('f-desc')?.value?.trim()||'', goal:parseFloat(document.getElementById('f-goal')?.value)||0, color:document.getElementById('f-color')?.value||'blue', active:true });
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('giving_funds', _savedFund).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('giving_funds', _savedFund).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Fund created'); Giving._rerender();
     };
   },
@@ -451,7 +451,7 @@ const Giving = {
       const n=document.getElementById('f-name')?.value?.trim();
       if(!Validate.check([['f-name', Validate.required(n,'Fund name')]])) return;
       var _updatedFund = Storage.update('giving_funds',id,{ name:n, description:document.getElementById('f-desc')?.value?.trim()||'', goal:parseFloat(document.getElementById('f-goal')?.value)||0, color:document.getElementById('f-color')?.value||'blue', active:document.getElementById('f-active')?.value==='true' });
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updatedFund) SupabaseDB.tableUpsert('giving_funds', _updatedFund).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updatedFund) SupabaseDB.tableUpsert('giving_funds', _updatedFund).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Updated'); Giving._rerender();
     };
   },

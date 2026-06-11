@@ -157,7 +157,7 @@ Navigation.register('care', function render(page) {
     const q  = document.getElementById('care-search')?.value.toLowerCase()||'';
     const tp = document.getElementById('care-type-filter')?.value||'';
     const st = document.getElementById('care-status-filter')?.value||'';
-    return records.filter(r => {
+    return Storage.getAll('care').filter(r => {
       const txt = `${r.name} ${r.type} ${r.assignedTo} ${r.notes}`.toLowerCase();
       return (!q||txt.includes(q)) && (!tp||r.type===tp) && (!st||r.status===st);
     });
@@ -242,7 +242,7 @@ const CareMin = {
         ['cr-name', Validate.required(d.name,'Person/family name')],
       ])) return;
       var _saved = Storage.insert('care',d);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('care', _saved).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('care', _saved).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Care record added'); CareMin._rerender();
     };
   },
@@ -253,7 +253,7 @@ const CareMin = {
               <button class="btn btn-primary" id="save-care-btn">Save Changes</button>` });
     document.getElementById('save-care-btn').onclick = () => {
       var _updated = Storage.update('care',id,this._collect());
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('care', _updated).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('care', _updated).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Updated'); CareMin._rerender();
     };
   },
@@ -278,7 +278,7 @@ const CareMin = {
   remove(id) {
     UI.confirm('Remove this care record?', () => {
       Storage.removeItem('care', id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('care', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('care', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Removed'); CareMin._rerender();
     });
   },

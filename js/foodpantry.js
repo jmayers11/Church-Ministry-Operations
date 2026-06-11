@@ -400,7 +400,7 @@ const PantryMgr = {
         ['pi-name', Validate.required(d.name,'Item name')],
       ])) return;
       var _saved = Storage.insert('pantry_inventory',d);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('pantry_inventory', _saved).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('pantry_inventory', _saved).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Item added'); PantryMgr._rerender();
     };
   },
@@ -411,7 +411,7 @@ const PantryMgr = {
               <button class="btn btn-primary" id="save-pi-btn">Save</button>` });
     document.getElementById('save-pi-btn').onclick = () => {
       var _updated = Storage.update('pantry_inventory',id,this._itemCollect());
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('pantry_inventory', _updated).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('pantry_inventory', _updated).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Updated'); PantryMgr._rerender();
     };
   },
@@ -438,14 +438,14 @@ const PantryMgr = {
       const delta=parseInt(document.getElementById('adj-qty')?.value)||0;
       const newQty=Math.max(0,i.qty+delta);
       var _adjUpdated = Storage.update('pantry_inventory',id,{qty:newQty});
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _adjUpdated) SupabaseDB.tableUpsert('pantry_inventory', _adjUpdated).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _adjUpdated) SupabaseDB.tableUpsert('pantry_inventory', _adjUpdated).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success(`Quantity updated to ${newQty} ${i.unit}`); PantryMgr._rerender();
     };
   },
   remove(id) {
     UI.confirm('Remove this item from inventory?',()=>{
       Storage.removeItem('pantry_inventory',id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('pantry_inventory', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('pantry_inventory', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Removed'); PantryMgr._rerender();
     });
   },
@@ -479,7 +479,7 @@ const PantryMgr = {
         ['pt-date', Validate.required(d.date,'Date')],
       ])) return;
       var _savedDist = Storage.insert('foodpantry',d);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('foodpantry', _savedDist).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('foodpantry', _savedDist).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Distribution logged'); PantryMgr._rerender();
     };
   },
@@ -511,14 +511,14 @@ const PantryMgr = {
         items: document.getElementById('pt-items').value.split(',').map(s=>s.trim()).filter(Boolean),
         notes: document.getElementById('pt-notes').value.trim(),
       });
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updatedDist) SupabaseDB.tableUpsert('foodpantry', _updatedDist).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updatedDist) SupabaseDB.tableUpsert('foodpantry', _updatedDist).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Updated'); PantryMgr._rerender();
     };
   },
   removeDist(id) {
     UI.confirm('Remove this distribution record?', () => {
       Storage.removeItem('foodpantry', id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('foodpantry', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('foodpantry', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Removed'); PantryMgr._rerender();
     });
   },

@@ -113,15 +113,16 @@ Navigation.register('members', function render(page) {
       }
 
       function filtered() {
+        const all = Storage.getAll('members');   // read fresh on every filter/re-render
         const q   = document.getElementById('member-search')?.value.toLowerCase() || '';
         const st  = document.getElementById('member-status-filter')?.value || '';
         const min = document.getElementById('member-ministry-filter')?.value || '';
-        return members.filter(m => {
+        return all.filter(m => {
           const full = `${m.firstName} ${m.lastName} ${m.email} ${m.family} ${(m.ministries||[]).join(' ')}`.toLowerCase();
           return (!q || full.includes(q)) && (!st || m.status === st) && (!min || (m.ministries||[]).includes(min));
         });
       }
-      renderTable(members);
+      renderTable(filtered());
       document.getElementById('member-search')?.addEventListener('input', () => renderTable(filtered()));
       document.getElementById('member-status-filter')?.addEventListener('change', () => renderTable(filtered()));
       document.getElementById('member-ministry-filter')?.addEventListener('change', () => renderTable(filtered()));
@@ -258,13 +259,6 @@ Navigation.register('members', function render(page) {
 /* ── Members global object ──────────────────────────── */
 const Members = {
   _state: { search: '' },
-  _rerender() {
-    const _s = document.getElementById('member-search');
-    if (_s) Members._state.search = _s.value;
-    Members._rerender();
-    const _ns = document.getElementById('member-search');
-    if (_ns && Members._state.search) { _ns.value = Members._state.search; _ns.dispatchEvent(new Event('input')); }
-  },
   _sort: { col: null, dir: 'asc' },
   _rerender: null,
   sortBy(col) {
@@ -344,7 +338,7 @@ const Members = {
         ['mb-email', Validate.email(d.email)],
       ])) return;
       var _saved = Storage.insert('members', d);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('members', _saved).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('members', _saved).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Member added'); Members._rerender();
     };
   },
@@ -356,7 +350,7 @@ const Members = {
               <button class="btn btn-primary" id="save-mb-btn">Save Changes</button>` });
     document.getElementById('save-mb-btn').onclick = () => {
       var _updated = Storage.update('members', id, this._collect());
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('members', _updated).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('members', _updated).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Member updated'); Members._rerender();
     };
   },
@@ -364,7 +358,7 @@ const Members = {
   remove(id) {
     UI.confirm('Remove this member from the directory?', () => {
       Storage.removeItem('members', id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('members', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('members', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Member removed'); Members._rerender();
     });
   },

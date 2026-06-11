@@ -82,7 +82,7 @@ Navigation.register('volunteers', function render(page) {
         const q  = document.getElementById('vol-search')?.value.toLowerCase() || '';
         const t  = document.getElementById('vol-team-filter')?.value || '';
         const bg = document.getElementById('vol-bg-filter')?.value || '';
-        return volunteers.filter(v => {
+        return Storage.getAll('volunteers').filter(v => {
           const txt = `${v.name} ${v.role} ${v.team} ${v.schedulingNotes||''}`.toLowerCase();
           return (!q || txt.includes(q)) && (!t || v.team === t) && (!bg || v.bgCheck === bg);
         });
@@ -191,7 +191,7 @@ Navigation.register('volunteers', function render(page) {
       function hoursFiltered() {
         const q = document.getElementById('hours-search')?.value.toLowerCase() || '';
         const t = document.getElementById('hours-team-filter')?.value || '';
-        return hours.filter(h => {
+        return Storage.getAll('vol_hours').filter(h => {
           const txt = `${h.volunteerName} ${h.team} ${h.activity}`.toLowerCase();
           return (!q || txt.includes(q)) && (!t || h.team === t);
         }).sort((a,b) => b.date.localeCompare(a.date));
@@ -344,7 +344,7 @@ const Vols = {
 
   _updateBG(id, status) {
     var _bgUpdated = Storage.update('volunteers', id, { bgCheck: status });
-    if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _bgUpdated) SupabaseDB.tableUpsert('volunteers', _bgUpdated).catch(function(e){console.warn('[Sync]',e);});
+    if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _bgUpdated) SupabaseDB.tableUpsert('volunteers', _bgUpdated).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
     Toast.success(`Background check marked ${status}`);
     Vols._rerender();
   },
@@ -352,7 +352,7 @@ const Vols = {
   _removeHours(id) {
     UI.confirm('Remove this hours entry?', () => {
       Storage.removeItem('vol_hours', id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('vol_hours', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('vol_hours', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Entry removed');
       Vols._rerender();
     });
@@ -453,7 +453,7 @@ const Vols = {
         ['vl-name', Validate.required(d.name, 'Volunteer name')],
       ])) return;
       var _saved = Storage.insert('volunteers', d);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('volunteers', _saved).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('volunteers', _saved).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Volunteer added'); Vols._rerender();
     };
   },
@@ -465,7 +465,7 @@ const Vols = {
               <button class="btn btn-primary" id="save-vol-btn">Save Changes</button>` });
     document.getElementById('save-vol-btn').onclick = () => {
       var _updated = Storage.update('volunteers', id, this._collect());
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('volunteers', _updated).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('volunteers', _updated).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Updated'); Vols._rerender();
     };
   },
@@ -473,7 +473,7 @@ const Vols = {
   remove(id) {
     UI.confirm('Remove this volunteer from the roster?', () => {
       Storage.removeItem('volunteers', id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('volunteers', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('volunteers', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Removed');
       Vols._rerender();
     });
@@ -510,7 +510,7 @@ const Vols = {
         volunteerId: volId, volunteerName: v?.name || '', team: v?.team || '',
         date, hours, activity: document.getElementById('lh-activity')?.value.trim(),
       });
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('vol_hours', _savedHours).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('vol_hours', _savedHours).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Hours logged'); Vols._rerender();
     };
   },

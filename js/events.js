@@ -104,7 +104,12 @@ Navigation.register('events', function render(page) {
 
   renderTable(upcoming, 'upcoming-table-wrap');
   renderTable(past.slice(0, 10), 'past-table-wrap');
-  Events._rerender = () => { renderTable(upcoming, 'upcoming-table-wrap'); renderTable(past.slice(0,10), 'past-table-wrap'); };
+  Events._rerender = () => {
+    const _today = Storage.today();
+    const _all = Storage.getAll('events');
+    renderTable(_all.filter(e => e.date >= _today).sort((a,b) => a.date.localeCompare(b.date)), 'upcoming-table-wrap');
+    renderTable(_all.filter(e => e.date < _today).sort((a,b) => b.date.localeCompare(a.date)).slice(0,10), 'past-table-wrap');
+  };
 
   document.getElementById('add-event-btn')?.addEventListener('click', () => Events.add());
 });
@@ -166,7 +171,7 @@ const Events = {
         ['ev-date', Validate.required(d.date, 'Event date')],
       ])) return;
       var _saved = Storage.insert('events', d);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('events', _saved).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('events', _saved).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Event added'); Events._rerender();
     };
   },
@@ -177,14 +182,14 @@ const Events = {
                <button class="btn btn-primary" id="save-event-btn">Save Changes</button>` });
     document.getElementById('save-event-btn').onclick = () => {
       var _updated = Storage.update('events', id, this._collect());
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('events', _updated).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('events', _updated).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Updated'); Events._rerender();
     };
   },
   remove(id) {
     UI.confirm('Remove this event?', () => {
       Storage.removeItem('events', id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('events', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('events', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Removed'); Events._rerender();
     });
   },

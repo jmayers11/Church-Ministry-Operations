@@ -116,6 +116,7 @@ const Storage = (() => {
   // ── Seed Demo Data ──────────────────────────────────────────
   // Called once on first load; skipped if data already exists.
   function seedIfEmpty() {
+    if (!window.DEMO_MODE) return;   // no demo data in production
     if (get('_seeded')) return;
     _seedMembers();
     _seedVisitors();

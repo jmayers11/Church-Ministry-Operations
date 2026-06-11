@@ -70,7 +70,7 @@ Navigation.register('prayer', function render(page) {
         const q  = document.getElementById('prayer-search')?.value.toLowerCase() || '';
         const st = document.getElementById('prayer-status-filter')?.value || '';
         const ct = document.getElementById('prayer-cat-filter')?.value || '';
-        return active.filter(r => {
+        return Storage.getAll('prayer').filter(r => r.status !== 'Answered').filter(r => {
           const txt = `${r.request} ${r.submittedBy||''} ${r.category}`.toLowerCase();
           return (!q || txt.includes(q)) && (!st || r.status === st) && (!ct || r.category === ct);
         });
@@ -274,7 +274,7 @@ const Prayer = {
         ['pr-req', Validate.required(d.request,'Prayer request text')],
       ])) return;
       var _saved = Storage.insert('prayer',d);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('prayer', _saved).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('prayer', _saved).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Prayer request added'); Prayer._rerender();
     };
   },
@@ -286,7 +286,7 @@ const Prayer = {
               <button class="btn btn-primary" id="save-pr-btn">Save</button>` });
     document.getElementById('save-pr-btn').onclick = () => {
       var _updated = Storage.update('prayer',id,this._collect());
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('prayer', _updated).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('prayer', _updated).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Updated'); Prayer._rerender();
     };
   },
@@ -294,14 +294,14 @@ const Prayer = {
   remove(id) {
     UI.confirm('Remove this prayer request?', () => {
       Storage.removeItem('prayer',id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('prayer', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('prayer', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Removed'); Prayer._rerender();
     });
   },
 
   _markAnswered(id) {
     var _answered = Storage.update('prayer',id,{status:'Answered'});
-    if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _answered) SupabaseDB.tableUpsert('prayer', _answered).catch(function(e){console.warn('[Sync]',e);});
+    if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _answered) SupabaseDB.tableUpsert('prayer', _answered).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
     Toast.success('Marked as answered — praise God!');
     Prayer._rerender();
   },
@@ -327,7 +327,7 @@ const Prayer = {
         ['ps-text',  Validate.required(text,'Report text')],
       ])) return;
       var _savedPraise = Storage.insert('praise_reports',{title,text,submittedBy:document.getElementById('ps-by')?.value.trim()||'',category:document.getElementById('ps-cat')?.value,date:Storage.today()});
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('praise_reports', _savedPraise).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('praise_reports', _savedPraise).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Modal.close(); Toast.success('Praise report added'); Prayer._rerender();
     };
   },
@@ -335,7 +335,7 @@ const Prayer = {
   removePraise(id) {
     UI.confirm('Remove this praise report?', () => {
       Storage.removeItem('praise_reports', id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('praise_reports', id).catch(function(e){console.warn('[Sync]',e);});
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('praise_reports', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Removed'); Prayer._rerender();
     });
   },
