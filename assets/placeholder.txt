@@ -1,0 +1,3 @@
+Place church logo, images, and other static assets in this folder.
+
+Supported via Settings > Appearance > Church Logo (uploads convert to base64 and store locally).
