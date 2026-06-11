@@ -1,0 +1,366 @@
+/**
+ * supabase-config.js
+ * ------------------
+ * Supabase integration for Church Operations Dashboard.
+ * Exposes a single global: window.SupabaseDB
+ *
+ * HOW TO CONFIGURE:
+ *   Set SUPABASE_URL and SUPABASE_ANON_KEY below to your project values.
+ *   Leave them as empty strings to run in localStorage-only demo mode.
+ *
+ * SECURITY NOTES:
+ *   • Only the publishable/anon key goes here — never the service_role key.
+ *   • Staff authentication uses Supabase Auth (email + password).
+ *   • Internal notes and PII are never returned to the public portal.
+ */
+
+// ── Configuration ────────────────────────────────────────────────
+const SUPABASE_URL      = 'https://tlomcujkfhgmnaiicyjj.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_ZTJgdbWn_w83KSEMTY86hw_L8y3P-pX';
+// ─────────────────────────────────────────────────────────────────
+
+var SupabaseDB = (function () {
+
+  // Internal Supabase client (null when not configured)
+  var _client = null;
+
+  // Current auth session (null = not signed in)
+  var _session = null;
+
+  // Auth change listeners registered by other modules
+  var _authListeners = [];
+
+  // ── Initialization ─────────────────────────────────────────────
+
+  function _init() {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      console.info('[SupabaseDB] Not configured — running in localStorage demo mode.');
+      return;
+    }
+
+    if (typeof supabase === 'undefined' || typeof supabase.createClient !== 'function') {
+      console.warn('[SupabaseDB] Supabase JS library not loaded. Check the <script> tag in index.html.');
+      return;
+    }
+
+    try {
+      _client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+      // Restore existing session if the user was previously signed in
+      _client.auth.getSession().then(function (result) {
+        _session = (result.data && result.data.session) ? result.data.session : null;
+        _notifyAuthListeners();
+      });
+
+      // Keep _session in sync with Supabase auth state changes
+      _client.auth.onAuthStateChange(function (event, session) {
+        _session = session;
+        _notifyAuthListeners();
+      });
+
+      console.info('[SupabaseDB] Initialized. URL:', SUPABASE_URL);
+    } catch (err) {
+      console.error('[SupabaseDB] Initialization failed:', err);
+      _client = null;
+    }
+  }
+
+  function _notifyAuthListeners() {
+    _authListeners.forEach(function (fn) {
+      try { fn(_session); } catch (e) { /* ignore */ }
+    });
+  }
+
+  // ── Column mapping ─────────────────────────────────────────────
+  // Converts a Supabase row (snake_case) → JS object (camelCase)
+  // matching the shape used throughout the dashboard.
+
+  function _fromRow(row) {
+    if (!row) return null;
+    return {
+      id:            row.id,
+      requestId:     row.request_id,
+      type:          row.type,
+      typeName:      row.type_name,
+      status:        row.status,
+      urgency:       row.urgency,
+      submittedAt:   row.submitted_at,
+      lastUpdated:   row.last_updated,
+      assignedTo:    row.assigned_to   || '',
+      followUpDate:  row.follow_up_date || '',
+      internalNotes: row.internal_notes || '',
+      data: Object.assign(
+        { name: row.name || '', email: row.email || '', phone: row.phone || '' },
+        (row.form_data && typeof row.form_data === 'object') ? row.form_data : {}
+      )
+    };
+  }
+
+  // Converts a JS request object → Supabase insert row (snake_case)
+  function _toInsertRow(req) {
+    var d = req.data || {};
+    return {
+      request_id:     req.requestId,
+      type:           req.type,
+      type_name:      req.typeName,
+      status:         req.status        || 'Received',
+      urgency:        req.urgency       || 'Medium',
+      submitted_at:   req.submittedAt   || new Date().toISOString(),
+      assigned_to:    '',               // enforced by RLS WITH CHECK
+      internal_notes: '',               // enforced by RLS WITH CHECK
+      follow_up_date: req.followUpDate  || null,
+      name:           d.name            || '',
+      email:          d.email           || '',
+      phone:          d.phone           || '',
+      form_data:      d
+    };
+  }
+
+  // ── Public API ─────────────────────────────────────────────────
+
+  /**
+   * Returns true when Supabase is configured and the JS client loaded.
+   * When false, callers should fall back to localStorage.
+   */
+  function isEnabled() {
+    return _client !== null;
+  }
+
+  /**
+   * Returns true when a staff member is currently signed in.
+   */
+  function isAuthenticated() {
+    return _session !== null;
+  }
+
+  /**
+   * Returns the current Supabase session object (or null).
+   */
+  function getSession() {
+    return _session;
+  }
+
+  /**
+   * Register a callback invoked whenever auth state changes.
+   * callback(session) — session is null when signed out.
+   */
+  function onAuthChange(callback) {
+    _authListeners.push(callback);
+    // Fire immediately with current state
+    try { callback(_session); } catch (e) { /* ignore */ }
+  }
+
+  /**
+   * Sign in a staff member with email + password.
+   * Returns { ok: true } or { ok: false, error: '...' }
+   */
+  async function signIn(email, password, captchaToken) {
+    if (!_client) return { ok: false, error: 'Supabase not configured.' };
+    try {
+      var opts = { email: email, password: password };
+      if (captchaToken) opts.options = { captchaToken: captchaToken };
+      var result = await _client.auth.signInWithPassword(opts);
+      if (result.error) return { ok: false, error: result.error.message };
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Sign-in failed.' };
+    }
+  }
+
+  /**
+   * Sign out the current staff session.
+   */
+  async function signOut() {
+    if (!_client) return;
+    await _client.auth.signOut();
+  }
+
+  /**
+   * Insert a new ministry request (called from portal.html).
+   * Returns { ok: true, data: row } or { ok: false, error: '...' }
+   */
+  async function insertRequest(req) {
+    if (!_client) return { ok: false, error: 'Supabase not configured.' };
+    try {
+      var row = _toInsertRow(req);
+      var result = await _client.from('ministry_requests').insert(row).select().single();
+      if (result.error) return { ok: false, error: result.error.message };
+      return { ok: true, data: _fromRow(result.data) };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Insert failed.' };
+    }
+  }
+
+  /**
+   * Public status lookup — calls the SECURITY DEFINER RPC.
+   * Verifies contact server-side; never returns PII or internal notes.
+   * Returns { ok: true, data: {...} } or { ok: false, error: '...' }
+   */
+  async function lookupRequest(requestId, contact) {
+    if (!_client) return { ok: false, error: 'Supabase not configured.' };
+    try {
+      var result = await _client.rpc('lookup_request_status', {
+        p_request_id: requestId,
+        p_contact:    contact || ''
+      });
+      if (result.error) return { ok: false, error: result.error.message };
+      return { ok: true, data: result.data };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Lookup failed.' };
+    }
+  }
+
+  /**
+   * Fetch all ministry requests — staff only (requires authentication).
+   * Returns { ok: true, data: [...] } or { ok: false, error: '...' }
+   */
+  async function getRequests() {
+    if (!_client)         return { ok: false, error: 'Supabase not configured.' };
+    if (!isAuthenticated()) return { ok: false, error: 'Not authenticated.' };
+    try {
+      var result = await _client
+        .from('ministry_requests')
+        .select('*')
+        .order('submitted_at', { ascending: false });
+      if (result.error) return { ok: false, error: result.error.message };
+      return { ok: true, data: (result.data || []).map(_fromRow) };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Fetch failed.' };
+    }
+  }
+
+  /**
+   * Update a ministry request — staff only.
+   * fields: { status, urgency, assignedTo, followUpDate, internalNotes }
+   * Returns { ok: true } or { ok: false, error: '...' }
+   */
+  async function updateRequest(requestId, fields) {
+    if (!_client)         return { ok: false, error: 'Supabase not configured.' };
+    if (!isAuthenticated()) return { ok: false, error: 'Not authenticated.' };
+    try {
+      var updates = {};
+      if (fields.status        !== undefined) updates.status         = fields.status;
+      if (fields.urgency       !== undefined) updates.urgency        = fields.urgency;
+      if (fields.assignedTo    !== undefined) updates.assigned_to    = fields.assignedTo;
+      if (fields.followUpDate  !== undefined) updates.follow_up_date = fields.followUpDate || null;
+      if (fields.internalNotes !== undefined) updates.internal_notes = fields.internalNotes;
+      // last_updated is handled by the database trigger
+
+      var result = await _client
+        .from('ministry_requests')
+        .update(updates)
+        .eq('request_id', requestId);
+      if (result.error) return { ok: false, error: result.error.message };
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Update failed.' };
+    }
+  }
+
+  /**
+   * Notify staff of a new ministry request via the Edge Function.
+   * Called after a successful insertRequest() from the portal.
+   * Fire-and-forget safe — returns {ok, error} but never throws.
+   *
+   * Passes only the data the portal already holds (no PII leak).
+   * Private prayer requests: isPrivate flag triggers redaction in the function.
+   */
+  async function notifyNewRequest(req) {
+    if (!_client) return { ok: false, error: 'Supabase not configured.' };
+    var d = req.data || {};
+    var payload = {
+      requestId:   req.requestId,
+      type:        req.type,
+      typeName:    req.typeName,
+      urgency:     req.urgency    || 'Medium',
+      submittedAt: req.submittedAt || new Date().toISOString(),
+      isPrivate:   d.isPrivate === true,
+      data: {
+        name:              d.name            || '',
+        phone:             d.phone           || '',
+        email:             d.email           || '',
+        // Type-specific summary fields (no internal notes — they never reach the portal)
+        request:           d.request         || '',   // prayer
+        contactMethod:     d.contactMethod   || '',   // prayer / help
+        helpType:          d.helpType        || '',   // help
+        description:       d.description     || '',   // help
+        householdSize:     d.householdSize   || '',   // help / pantry
+        dietaryRestrictions: d.dietaryRestrictions || '', // pantry
+        pickupDay:         d.pickupDay       || '',   // pantry
+        personName:        d.personName      || '',   // pastoral
+        location:          d.location        || '',   // pastoral
+        visitType:         d.visitType       || '',   // pastoral
+        notes:             d.notes           || '',   // pastoral / volunteer
+        interests:         d.interests       || [],   // volunteer
+        availability:      d.availability    || '',   // volunteer
+        skills:            d.skills          || '',   // volunteer
+      },
+    };
+
+    try {
+      var res = await fetch(
+        SUPABASE_URL + '/functions/v1/send-request-notification',
+        {
+          method:  'POST',
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            'apikey':        SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+      if (!res.ok) {
+        var errText = await res.text();
+        console.warn('[SupabaseDB] notifyNewRequest: edge function returned', res.status, errText);
+        return { ok: false, error: 'Edge function returned ' + res.status };
+      }
+      var data = await res.json();
+      return { ok: true, emailId: data.emailId };
+    } catch (err) {
+      console.warn('[SupabaseDB] notifyNewRequest: fetch error:', err.message);
+      return { ok: false, error: err.message || 'Notification fetch failed.' };
+    }
+  }
+
+  /**
+   * Delete a ministry request — staff only.
+   * Returns { ok: true } or { ok: false, error: '...' }
+   */
+  async function deleteRequest(requestId) {
+    if (!_client)         return { ok: false, error: 'Supabase not configured.' };
+    if (!isAuthenticated()) return { ok: false, error: 'Not authenticated.' };
+    try {
+      var result = await _client
+        .from('ministry_requests')
+        .delete()
+        .eq('request_id', requestId);
+      if (result.error) return { ok: false, error: result.error.message };
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Delete failed.' };
+    }
+  }
+
+  // ── Boot ───────────────────────────────────────────────────────
+  _init();
+
+  // ── Exports ────────────────────────────────────────────────────
+  return {
+    isEnabled:        isEnabled,
+    isAuthenticated:  isAuthenticated,
+    getSession:       getSession,
+    onAuthChange:     onAuthChange,
+    signIn:           signIn,
+    signOut:          signOut,
+    insertRequest:    insertRequest,
+    lookupRequest:    lookupRequest,
+    getRequests:      getRequests,
+    updateRequest:    updateRequest,
+    deleteRequest:    deleteRequest,
+    notifyNewRequest: notifyNewRequest,
+  };
+
+}());
+
+window.SupabaseDB = SupabaseDB;
