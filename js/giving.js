@@ -1,0 +1,475 @@
+/* =============================================================
+   giving.js  —  Giving & Stewardship
+   Donation records, pledge campaigns, fund tracking, statements
+   ============================================================= */
+
+(function seedGiving() {
+  if (Storage.get('_giving_seeded')) return;
+  const uid = Storage.uid, today = Storage.today;
+
+  const funds = [
+    { id: uid(), name: 'General Fund', description: 'Day-to-day church operations', color: 'blue', goal: 0, active: true },
+    { id: uid(), name: 'Building Fund', description: 'Facility improvements and mortgage', color: 'green', goal: 50000, active: true },
+    { id: uid(), name: 'Missions Fund', description: 'Local and global mission support', color: 'purple', goal: 12000, active: true },
+    { id: uid(), name: 'Benevolence Fund', description: 'Assistance for families in need', color: 'orange', goal: 5000, active: true },
+    { id: uid(), name: 'Youth Ministry', description: 'Youth events and curriculum', color: 'pink', goal: 8000, active: true },
+  ];
+  Storage.saveAll('giving_funds', funds);
+
+  const members = Storage.getAll('members');
+  const getM = i => members[i % members.length];
+  const donations = [];
+
+  // Generate ~80 donations over the past 6 months
+  const methods = ['Check','Online','Cash','Card','ACH'];
+  const fundIds = funds.map(f=>f.id);
+  const fundWeights = [0.55, 0.20, 0.12, 0.08, 0.05]; // General fund gets most
+
+  for (let i = 0; i < 80; i++) {
+    const daysAgo = Math.floor(Math.random() * 180);
+    const m = getM(i);
+    const fundIdx = Math.random() < 0.55 ? 0 : Math.random() < 0.5 ? 1 : Math.random() < 0.5 ? 2 : Math.random() < 0.5 ? 3 : 4;
+    const baseAmt = fundIdx === 0
+      ? [25,50,75,100,150,200,250,500][Math.floor(Math.random()*8)]
+      : [25,50,100,250,500][Math.floor(Math.random()*5)];
+    donations.push({
+      id: uid(),
+      memberId: m ? m.id : '',
+      memberName: m ? m.name : 'Anonymous',
+      fundId: fundIds[fundIdx],
+      fund: funds[fundIdx].name,
+      amount: baseAmt,
+      method: methods[Math.floor(Math.random()*methods.length)],
+      date: today(-daysAgo),
+      envelope: m ? String(Math.floor(Math.random()*999)+100) : '',
+      note: '',
+      taxDeductible: true,
+      createdAt: today(-daysAgo),
+    });
+  }
+  // A few recurring larger gifts
+  const bigGivers = members.slice(0,4);
+  for (let mo = 0; mo < 6; mo++) {
+    bigGivers.forEach((m, i) => {
+      if (!m) return;
+      donations.push({
+        id: uid(), memberId: m.id, memberName: m.name,
+        fundId: fundIds[0], fund: funds[0].name,
+        amount: [500,750,1000,600][i], method: 'Check',
+        date: today(-(mo*30 + Math.floor(Math.random()*5))),
+        envelope: String(i+10), note: 'Recurring tithe', taxDeductible: true,
+        createdAt: today(-(mo*30)),
+      });
+    });
+  }
+  donations.sort((a,b)=>b.date.localeCompare(a.date));
+  Storage.saveAll('giving_donations', donations);
+  Storage.set('_giving_seeded', true);
+})();
+
+Navigation.register('giving', function render(page) {
+  const today = Storage.today();
+  const thisMonth = today.slice(0,7);
+  const thisYear  = today.slice(0,4);
+  const lastMonth = (() => { const d=new Date(today); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,7); })();
+
+  const donations = Storage.getAll('giving_donations').sort((a,b)=>b.date.localeCompare(a.date));
+  const funds = Storage.getAll('giving_funds').filter(f=>f.active);
+
+  const inMonth = (d,ym) => d && d.startsWith(ym);
+  const sumAmt = arr => arr.reduce((s,d)=>s+(Number(d.amount)||0),0);
+  const fmt = n => '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+
+  const thisMonthDons = donations.filter(d=>inMonth(d.date,thisMonth));
+  const lastMonthDons = donations.filter(d=>inMonth(d.date,lastMonth));
+  const thisYearDons  = donations.filter(d=>d.date.startsWith(thisYear));
+  const monthTotal = sumAmt(thisMonthDons);
+  const lastMonthTotal = sumAmt(lastMonthDons);
+  const yearTotal = sumAmt(thisYearDons);
+  const avgGift = thisMonthDons.length ? monthTotal/thisMonthDons.length : 0;
+  const monthDelta = lastMonthTotal > 0 ? ((monthTotal-lastMonthTotal)/lastMonthTotal*100).toFixed(0) : 0;
+
+  // Fund breakdown for this year
+  const fundTotals = funds.map(f=>({
+    ...f,
+    total: sumAmt(thisYearDons.filter(d=>d.fundId===f.id)),
+    count: thisYearDons.filter(d=>d.fundId===f.id).length,
+  }));
+
+  // 6-month bar chart data
+  const chartLabels=[], chartVals=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(today); d.setMonth(d.getMonth()-i);
+    const ym=d.toISOString().slice(0,7);
+    chartLabels.push(d.toLocaleDateString('en-US',{month:'short'}));
+    chartVals.push(sumAmt(donations.filter(x=>inMonth(x.date,ym))));
+  }
+
+  // Top givers (by year, anonymized option - just show top 5)
+  const giverMap = {};
+  thisYearDons.forEach(d=>{
+    if(!d.memberName||d.memberName==='Anonymous') return;
+    giverMap[d.memberName] = (giverMap[d.memberName]||0) + (Number(d.amount)||0);
+  });
+  const topGivers = Object.entries(giverMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  const accentColor = { blue:'var(--blue)', green:'var(--green)', purple:'var(--purple)', orange:'var(--orange)', pink:'var(--pink,#ec4899)' };
+
+  let activeTab = Storage.get('_giving_tab') || 'overview';
+  function setTab(t) { Storage.set('_giving_tab',t); activeTab=t; renderContent(); }
+
+  function renderContent() {
+    const tabs = document.getElementById('giving-tabs');
+    if(tabs) tabs.querySelectorAll('.tab-btn').forEach(b=>{ b.classList.toggle('active',b.dataset.tab===activeTab); });
+    const body = document.getElementById('giving-body');
+    if(!body) return;
+
+    if(activeTab==='overview') {
+      body.innerHTML = `
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:24px;">
+          <!-- Monthly trend chart -->
+          <div class="card" style="grid-column:1/-1">
+            <div class="card-header"><h3 class="card-title">📈 Monthly Giving — Last 6 Months</h3></div>
+            <canvas id="giving-trend-chart" height="100"></canvas>
+          </div>
+          <!-- Fund breakdown -->
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">🗂 Year-to-Date by Fund</h3></div>
+            ${fundTotals.map(f=>`
+              <div style="margin-bottom:14px;">
+                <div style="display:flex;justify-content:space-between;font-size:.82rem;font-weight:700;margin-bottom:4px;">
+                  <span>${f.name}</span>
+                  <span>${fmt(f.total)}</span>
+                </div>
+                ${f.goal>0 ? `
+                  <div class="progress-bar-track" style="margin-bottom:2px;">
+                    <div class="progress-bar-fill" style="width:${Math.min(100,Math.round(f.total/f.goal*100))}%;background:${accentColor[f.color]||'var(--accent)'}"></div>
+                  </div>
+                  <div style="font-size:.7rem;color:var(--text-muted)">${Math.round(f.total/f.goal*100)}% of ${fmt(f.goal)} goal · ${f.count} gifts</div>
+                ` : `<div style="font-size:.7rem;color:var(--text-muted)">${f.count} gifts this year</div>`}
+              </div>`).join('')}
+          </div>
+          <!-- Top givers -->
+          <div class="card">
+            <div class="card-header"><h3 class="card-title">🏅 Top Givers — YTD</h3><span style="font-size:.72rem;color:var(--text-muted)">Confidential</span></div>
+            ${topGivers.length ? topGivers.map(([name,total],i)=>`
+              <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
+                <div style="width:22px;height:22px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900">${i+1}</div>
+                <div style="flex:1;font-size:.86rem;font-weight:600">${UI.esc(name)}</div>
+                <div style="font-size:.86rem;font-weight:800;color:var(--green)">${fmt(total)}</div>
+              </div>`).join('') : '<div style="color:var(--text-muted);font-size:.86rem;text-align:center;padding:20px">No data yet</div>'}
+          </div>
+        </div>`;
+      setTimeout(()=>UI.drawBarChart('giving-trend-chart',chartLabels,chartVals,'var(--green)'),30);
+
+    } else if(activeTab==='donations') {
+      body.innerHTML = `
+        <div class="toolbar" style="margin-bottom:16px;">
+          <div class="search-input-wrap"><span class="search-icon">🔍</span><input type="text" class="search-input" id="giving-search" placeholder="Search donor, fund…"></div>
+          <select class="filter-select" id="giving-fund-filter">
+            <option value="">All Funds</option>
+            ${funds.map(f=>`<option value="${f.id}">${f.name}</option>`).join('')}
+          </select>
+          <button class="btn btn-primary" onclick="Giving.add()">+ Add Gift</button>
+        </div>
+        <div class="table-wrap" id="giving-table-wrap"></div>`;
+      function thIcon(key){const {col,dir}=Giving._sort;if(col!==key)return`<span style="opacity:.25;font-size:.7rem;margin-left:3px">↕</span>`;return`<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'↑':'↓'}</span>`;}
+      function th(label,key){const active=Giving._sort.col===key;return`<th style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent);':''}" onclick="Giving.sortBy('${key}')">${label}${thIcon(key)}</th>`;}
+      function filteredDons(){
+        const q=document.getElementById('giving-search')?.value.toLowerCase()||'';
+        const fid=document.getElementById('giving-fund-filter')?.value||'';
+        return donations.filter(d=>{
+          const txt=`${d.memberName} ${d.fund} ${d.note} ${d.method}`.toLowerCase();
+          return txt.includes(q)&&(!fid||d.fundId===fid);
+        });
+      }
+      function renderRows(data) {
+        const wrap=document.getElementById('giving-table-wrap'); if(!wrap) return;
+        const {col,dir}=Giving._sort;
+        if(col){
+          data=[...data];
+          const numCols=new Set(['amount']);
+          data.sort((a,b)=>{let av=a[col],bv=b[col];if(av==null||av==='')return 1;if(bv==null||bv==='')return -1;const cmp=numCols.has(col)?Number(av)-Number(bv):String(av).localeCompare(String(bv));return dir==='asc'?cmp:-cmp;});
+        }
+        wrap.innerHTML=`<table class="data-table"><thead><tr>${th('Date','date')}${th('Donor','memberName')}${th('Fund','fund')}${th('Amount','amount')}${th('Method','method')}${th('Note','note')}<th></th></tr></thead><tbody>${
+          data.slice(0,100).map(d=>`
+          <tr>
+            <td>${UI.fmtDate(d.date)}</td>
+            <td style="font-weight:600">${UI.esc(d.memberName||'Anonymous')}</td>
+            <td>${UI.esc(d.fund)}</td>
+            <td style="font-weight:800;color:var(--green)">${fmt(d.amount)}</td>
+            <td><span style="font-size:.76rem">${UI.esc(d.method||'')}</span></td>
+            <td style="font-size:.76rem;color:var(--text-muted)">${UI.esc(d.note||'')}</td>
+            <td><button class="btn btn-ghost btn-sm" onclick="Giving.edit('${d.id}')">Edit</button>
+                <button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Remove giving record" onclick="Giving.remove('${d.id}')">×</button></td>
+          </tr>`).join('')}</tbody></table>`;
+      }
+      renderRows(donations);
+      document.getElementById('giving-search')?.addEventListener('input', ()=>renderRows(filteredDons()));
+      document.getElementById('giving-fund-filter')?.addEventListener('change', ()=>renderRows(filteredDons()));
+      Giving._rerender = ()=>renderRows(filteredDons());
+
+    } else if(activeTab==='funds') {
+      const allFunds = Storage.getAll('giving_funds');
+      body.innerHTML = `
+        <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+          <button class="btn btn-primary" onclick="Giving.addFund()">+ New Fund</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;">
+          ${allFunds.map(f=>{
+            const ytd=sumAmt(thisYearDons.filter(d=>d.fundId===f.id));
+            const pct=f.goal>0?Math.min(100,Math.round(ytd/f.goal*100)):null;
+            return `<div class="card">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+                <div style="width:10px;height:10px;border-radius:50%;background:${accentColor[f.color]||'var(--accent)'}"></div>
+                <div style="font-weight:800">${UI.esc(f.name)}</div>
+                ${UI.badge(f.active?'Active':'Inactive',f.active?'green':'gray')}
+              </div>
+              <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:10px;">${UI.esc(f.description||'')}</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--green);margin-bottom:4px;">${fmt(ytd)}</div>
+              <div style="font-size:.76rem;color:var(--text-muted);margin-bottom:8px;">Year-to-date</div>
+              ${pct!==null?`
+                <div class="progress-bar-track" style="margin-bottom:4px;">
+                  <div class="progress-bar-fill" style="width:${pct}%;background:${accentColor[f.color]||'var(--accent)'}"></div>
+                </div>
+                <div style="font-size:.72rem;color:var(--text-muted)">${pct}% of ${fmt(f.goal)} goal</div>`:''}
+              <div style="margin-top:12px;display:flex;gap:6px;">
+                <button class="btn btn-ghost btn-sm" onclick="Giving.editFund('${f.id}')">Edit</button>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>`;
+
+    } else if(activeTab==='statements') {
+      const memberDons = {};
+      thisYearDons.forEach(d => {
+        if(!d.memberName||d.memberName==='Anonymous') return;
+        if(!memberDons[d.memberName]) memberDons[d.memberName]={ name:d.memberName, total:0, count:0, gifts:[] };
+        memberDons[d.memberName].total += Number(d.amount)||0;
+        memberDons[d.memberName].count++;
+        memberDons[d.memberName].gifts.push(d);
+      });
+      const stmtList = Object.values(memberDons).sort((a,b)=>b.total-a.total);
+      body.innerHTML = `
+        <div style="font-size:.84rem;color:var(--text-muted);margin-bottom:16px;">
+          Year-to-date giving summaries for <strong>${thisYear}</strong>. Click a member to view their full giving history.
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Donor</th><th>Gifts</th><th>YTD Total</th><th>Largest Gift</th><th>Last Gift</th><th></th></tr></thead>
+            <tbody>
+              ${stmtList.map(s=>{
+                const largest=Math.max(...s.gifts.map(g=>Number(g.amount)||0));
+                const lastDate=s.gifts.sort((a,b)=>b.date.localeCompare(a.date))[0]?.date||'';
+                return `<tr>
+                  <td style="font-weight:700">${UI.esc(s.name)}</td>
+                  <td>${s.count}</td>
+                  <td style="font-weight:900;color:var(--green)">${fmt(s.total)}</td>
+                  <td>${fmt(largest)}</td>
+                  <td>${UI.fmtDate(lastDate)}</td>
+                  <td><button class="btn btn-ghost btn-sm" onclick="Giving.viewStatement('${encodeURIComponent(s.name)}')">View</button></td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    }
+  }
+
+  page.innerHTML = `
+    <div class="section-header">
+      <div>
+        <h2 class="section-title">💰 Giving & Stewardship</h2>
+        <div class="section-subtitle">Donation tracking · Fund management · Giving statements</div>
+      </div>
+      <button class="btn btn-primary" onclick="Giving.add()">+ Record Gift</button>
+    </div>
+
+    <div class="stat-grid" style="margin-bottom:20px;">
+      <div class="stat-card" data-accent="green">
+        <div class="stat-icon">💵</div>
+        <div class="stat-value">${fmt(monthTotal)}</div>
+        <div class="stat-label">This Month</div>
+        <div class="stat-delta ${monthDelta>0?'up':monthDelta<0?'down':'flat'}">${monthDelta>0?'+':''}${monthDelta}% vs last month</div>
+      </div>
+      <div class="stat-card" data-accent="blue">
+        <div class="stat-icon">📅</div>
+        <div class="stat-value">${fmt(yearTotal)}</div>
+        <div class="stat-label">Year to Date</div>
+      </div>
+      <div class="stat-card" data-accent="purple">
+        <div class="stat-icon">🎁</div>
+        <div class="stat-value">${thisMonthDons.length}</div>
+        <div class="stat-label">Gifts This Month</div>
+      </div>
+      <div class="stat-card" data-accent="orange">
+        <div class="stat-icon">📊</div>
+        <div class="stat-value">${fmt(avgGift)}</div>
+        <div class="stat-label">Avg Gift (This Month)</div>
+      </div>
+    </div>
+
+    <div id="giving-tabs" style="display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap;">
+      ${[['overview','📊 Overview'],['donations','📋 All Donations'],['funds','🗂 Funds'],['statements','📄 Statements']].map(([t,l])=>`
+        <button class="tab-btn${activeTab===t?' active':''}" data-tab="${t}" onclick="Giving._setTab('${t}')">${l}</button>`).join('')}
+    </div>
+
+    <div id="giving-body"></div>
+  `;
+
+  renderContent();
+});
+
+const Giving = {
+  _state: { search: '' },
+  _rerender() {
+    const _s = document.getElementById('giving-search');
+    if (_s) Giving._state.search = _s.value;
+    Giving._rerender();
+    const _ns = document.getElementById('giving-search');
+    if (_ns && Giving._state.search) { _ns.value = Giving._state.search; _ns.dispatchEvent(new Event('input')); }
+  },
+  _sort: { col: null, dir: 'asc' },
+  _rerender: null,
+  sortBy(col) {
+    if(this._sort.col===col) this._sort.dir=this._sort.dir==='asc'?'desc':'asc';
+    else { this._sort.col=col; this._sort.dir='asc'; }
+    this._rerender?.();
+  },
+  _setTab(t) { Storage.set('_giving_tab',t); Giving._state.search = ''; Navigation.navigate('giving'); },
+  _form(d={}) {
+    const funds = Storage.getAll('giving_funds').filter(f=>f.active);
+    const members = Storage.getAll('members');
+    return `
+      <div class="form-row">
+        <div class="form-group" style="flex:2"><label class="form-label">Donor Name</label>
+          <input class="form-control" id="g-name" list="g-member-list" value="${UI.esc(d.memberName||'')}" placeholder="Type or select member…">
+          <datalist id="g-member-list">${members.map(m=>`<option value="${UI.esc(m.name)}">`).join('')}</datalist>
+        </div>
+        <div class="form-group"><label class="form-label">Envelope #</label><input class="form-control" id="g-env" value="${UI.esc(d.envelope||'')}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Amount *</label><input class="form-control" id="g-amt" type="number" min="0" step="0.01" value="${d.amount||''}"></div>
+        <div class="form-group"><label class="form-label">Date *</label><input class="form-control" id="g-date" type="date" value="${d.date||Storage.today()}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Fund</label>
+          <select class="form-control" id="g-fund">
+            ${funds.map(f=>`<option value="${f.id}" ${d.fundId===f.id?'selected':''}>${f.name}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group"><label class="form-label">Method</label>
+          <select class="form-control" id="g-method">
+            ${['Check','Online','Cash','Card','ACH','Other'].map(m=>`<option ${(d.method||'Check')===m?'selected':''}>${m}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Note</label><input class="form-control" id="g-note" value="${UI.esc(d.note||'')}"></div>`;
+  },
+  _collect() {
+    const v=id=>document.getElementById(id)?.value?.trim()||'';
+    const fund = Storage.getAll('giving_funds').find(f=>f.id===v('g-fund'));
+    return {
+      memberName:v('g-name')||'Anonymous', envelope:v('g-env'),
+      amount:parseFloat(v('g-amt'))||0, date:v('g-date'),
+      fundId:v('g-fund'), fund:fund?.name||'', method:v('g-method'), note:v('g-note'),
+      taxDeductible:true,
+    };
+  },
+  add() {
+    Modal.open({ title:'💰 Record Gift', body:this._form(), width:'500px',
+      footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
+              <button class="btn btn-primary" id="save-g-btn">Save</button>` });
+    document.getElementById('save-g-btn').onclick=()=>{
+      const d=this._collect();
+      if(!Validate.check([
+        ['g-amt',  Validate.positiveNumber(document.getElementById('g-amt')?.value,'Amount')],
+        ['g-date', Validate.required(d.date,'Date')],
+      ])) return;
+      var _saved = Storage.insert('giving_donations',d);
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('giving_donations', _saved).catch(function(e){console.warn('[Sync]',e);});
+      Modal.close(); Toast.success('Gift recorded'); Giving._rerender();
+    };
+  },
+  edit(id) {
+    const d=Storage.findById('giving_donations',id); if(!d) return;
+    Modal.open({ title:'Edit Gift', body:this._form(d), width:'500px',
+      footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
+              <button class="btn btn-primary" id="save-g-btn">Save</button>` });
+    document.getElementById('save-g-btn').onclick=()=>{
+      var _updated = Storage.update('giving_donations',id,this._collect());
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updated) SupabaseDB.tableUpsert('giving_donations', _updated).catch(function(e){console.warn('[Sync]',e);});
+      Modal.close(); Toast.success('Updated'); Giving._rerender();
+    };
+  },
+  remove(id) {
+    UI.confirm('Delete this donation record?',()=>{
+      Storage.removeItem('giving_donations',id);
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('giving_donations', id).catch(function(e){console.warn('[Sync]',e);});
+      Toast.success('Deleted'); Giving._rerender();
+    });
+  },
+  addFund() {
+    const colors=['blue','green','purple','orange','pink'];
+    Modal.open({ title:'🗂 New Fund', width:'440px', body:`
+      <div class="form-group"><label class="form-label">Fund Name *</label><input class="form-control" id="f-name"></div>
+      <div class="form-group"><label class="form-label">Description</label><input class="form-control" id="f-desc"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Annual Goal ($)</label><input class="form-control" id="f-goal" type="number" min="0" value="0"></div>
+        <div class="form-group"><label class="form-label">Color</label>
+          <select class="form-control" id="f-color">${colors.map(c=>`<option>${c}</option>`).join('')}</select>
+        </div>
+      </div>`,
+      footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
+              <button class="btn btn-primary" id="save-f-btn">Create Fund</button>` });
+    document.getElementById('save-f-btn').onclick=()=>{
+      const n=document.getElementById('f-name')?.value?.trim();
+      if(!Validate.check([['f-name', Validate.required(n,'Fund name')]])) return;
+      var _savedFund = Storage.insert('giving_funds',{ name:n, description:document.getElementById('f-desc')?.value?.trim()||'', goal:parseFloat(document.getElementById('f-goal')?.value)||0, color:document.getElementById('f-color')?.value||'blue', active:true });
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableUpsert('giving_funds', _savedFund).catch(function(e){console.warn('[Sync]',e);});
+      Modal.close(); Toast.success('Fund created'); Giving._rerender();
+    };
+  },
+  editFund(id) {
+    const f=Storage.findById('giving_funds',id); if(!f) return;
+    const colors=['blue','green','purple','orange','pink'];
+    Modal.open({ title:'Edit Fund', width:'440px', body:`
+      <div class="form-group"><label class="form-label">Fund Name *</label><input class="form-control" id="f-name" value="${UI.esc(f.name)}"></div>
+      <div class="form-group"><label class="form-label">Description</label><input class="form-control" id="f-desc" value="${UI.esc(f.description||'')}"></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Annual Goal ($)</label><input class="form-control" id="f-goal" type="number" min="0" value="${f.goal||0}"></div>
+        <div class="form-group"><label class="form-label">Color</label>
+          <select class="form-control" id="f-color">${colors.map(c=>`<option ${f.color===c?'selected':''}>${c}</option>`).join('')}</select>
+        </div>
+      </div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-control" id="f-active"><option value="true" ${f.active?'selected':''}>Active</option><option value="false" ${!f.active?'selected':''}>Inactive</option></select>
+      </div>`,
+      footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
+              <button class="btn btn-primary" id="save-f-btn">Save</button>` });
+    document.getElementById('save-f-btn').onclick=()=>{
+      const n=document.getElementById('f-name')?.value?.trim();
+      if(!Validate.check([['f-name', Validate.required(n,'Fund name')]])) return;
+      var _updatedFund = Storage.update('giving_funds',id,{ name:n, description:document.getElementById('f-desc')?.value?.trim()||'', goal:parseFloat(document.getElementById('f-goal')?.value)||0, color:document.getElementById('f-color')?.value||'blue', active:document.getElementById('f-active')?.value==='true' });
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && _updatedFund) SupabaseDB.tableUpsert('giving_funds', _updatedFund).catch(function(e){console.warn('[Sync]',e);});
+      Modal.close(); Toast.success('Updated'); Giving._rerender();
+    };
+  },
+  viewStatement(encodedName) {
+    const name = decodeURIComponent(encodedName);
+    const year = Storage.today().slice(0,4);
+    const gifts = Storage.getAll('giving_donations').filter(d=>d.memberName===name && d.date.startsWith(year)).sort((a,b)=>b.date.localeCompare(a.date));
+    const fmt = n => '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const total = gifts.reduce((s,d)=>s+(Number(d.amount)||0),0);
+    Modal.open({ title:`📄 Giving Statement — ${name}`, width:'520px', body:`
+      <div style="font-size:.84rem;margin-bottom:12px;color:var(--text-muted)">Tax Year ${year} · ${gifts.length} gifts · <strong style="color:var(--green)">${fmt(total)} total</strong></div>
+      <div class="table-wrap" style="max-height:300px;overflow-y:auto;"><table class="data-table"><thead><tr><th>Date</th><th>Fund</th><th>Amount</th><th>Method</th></tr></thead>
+      <tbody>${gifts.map(d=>`<tr><td>${UI.fmtDate(d.date)}</td><td>${UI.esc(d.fund||'General')}</td><td style="font-weight:700;color:var(--green)">${fmt(d.amount)}</td><td>${UI.esc(d.method||'')}</td></tr>`).join('')}</tbody>
+      </table></div>
+      <div style="margin-top:12px;padding:10px;background:var(--surface-2);border-radius:8px;text-align:right;font-size:.9rem;">
+        <strong>Total: <span style="color:var(--green)">${fmt(total)}</span></strong>
+      </div>`,
+      footer:`<button class="btn btn-outline" onclick="Modal.close()">Close</button>` });
+  },
+};
+window.Giving = Giving;
