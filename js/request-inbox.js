@@ -468,7 +468,7 @@ const RequestInbox = {
         </div>
         <div class="form-group">
           <button class="btn btn-outline" id="draft-btn" type="button">✨ Draft a Response</button>
-          <textarea class="form-control" id="draft-output" rows="6"
+          <textarea class="form-control" id="draft-output" rows="9"
             placeholder="AI draft will appear here. Fill in the [placeholders] with the real details before sending."
             style="margin-top:8px;display:none;"></textarea>
           <button class="btn btn-ghost btn-sm" id="draft-copy" type="button" style="display:none;margin-top:4px;">Copy draft</button>
