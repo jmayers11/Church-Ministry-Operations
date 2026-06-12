@@ -361,6 +361,8 @@ var SupabaseDB = (function () {
     'volunteers':        'volunteers',
     'vol_hours':         'volunteer_hours',
     'pantry_inventory':  'pantry_inventory',
+    'pantry_box_templates': 'pantry_box_templates',
+    'pantry_box_orders':    'pantry_box_orders',
     'foodpantry':        'pantry_distributions',
     'family_assistance': 'family_assistance',
     'events':            'events',
