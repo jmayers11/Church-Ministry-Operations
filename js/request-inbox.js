@@ -467,6 +467,17 @@ const RequestInbox = {
           </div>
         </div>
         <div class="form-group">
+          <button class="btn btn-outline" id="draft-btn" type="button">✨ Draft a Response</button>
+          <textarea class="form-control" id="draft-output" rows="6"
+            placeholder="AI draft will appear here. Fill in the [placeholders] with the real details before sending."
+            style="margin-top:8px;display:none;"></textarea>
+          <button class="btn btn-ghost btn-sm" id="draft-copy" type="button" style="display:none;margin-top:4px;">Copy draft</button>
+          <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px;">
+            Template only — no personal info is sent to the AI. Personalize the [brackets] before sending.
+          </div>
+        </div>
+
+        <div class="form-group">
           <label class="form-label">Internal Notes <span style="font-size:.72rem;color:var(--text-muted)">(not visible to requester)</span></label>
           <textarea class="form-control" id="req-notes" rows="3">${UI.esc(r.internalNotes||'')}</textarea>
         </div>
@@ -507,6 +518,35 @@ const RequestInbox = {
       Modal.close();
       Toast.success('Request updated');
       RequestInbox._rerender?.();
+    };
+
+    // ── AI Draft a Response ──────────────────────────────────────
+    const draftBtn  = document.getElementById('draft-btn');
+    const draftOut  = document.getElementById('draft-output');
+    const draftCopy = document.getElementById('draft-copy');
+
+    if (draftBtn) draftBtn.onclick = async () => {
+      draftBtn.disabled = true; draftBtn.textContent = '✨ Drafting…';
+      const res = await SupabaseDB.draftResponse({
+        type:      r.type,
+        typeName:  r.typeName,
+        helpType:  d.helpType,
+        urgency:   r.urgency,
+        visitType: d.visitType,
+      });
+      draftBtn.disabled = false; draftBtn.textContent = '✨ Draft a Response';
+      if (res.ok) {
+        draftOut.value = res.draft;
+        draftOut.style.display = 'block';
+        draftCopy.style.display = 'inline-block';
+      } else {
+        Toast.error('Draft failed: ' + res.error);
+      }
+    };
+
+    if (draftCopy) draftCopy.onclick = () => {
+      navigator.clipboard?.writeText(draftOut.value);
+      Toast.success('Draft copied');
     };
   },
 
