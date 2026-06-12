@@ -56,6 +56,23 @@ Navigation.register('dashboard', function render(page) {
     .slice(0, 5);
   const visitorBadgeMap = { New: 'warning', Contacted: 'info', 'Invited Back': 'brand', Connected: 'success' };
 
+  // Pantry Health tile (only when FPRP + pantry data exist)
+  let pantryKpi = '';
+  const pantrySnap = (typeof FPRP !== 'undefined') ? FPRP.pantrySnapshot() : null;
+  if (pantrySnap && pantrySnap.hasData) {
+    const phStatus = pantrySnap.score >= 85 ? 'Healthy' : pantrySnap.score >= 70 ? 'Stable' : 'At risk';
+    pantryKpi = UI.kpi({
+      icon: 'shopping-basket',
+      value: pantrySnap.score,
+      label: 'Pantry Health',
+      meta: `${pantrySnap.topBox.maxBuild} ${pantrySnap.topBox.name} ready · serves ~${pantrySnap.projFamilies} families`,
+      delta: phStatus,
+      deltaDir: pantrySnap.score >= 85 ? 'up' : pantrySnap.score >= 70 ? 'flat' : 'down',
+      onClickPage: 'foodpantry',
+      accent: pantrySnap.score >= 85 ? 'success' : pantrySnap.score >= 70 ? 'warning' : 'danger',
+    });
+  }
+
   page.innerHTML = `
     <div class="section-header">
       <div>
@@ -130,6 +147,7 @@ Navigation.register('dashboard', function render(page) {
         onClickPage: 'tasks',
         accent: openTasks > 5 ? 'danger' : 'brand',
       })}
+      ${pantryKpi}
     </div>
 
     <!-- Charts row -->

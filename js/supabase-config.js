@@ -363,6 +363,7 @@ var SupabaseDB = (function () {
     'pantry_inventory':  'pantry_inventory',
     'pantry_box_templates': 'pantry_box_templates',
     'pantry_box_orders':    'pantry_box_orders',
+    'pantry_substitutions': 'pantry_substitutions',
     'foodpantry':        'pantry_distributions',
     'family_assistance': 'family_assistance',
     'events':            'events',

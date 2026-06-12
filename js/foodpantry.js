@@ -438,12 +438,14 @@ Navigation.register('foodpantry', function render(page) {
     }
     if (activeTab === 'boxbuilder') return renderBoxBuilder();
     if (activeTab === 'boxorders')  return renderBoxOrders();
+    if (activeTab === 'planning')   return (typeof FPRP !== 'undefined' ? FPRP.renderPlanning() : '');
     return '';
   }
 
   const tabList = [
     ['inventory','📦 Inventory'],['distributions','📋 Distributions'],
     ['lowstock','⚠️ Alerts'],['boxbuilder','🔨 Box Builder'],['boxorders','🧾 Box Orders'],
+    ['planning','📊 Planning'],
   ];
 
   page.innerHTML = `
