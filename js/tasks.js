@@ -134,7 +134,7 @@ Navigation.register('tasks', function render(page) {
       }
 
       function thIcon(key){const {col,dir}=Tasks._sort;if(col!==key)return`<span style="opacity:.25;font-size:.7rem;margin-left:3px">↕</span>`;return`<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'↑':'↓'}</span>`;}
-      function thL(label,key){const active=Tasks._sort.col===key;return`<th style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent);':''}" onclick="Tasks.sortBy('${key}')">${label}${thIcon(key)}</th>`;}
+      function thL(label,key){const {col,dir}=Tasks._sort;const active=col===key;const aSort=active?(dir==='asc'?'ascending':'descending'):'none';return`<th aria-sort="${aSort}" style="white-space:nowrap;${active?'color:var(--accent);':''}"><button type="button" class="sort-btn" onclick="Tasks.sortBy('${key}')">${label}${thIcon(key)}</button></th>`;}
 
       function renderListTable(data) {
         const wrap = document.getElementById('task-list-wrap');

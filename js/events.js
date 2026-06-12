@@ -4,9 +4,23 @@
 
 Navigation.register('events', function render(page) {
   const events  = Storage.getAll('events');
+  const rsvps   = Storage.getAll('event_rsvps') || [];
   const today   = Storage.today();
   const upcoming = events.filter(e => e.date >= today).sort((a,b) => a.date.localeCompare(b.date));
   const past     = events.filter(e => e.date < today).sort((a,b) => b.date.localeCompare(a.date));
+
+  function rsvpCount(eventId) { return rsvps.filter(r => r.eventId === eventId).length; }
+  function rsvpBar(eventId, capacity) {
+    if (!capacity) return '';
+    const count = rsvpCount(eventId);
+    const pct   = Math.min(100, Math.round((count / capacity) * 100));
+    const color = pct >= 100 ? 'var(--red)' : pct >= 75 ? 'var(--orange)' : 'var(--green)';
+    return `<div style="margin-top:3px;font-size:.7rem;color:var(--text-muted)">RSVP: ${count}/${capacity}
+      <div style="height:4px;background:var(--border);border-radius:2px;margin-top:2px">
+        <div style="height:4px;width:${pct}%;background:${color};border-radius:2px;transition:width .3s"></div>
+      </div>
+    </div>`;
+  }
 
   function thIcon(key) {
     const {col,dir}=Events._sort;
@@ -14,8 +28,8 @@ Navigation.register('events', function render(page) {
     return `<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'↑':'↓'}</span>`;
   }
   function th(label,key) {
-    const active=Events._sort.col===key;
-    return `<th style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent);':''}" onclick="Events.sortBy('${key}')">${label}${thIcon(key)}</th>`;
+    const {col,dir}=Events._sort;const active=col===key;const aSort=active?(dir==='asc'?'ascending':'descending'):'none';
+    return `<th aria-sort="${aSort}" style="white-space:nowrap;${active?'color:var(--accent);':''}"><button type="button" class="sort-btn" onclick="Events.sortBy('${key}')">${label}${thIcon(key)}</button></th>`;
   }
   function renderTable(data, wrapId) {
     const wrap = document.getElementById(wrapId);
@@ -37,7 +51,7 @@ Navigation.register('events', function render(page) {
     }
     wrap.innerHTML = `<table><thead><tr>
       ${th('Event','name')}${th('Date','date')}${th('Time','time')}${th('Location','location')}
-      ${th('Volunteers','volunteersNeeded')}${th('Budget','budget')}${th('Attendance','attendance')}<th>Actions</th>
+      ${th('Volunteers','volunteersNeeded')}${th('Budget','budget')}${th('Attendance','attendance')}<th>RSVP</th><th>Actions</th>
     </tr></thead><tbody>${data.map(e => `
       <tr>
         <td>
@@ -50,9 +64,15 @@ Navigation.register('events', function render(page) {
         <td style="text-align:center">${e.volunteersNeeded}</td>
         <td>${e.budget > 0 ? '$' + e.budget.toLocaleString() : '—'}</td>
         <td>${e.attendance > 0 ? e.attendance : '—'}</td>
-        <td>
+        <td style="min-width:110px">
+          ${e.capacity > 0
+            ? rsvpBar(e.id, e.capacity)
+            : `<span style="font-size:.74rem;color:var(--text-muted)">${rsvpCount(e.id)} RSVPs</span>`}
+        </td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-sm" onclick="Events.rsvpModal('${e.id}')">RSVPs</button>
           <button class="btn btn-ghost btn-sm" onclick="Events.edit('${e.id}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="Events.remove('${e.id}')">Delete</button>
+          <button class="btn btn-ghost btn-sm text-danger" onclick="Events.remove('${e.id}')">Delete</button>
         </td>
       </tr>`).join('')}</tbody></table>`;
   }
@@ -68,36 +88,36 @@ Navigation.register('events', function render(page) {
 
     <div class="stat-grid" style="margin-bottom:24px;">
       <div class="stat-card" data-accent="blue">
-        <div class="stat-icon">📅</div>
+        <div class="stat-icon"><i data-lucide="calendar" aria-hidden="true"></i></div>
         <div class="stat-value">${upcoming.length}</div>
         <div class="stat-label">Upcoming Events</div>
       </div>
       <div class="stat-card" data-accent="green">
-        <div class="stat-icon">🙌</div>
+        <div class="stat-icon"><i data-lucide="heart-handshake" aria-hidden="true"></i></div>
         <div class="stat-value">${upcoming.reduce((s,e) => s + (e.volunteersNeeded||0), 0)}</div>
         <div class="stat-label">Volunteers Needed</div>
       </div>
       <div class="stat-card" data-accent="purple">
-        <div class="stat-icon">💰</div>
+        <div class="stat-icon"><i data-lucide="dollar-sign" aria-hidden="true"></i></div>
         <div class="stat-value">$${upcoming.reduce((s,e) => s + (e.budget||0), 0).toLocaleString()}</div>
         <div class="stat-label">Total Budget</div>
       </div>
       <div class="stat-card" data-accent="orange">
-        <div class="stat-icon">👥</div>
+        <div class="stat-icon"><i data-lucide="users" aria-hidden="true"></i></div>
         <div class="stat-value">${past.reduce((s,e) => s + (e.attendance||0), 0).toLocaleString()}</div>
         <div class="stat-label">Total Attendance (past)</div>
       </div>
     </div>
 
     <!-- Upcoming Events -->
-    <div style="margin-bottom:28px;">
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:12px;">📅 Upcoming Events</h3>
+    <div style="margin-bottom:var(--space-7)">
+      <h3 style="font-size:var(--text-base);font-weight:700;margin-bottom:var(--space-3)"><i data-lucide="calendar" class="icon-inline" aria-hidden="true"></i>Upcoming Events</h3>
       <div class="table-wrap" id="upcoming-table-wrap"></div>
     </div>
 
     <!-- Past Events -->
     <div>
-      <h3 style="font-size:.95rem;font-weight:700;margin-bottom:12px;">📁 Past Events</h3>
+      <h3 style="font-size:var(--text-base);font-weight:700;margin-bottom:var(--space-3)"><i data-lucide="folder" class="icon-inline" aria-hidden="true"></i>Past Events</h3>
       <div class="table-wrap" id="past-table-wrap"></div>
     </div>
   `;
@@ -138,11 +158,12 @@ const Events = {
       </div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Actual Attendance</label><input class="form-control" id="ev-att" type="number" min="0" value="${e.attendance||0}"></div>
-        <div class="form-group"><label class="form-label">Recurring</label>
-          <select class="form-control" id="ev-rec">
-            ${['None','Weekly','Bi-weekly','Monthly','Annual'].map(r=>`<option ${e.recurring===r?'selected':''}>${r}</option>`).join('')}
-          </select>
-        </div>
+        <div class="form-group"><label class="form-label">Capacity (RSVP limit)</label><input class="form-control" id="ev-cap" type="number" min="0" placeholder="0 = unlimited" value="${e.capacity||0}"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Recurring</label>
+        <select class="form-control" id="ev-rec">
+          ${['None','Weekly','Bi-weekly','Monthly','Annual'].map(r=>`<option ${e.recurring===r?'selected':''}>${r}</option>`).join('')}
+        </select>
       </div>
       <div class="form-group"><label class="form-label">Description</label><textarea class="form-control" id="ev-desc">${UI.esc(e.description||'')}</textarea></div>
     `;
@@ -157,6 +178,7 @@ const Events = {
       budget:           parseInt(document.getElementById('ev-budget')?.value) || 0,
       attendance:       parseInt(document.getElementById('ev-att')?.value) || 0,
       recurring:        document.getElementById('ev-rec')?.value,
+      capacity:         parseInt(document.getElementById('ev-cap')?.value) || 0,
       description:      document.getElementById('ev-desc')?.value.trim(),
     };
   },
@@ -192,6 +214,74 @@ const Events = {
       if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('events', id).then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); }).catch(function(){ Toast.error('Saved locally — cloud sync failed. Hit ⟳ Sync.'); });
       Toast.success('Removed'); Events._rerender();
     });
+  },
+  rsvpModal(eventId) {
+    const ev      = Storage.findById('events', eventId);
+    if (!ev) return;
+    const rsvps   = Storage.getAll('event_rsvps') || [];
+    const mine    = rsvps.filter(r => r.eventId === eventId);
+    const cap     = ev.capacity || 0;
+    const full    = cap > 0 && mine.length >= cap;
+
+    function listHtml() {
+      if (!mine.length) return `<p style="color:var(--text-muted);text-align:center;padding:16px 0">No RSVPs yet.</p>`;
+      return `<table class="data-table"><thead><tr><th>Name</th><th>Email</th><th>Status</th><th>When</th><th></th></tr></thead><tbody>
+        ${mine.map(r => `<tr>
+          <td>${UI.esc(r.name)}</td>
+          <td>${r.email ? `<a href="mailto:${UI.esc(r.email)}" class="link-accent">${UI.esc(r.email)}</a>` : '—'}</td>
+          <td>${UI.badge(r.status || 'Going', r.status === 'Going' ? 'green' : r.status === 'Maybe' ? 'yellow' : 'gray')}</td>
+          <td style="font-size:.74rem;color:var(--text-muted)">${r.createdAt ? new Date(r.createdAt).toLocaleDateString() : '—'}</td>
+          <td><button class="btn btn-ghost btn-sm text-danger" onclick="Events._removeRsvp('${r.id}','${eventId}')">Remove</button></td>
+        </tr>`).join('')}
+      </tbody></table>`;
+    }
+
+    const body = `
+      <div style="margin-bottom:8px">
+        <strong>${UI.esc(ev.name)}</strong> — ${UI.fmtDate(ev.date)}
+        ${cap > 0 ? `<span class="badge badge-${full ? 'danger' : 'blue'}" style="margin-left:8px">${mine.length}/${cap} RSVPs${full ? ' · FULL' : ''}</span>` : `<span class="badge badge-gray" style="margin-left:8px">${mine.length} RSVPs</span>`}
+      </div>
+      ${cap > 0 ? `<div style="height:6px;background:var(--border);border-radius:3px;margin-bottom:12px">
+        <div style="height:6px;width:${Math.min(100,Math.round(mine.length/cap*100))}%;background:${full?'var(--red)':'var(--accent)'};border-radius:3px;transition:width .3s"></div>
+      </div>` : ''}
+      <div id="rsvp-list">${listHtml()}</div>
+      <hr style="margin:16px 0">
+      <h4 style="font-size:var(--text-sm);font-weight:700;margin-bottom:10px">Add RSVP</h4>
+      ${full ? `<div class="info-box">This event is at capacity. Remove an existing RSVP to add more.</div>` : `
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Name *</label><input class="form-control" id="rsvp-name" placeholder="Full name"></div>
+        <div class="form-group"><label class="form-label">Email</label><input class="form-control" id="rsvp-email" type="email" placeholder="optional"></div>
+      </div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-control" id="rsvp-status">
+          <option>Going</option><option>Maybe</option><option>Can't Attend</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="Events._addRsvp('${eventId}')">
+        <i data-lucide="plus" style="width:14px;height:14px" aria-hidden="true"></i> Add RSVP
+      </button>`}
+    `;
+
+    Modal.open({ title: `RSVPs — ${UI.esc(ev.name)}`, body, width: '600px',
+      footer: `<button class="btn btn-outline" onclick="Modal.close()">Close</button>` });
+    lucide.createIcons();
+  },
+  _addRsvp(eventId) {
+    const name = document.getElementById('rsvp-name')?.value.trim();
+    if (!name) { Toast.error('Name is required'); return; }
+    const email  = document.getElementById('rsvp-email')?.value.trim();
+    const status = document.getElementById('rsvp-status')?.value || 'Going';
+    Storage.insert('event_rsvps', { eventId, name, email, status });
+    Toast.success('RSVP added');
+    Events._rerender();
+    // Refresh the modal body
+    Events.rsvpModal(eventId);
+  },
+  _removeRsvp(rsvpId, eventId) {
+    Storage.removeItem('event_rsvps', rsvpId);
+    Toast.success('RSVP removed');
+    Events._rerender();
+    Events.rsvpModal(eventId);
   },
 };
 window.Events = Events;

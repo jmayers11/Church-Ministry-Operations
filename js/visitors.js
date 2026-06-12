@@ -7,48 +7,46 @@ Navigation.register('visitors', function render(page) {
   const statusColors = { New: 'orange', Contacted: 'blue', 'Invited Back': 'purple', Connected: 'green' };
   const statusOrder  = ['New', 'Contacted', 'Invited Back', 'Connected'];
 
-  function thIcon(key) {
-    const {col,dir}=Visitors._sort;
-    if(col!==key) return `<span style="opacity:.25;font-size:.7rem;margin-left:3px">↕</span>`;
-    return `<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'↑':'↓'}</span>`;
-  }
-  function th(label,key) {
-    const active=Visitors._sort.col===key;
-    return `<th style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent);':''}" onclick="Visitors.sortBy('${key}')">${label}${thIcon(key)}</th>`;
-  }
   function renderList(data) {
-    const wrap = document.getElementById('visitors-table-wrap');
-    if (!wrap) return;
-    const {col,dir}=Visitors._sort;
-    if(col){
-      data=[...data];
-      data.sort((a,b)=>{
-        let av=a[col],bv=b[col];
-        if(av==null||av==='') return 1; if(bv==null||bv==='') return -1;
-        const cmp=String(av).localeCompare(String(bv));
-        return dir==='asc'?cmp:-cmp;
+    const {col, dir} = Visitors._sort;
+    if (col) {
+      data = [...data].sort((a, b) => {
+        const av = a[col], bv = b[col];
+        if (av == null || av === '') return 1;
+        if (bv == null || bv === '') return -1;
+        return (dir === 'asc' ? 1 : -1) * String(av).localeCompare(String(bv));
       });
     }
-    if (!data.length) {
-      wrap.innerHTML = `<table><tbody><tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">👋</div><div class="empty-state-title">No visitors recorded</div><div class="empty-state-text">Add your first visitor to start tracking follow-ups.</div></div></td></tr></tbody></table>`;
-      return;
-    }
-    wrap.innerHTML = `<table><thead><tr>
-      ${th('Name','name')}${th('Visit Date','visitDate')}${th('Contact','phone')}
-      ${th('Status','followUpStatus')}${th('Assigned To','assignedTo')}${th('Notes','notes')}<th>Actions</th>
-    </tr></thead><tbody>${data.map(v => `
-      <tr>
-        <td><strong>${UI.esc(v.name)}</strong></td>
-        <td>${UI.fmtDate(v.visitDate)}<br><small style="color:var(--text-muted)">${UI.relDate(v.visitDate)}</small></td>
-        <td>${UI.esc(v.phone)}<br><small style="color:var(--text-muted)">${UI.esc(v.email)}</small></td>
-        <td>${UI.badge(v.followUpStatus, statusColors[v.followUpStatus] || 'gray')}</td>
-        <td>${UI.esc(v.assignedTo || '—')}</td>
-        <td style="max-width:180px;font-size:.8rem;color:var(--text-muted)">${UI.esc(v.notes || '')}</td>
-        <td>
-          <button class="btn btn-ghost btn-sm" onclick="Visitors.edit('${v.id}')">Edit</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="Visitors.remove('${v.id}')">Delete</button>
-        </td>
-      </tr>`).join('')}</tbody></table>`;
+    UI.table({
+      wrap: 'visitors-table-wrap',
+      sort: Visitors._sort,
+      sortFn: 'Visitors.sortBy',
+      selectable: 'visitors',
+      pageSize: 50,
+      cols: [
+        { key: 'name',           label: 'Name',
+          fmt: v => `<strong>${UI.esc(v)}</strong>` },
+        { key: 'visitDate',      label: 'Visit Date',
+          fmt: v => `${UI.fmtDate(v)}<div class="td-muted">${UI.relDate(v)}</div>` },
+        { key: 'phone',          label: 'Contact',
+          fmt: (v, r) => `${UI.esc(v || '—')}<div class="td-muted">${UI.esc(r.email || '')}</div>` },
+        { key: 'followUpStatus', label: 'Status',
+          fmt: v => UI.badge(v, statusColors[v] || 'gray') },
+        { key: 'assignedTo',     label: 'Assigned To',
+          fmt: v => UI.esc(v || '—') },
+        { key: 'notes',          label: 'Notes', tdClass: 'td-muted', hideOnMobile: true,
+          fmt: v => UI.esc(v || '') },
+      ],
+      rows: data,
+      empty: {
+        icon: 'user-plus',
+        title: 'No visitors recorded',
+        text: 'Add your first visitor to start tracking follow-ups.',
+      },
+      actions: v => `
+        <button class="btn btn-ghost btn-sm" onclick="Visitors.edit('${v.id}')">Edit</button>
+        <button class="btn btn-ghost btn-sm text-danger" onclick="Visitors.remove('${v.id}')">Delete</button>`,
+    });
   }
 
   // Summary cards
@@ -76,7 +74,7 @@ Navigation.register('visitors', function render(page) {
 
     <div class="toolbar">
       <div class="search-input-wrap">
-        <span class="search-icon">🔍</span>
+        <span class="search-icon"><i data-lucide="search" aria-hidden="true"></i></span>
         <input type="text" class="search-input" id="visitor-search" placeholder="Search visitors…">
       </div>
       <select class="filter-select" id="visitor-status-filter">
@@ -191,3 +189,37 @@ const Visitors = {
   },
 };
 window.Visitors = Visitors;
+
+// ── Bulk actions for the visitors table ──────────────────────
+UI.bulkRegister('visitors', [
+  {
+    label: 'Mark Contacted',
+    variant: 'btn-outline',
+    fn(ids) {
+      ids.forEach(id => {
+        const updated = Storage.update('visitors', id, { followUpStatus: 'Contacted' });
+        if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated() && updated)
+          SupabaseDB.tableUpsert('visitors', updated).catch(() => {});
+      });
+      UI._clearSel('visitors');
+      Toast.success(`${ids.length} visitor${ids.length > 1 ? 's' : ''} marked as Contacted`);
+      Visitors._rerender?.();
+    },
+  },
+  {
+    label: 'Delete Selected',
+    variant: 'btn-ghost text-danger',
+    fn(ids) {
+      UI.confirm(`Delete ${ids.length} visitor${ids.length > 1 ? 's' : ''}? This cannot be undone.`, () => {
+        ids.forEach(id => {
+          Storage.removeItem('visitors', id);
+          if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated())
+            SupabaseDB.tableDelete('visitors', id).catch(() => {});
+        });
+        UI._clearSel('visitors');
+        Toast.success(`${ids.length} visitor${ids.length > 1 ? 's' : ''} deleted`);
+        Visitors._rerender?.();
+      });
+    },
+  },
+]);

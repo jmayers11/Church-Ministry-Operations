@@ -44,8 +44,8 @@ Navigation.register('care', function render(page) {
     return `<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'↑':'↓'}</span>`;
   }
   function th(label,key) {
-    const active=CareMin._sort.col===key;
-    return `<th style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent);':''}" onclick="CareMin.sortBy('${key}')">${label}${thIcon(key)}</th>`;
+    const {col,dir}=CareMin._sort;const active=col===key;const aSort=active?(dir==='asc'?'ascending':'descending'):'none';
+    return `<th aria-sort="${aSort}" style="white-space:nowrap;${active?'color:var(--accent);':''}"><button type="button" class="sort-btn" onclick="CareMin.sortBy('${key}')">${label}${thIcon(key)}</button></th>`;
   }
   function renderTable(data) {
     const wrap = document.getElementById('care-table-wrap');

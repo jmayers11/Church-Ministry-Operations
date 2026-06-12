@@ -33,7 +33,7 @@ Navigation.register('family-assistance', function render(page) {
   const overdueFollowup = families.filter(f => f.followUpNeeded && f.followUpDate && f.followUpDate < today && f.status !== 'Completed');
 
   function thIcon(key){const {col,dir}=FamilyAid._sort;if(col!==key)return`<span style="opacity:.25;font-size:.7rem;margin-left:3px">↕</span>`;return`<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'↑':'↓'}</span>`;}
-  function th(label,key){const active=FamilyAid._sort.col===key;return`<th style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent);':''}" onclick="FamilyAid.sortBy('${key}')">${label}${thIcon(key)}</th>`;}
+  function th(label,key){const {col,dir}=FamilyAid._sort;const active=col===key;const aSort=active?(dir==='asc'?'ascending':'descending'):'none';return`<th aria-sort="${aSort}" style="white-space:nowrap;${active?'color:var(--accent);':''}"><button type="button" class="sort-btn" onclick="FamilyAid.sortBy('${key}')">${label}${thIcon(key)}</button></th>`;}
   function renderTable(data) {
     const wrap = document.getElementById('fa-table-wrap');
     if (!wrap) return;

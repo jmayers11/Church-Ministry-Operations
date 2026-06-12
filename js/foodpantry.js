@@ -64,10 +64,10 @@ Navigation.register('foodpantry', function render(page) {
       if (sortCol !== key) return `<span style="opacity:.25;font-size:.7rem;margin-left:3px;">↕</span>`;
       return `<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${sortDir === 'asc' ? '↑' : '↓'}</span>`;
     }
-    const thStyle = `cursor:pointer;user-select:none;white-space:nowrap;`;
     function th(label, key) {
       const active = sortCol === key;
-      return `<th style="${thStyle}${active?'color:var(--accent);':''}" onclick="PantryMgr.sortBy('${key}')">${label}${thIcon(key)}</th>`;
+      const aSort = active ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none';
+      return `<th aria-sort="${aSort}" style="white-space:nowrap;${active?'color:var(--accent);':''}"><button type="button" class="sort-btn" onclick="PantryMgr.sortBy('${key}')">${label}${thIcon(key)}</button></th>`;
     }
 
     return `

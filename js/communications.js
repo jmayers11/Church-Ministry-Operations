@@ -138,6 +138,127 @@ Navigation.register('communications', function render(page) {
             </div>`).join('') || '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-title">No bulletins yet</div></div>'}
         </div>`;
 
+    } else if(activeTab==='segments') {
+      const allMembers  = Storage.getAll('members') || [];
+      const allVisitors = Storage.getAll('visitors') || [];
+      const sendLog     = (Storage.getAll('comms_send_log') || []).sort((a,b) => b.sentAt.localeCompare(a.sentAt));
+
+      // Saved segments
+      const savedSegs = Storage.getAll('comms_segments') || [];
+
+      // Compute all ministries and families for filter dropdowns
+      const allMinistries = [...new Set(allMembers.flatMap(m => m.ministries || []))].sort();
+      const allFamilies   = [...new Set(allMembers.map(m => m.family).filter(Boolean))].sort();
+      const allStatuses   = [...new Set(allMembers.map(m => m.status).filter(Boolean))].sort();
+
+      function applySegment(seg) {
+        let pool = [...allMembers, ...allVisitors.map(v => ({ ...v, _source: 'visitor' }))];
+        if (seg.source === 'members') pool = allMembers;
+        else if (seg.source === 'visitors') pool = allVisitors;
+        if (seg.status) pool = pool.filter(m => m.status === seg.status);
+        if (seg.ministry) pool = pool.filter(m => (m.ministries || []).includes(seg.ministry));
+        if (seg.family) pool = pool.filter(m => m.family === seg.family);
+        if (seg.hasEmail) pool = pool.filter(m => m.email);
+        if (seg.hasPhone) pool = pool.filter(m => m.phone);
+        return pool;
+      }
+
+      body.innerHTML = `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+          <!-- Builder -->
+          <div class="card">
+            <div class="card-header"><h3 class="card-title"><i data-lucide="filter" class="icon-inline" aria-hidden="true"></i>Audience Builder</h3></div>
+            <div class="form-group">
+              <label class="form-label">Segment Name *</label>
+              <input class="form-control" id="seg-name" placeholder="e.g. Active Members with Email">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Source</label>
+              <select class="form-control" id="seg-source" onchange="Comms._previewSegment()">
+                <option value="">Members + Visitors</option>
+                <option value="members">Members only</option>
+                <option value="visitors">Visitors only</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Status filter</label>
+              <select class="form-control" id="seg-status" onchange="Comms._previewSegment()">
+                <option value="">Any</option>
+                ${allStatuses.map(s => `<option>${UI.esc(s)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Ministry involvement</label>
+              <select class="form-control" id="seg-ministry" onchange="Comms._previewSegment()">
+                <option value="">Any</option>
+                ${allMinistries.map(m => `<option>${UI.esc(m)}</option>`).join('')}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Family unit</label>
+              <select class="form-control" id="seg-family" onchange="Comms._previewSegment()">
+                <option value="">Any</option>
+                ${allFamilies.map(f => `<option>${UI.esc(f)}</option>`).join('')}
+              </select>
+            </div>
+            <div style="display:flex;gap:16px;margin-bottom:12px;">
+              <label style="display:flex;align-items:center;gap:6px;font-size:.86rem;cursor:pointer;">
+                <input type="checkbox" id="seg-hasemail" onchange="Comms._previewSegment()"> Has email
+              </label>
+              <label style="display:flex;align-items:center;gap:6px;font-size:.86rem;cursor:pointer;">
+                <input type="checkbox" id="seg-hasphone" onchange="Comms._previewSegment()"> Has phone
+              </label>
+            </div>
+            <div id="seg-preview" style="background:var(--surface-2);border-radius:6px;padding:10px;margin-bottom:12px;font-size:.84rem;">
+              <span style="color:var(--text-muted)">Adjust filters to see audience size</span>
+            </div>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-primary" onclick="Comms._saveSegment()">
+                <i data-lucide="save" style="width:14px;height:14px" aria-hidden="true"></i> Save Segment
+              </button>
+              <button class="btn btn-outline" onclick="Comms._previewSegment()">
+                <i data-lucide="eye" style="width:14px;height:14px" aria-hidden="true"></i> Preview
+              </button>
+            </div>
+          </div>
+
+          <!-- Saved segments + Log -->
+          <div>
+            <div class="card" style="margin-bottom:16px">
+              <div class="card-header"><h3 class="card-title"><i data-lucide="bookmark" class="icon-inline" aria-hidden="true"></i>Saved Segments</h3></div>
+              ${savedSegs.length ? savedSegs.map(seg => {
+                const count = applySegment(seg).length;
+                return `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+                  <div>
+                    <div style="font-weight:600;font-size:.88rem">${UI.esc(seg.name)}</div>
+                    <div style="font-size:.74rem;color:var(--text-muted)">${count} recipient${count!==1?'s':''} · ${[seg.source||'all',seg.status,seg.ministry,seg.family].filter(Boolean).join(', ')}</div>
+                  </div>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-primary btn-sm" onclick="Comms._useSeg('${seg.id}')">Use</button>
+                    <button class="btn btn-ghost btn-sm text-danger" onclick="Comms._deleteSeg('${seg.id}')">Delete</button>
+                  </div>
+                </div>`;
+              }).join('') : `<div style="color:var(--text-muted);text-align:center;padding:16px">No segments saved yet</div>`}
+            </div>
+
+            <div class="card">
+              <div class="card-header"><h3 class="card-title"><i data-lucide="mail-check" class="icon-inline" aria-hidden="true"></i>Send Log</h3></div>
+              ${sendLog.length ? `<div class="table-wrap"><table class="data-table">
+                <thead><tr><th>Segment</th><th>Template</th><th>Recipients</th><th>Sent</th></tr></thead>
+                <tbody>${sendLog.slice(0,10).map(l => `<tr>
+                  <td>${UI.esc(l.segmentName)}</td>
+                  <td>${UI.esc(l.templateName)}</td>
+                  <td>${l.count}</td>
+                  <td style="font-size:.74rem;color:var(--text-muted)">${new Date(l.sentAt).toLocaleDateString()}</td>
+                </tr>`).join('')}</tbody>
+              </table></div>` : `<div style="color:var(--text-muted);text-align:center;padding:16px">No messages sent yet</div>`}
+            </div>
+          </div>
+        </div>
+      `;
+      lucide.createIcons();
+      Comms._previewSegment();
+
     } else if(activeTab==='templates') {
       const templates = [
         { icon:'👋', name:'Welcome New Visitor', desc:'Warm follow-up message for first-time visitors', category:'Pastoral' },
@@ -181,7 +302,7 @@ Navigation.register('communications', function render(page) {
     </div>
 
     <div id="comms-tabs" style="display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap;">
-      ${[['announcements','📣 Announcements'],['bulletin','📋 Bulletin Builder'],['templates','✉️ Message Templates']].map(([t,l])=>`
+      ${[['announcements','📣 Announcements'],['bulletin','📋 Bulletin Builder'],['templates','✉️ Message Templates'],['segments','🎯 Segments']].map(([t,l])=>`
         <button class="tab-btn${activeTab===t?' active':''}" data-tab="${t}" onclick="Comms._setTab('${t}')">${l}</button>`).join('')}
     </div>
     <div id="comms-body"></div>
@@ -367,6 +488,110 @@ const Comms = {
       <div style="font-size:.76rem;color:var(--text-muted);margin-top:6px;">Replace [bracketed] placeholders with specific details before sending.</div>`,
       footer:`<button class="btn btn-outline" onclick="Modal.close()">Close</button>
               <button class="btn btn-primary" onclick="Comms._copyTemplate()">Copy to Clipboard</button>` });
+  },
+  _getSegFilters() {
+    return {
+      name:      document.getElementById('seg-name')?.value.trim() || '',
+      source:    document.getElementById('seg-source')?.value || '',
+      status:    document.getElementById('seg-status')?.value || '',
+      ministry:  document.getElementById('seg-ministry')?.value || '',
+      family:    document.getElementById('seg-family')?.value || '',
+      hasEmail:  document.getElementById('seg-hasemail')?.checked || false,
+      hasPhone:  document.getElementById('seg-hasphone')?.checked || false,
+    };
+  },
+  _applyFilters(seg) {
+    const allMembers  = Storage.getAll('members') || [];
+    const allVisitors = Storage.getAll('visitors') || [];
+    let pool = [...allMembers, ...allVisitors.map(v => ({ ...v, _source: 'visitor' }))];
+    if (seg.source === 'members') pool = allMembers;
+    else if (seg.source === 'visitors') pool = allVisitors;
+    if (seg.status)   pool = pool.filter(m => m.status === seg.status);
+    if (seg.ministry) pool = pool.filter(m => (m.ministries || []).includes(seg.ministry));
+    if (seg.family)   pool = pool.filter(m => m.family === seg.family);
+    if (seg.hasEmail) pool = pool.filter(m => m.email);
+    if (seg.hasPhone) pool = pool.filter(m => m.phone);
+    return pool;
+  },
+  _previewSegment() {
+    const seg   = this._getSegFilters();
+    const pool  = this._applyFilters(seg);
+    const box   = document.getElementById('seg-preview');
+    if (!box) return;
+    const withEmail = pool.filter(m => m.email).length;
+    const withPhone = pool.filter(m => m.phone).length;
+    box.innerHTML = `<strong style="font-size:1.1rem;color:var(--accent)">${pool.length}</strong> recipient${pool.length!==1?'s':''} match this segment
+      <div style="margin-top:4px;color:var(--text-muted)">
+        ${withEmail} have email &nbsp;·&nbsp; ${withPhone} have phone
+      </div>
+      ${pool.length > 0 && pool.slice(0,3).map(m => `<span class="badge badge-gray" style="margin:2px;font-size:.7rem">${UI.esc((m.firstName||m.name||'')+' '+(m.lastName||''))}</span>`).join('') || ''}
+      ${pool.length > 3 ? `<span style="font-size:.74rem;color:var(--text-muted)"> +${pool.length-3} more</span>` : ''}
+    `;
+  },
+  _saveSegment() {
+    const seg = this._getSegFilters();
+    if (!seg.name) { Toast.error('Segment name is required'); return; }
+    Storage.insert('comms_segments', seg);
+    Toast.success('Segment saved');
+    Comms._setTab('segments');
+  },
+  _deleteSeg(id) {
+    UI.confirm('Delete this segment?', () => {
+      Storage.removeItem('comms_segments', id);
+      Toast.success('Deleted');
+      Comms._setTab('segments');
+    });
+  },
+  _useSeg(id) {
+    const seg = Storage.findById('comms_segments', id); if (!seg) return;
+    const pool = this._applyFilters(seg);
+    // Open a compose dialog pre-loaded with segment info
+    const templateNames = ['Welcome New Visitor','Birthday Greeting','Event Reminder','Pledge Reminder','Absentee Follow-Up','Volunteer Thank You','Prayer Request Acknowledgment'];
+    Modal.open({ title: `Compose — ${UI.esc(seg.name)}`, width: '560px', body: `
+      <div class="info-box" style="margin-bottom:12px">
+        <i data-lucide="users" class="icon-inline" aria-hidden="true"></i>
+        <strong>${pool.length}</strong> recipient${pool.length!==1?'s':''} in this segment
+        (${pool.filter(m=>m.email).length} with email)
+      </div>
+      <div class="form-group"><label class="form-label">Template</label>
+        <select class="form-control" id="compose-tmpl">
+          <option value="">— Custom message —</option>
+          ${templateNames.map(t => `<option>${UI.esc(t)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group"><label class="form-label">Subject *</label>
+        <input class="form-control" id="compose-subj" placeholder="Subject line">
+      </div>
+      <div class="form-group"><label class="form-label">Message *</label>
+        <textarea class="form-control" id="compose-body" rows="8" placeholder="Write your message…\n\nMerge fields: {firstName}, {lastName}, {churchName}"></textarea>
+      </div>
+      <div style="font-size:.76rem;color:var(--text-muted)">Merge fields: <code>{firstName}</code> <code>{lastName}</code> <code>{churchName}</code> will be replaced for each recipient.</div>
+    `, footer: `<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
+      <button class="btn btn-primary" onclick="Comms._logSend('${id}')">
+        <i data-lucide="send" style="width:14px;height:14px" aria-hidden="true"></i> Log Send (${pool.length})
+      </button>` });
+    // Wire template auto-fill
+    document.getElementById('compose-tmpl')?.addEventListener('change', function() {
+      if (this.value) Comms.openTemplate(encodeURIComponent(this.value));
+    });
+    lucide.createIcons();
+  },
+  _logSend(segId) {
+    const seg  = Storage.findById('comms_segments', segId); if (!seg) return;
+    const subj = document.getElementById('compose-subj')?.value.trim();
+    const tmpl = document.getElementById('compose-tmpl')?.value || 'Custom';
+    if (!subj) { Toast.error('Subject is required'); return; }
+    const pool = this._applyFilters(seg);
+    Storage.insert('comms_send_log', {
+      segmentName:  seg.name,
+      templateName: tmpl,
+      subject:      subj,
+      count:        pool.length,
+      sentAt:       new Date().toISOString(),
+    });
+    Modal.close();
+    Toast.success(`Logged send to ${pool.length} recipient${pool.length!==1?'s':''}`);
+    Comms._setTab('segments');
   },
   _copyTemplate() {
     const subj=document.getElementById('tmpl-subject')?.value||'';

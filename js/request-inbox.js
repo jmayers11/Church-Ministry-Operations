@@ -126,7 +126,7 @@ Navigation.register('request-inbox', function render(page) {
   }
 
   function thIcon(key){const {col,dir}=RequestInbox._sort;if(col!==key)return`<span style="opacity:.25;font-size:.7rem;margin-left:3px">↕</span>`;return`<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'↑':'↓'}</span>`;}
-  function th(label,key){const active=RequestInbox._sort.col===key;return`<th style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent);':''}" onclick="RequestInbox.sortBy('${key}')">${label}${thIcon(key)}</th>`;}
+  function th(label,key){const {col,dir}=RequestInbox._sort;const active=col===key;const aSort=active?(dir==='asc'?'ascending':'descending'):'none';return`<th aria-sort="${aSort}" style="white-space:nowrap;${active?'color:var(--accent);':''}"><button type="button" class="sort-btn" onclick="RequestInbox.sortBy('${key}')">${label}${thIcon(key)}</button></th>`;}
 
   function renderTable(data) {
     const wrap = document.getElementById('inbox-table-wrap');
@@ -154,14 +154,14 @@ Navigation.register('request-inbox', function render(page) {
       const d = r.data || {};
       const isOverdue = r.followUpDate && r.followUpDate < today && r.status !== 'Completed' && r.status !== 'Closed';
       const isNew = r.status === 'Received';
-      return `<tr style="${isNew?'background:rgba(79,70,229,.04)':''}${isOverdue?';border-left:3px solid var(--red)':''}">
-        <td style="font-family:monospace;font-size:.78rem;font-weight:700;color:var(--accent)">${r.requestId}</td>
-        <td>${typeIcons[r.type]||'📋'} <span style="font-size:.82rem">${r.typeName}</span></td>
-        <td><div style="font-weight:700;font-size:.86rem">${UI.esc(d.name||'—')}</div><div style="font-size:.72rem;color:var(--text-muted)">${UI.esc(d.phone||d.email||'')}</div></td>
-        <td style="font-size:.78rem;color:var(--text-muted)">${UI.relDate(r.submittedAt?.slice(0,10)||'')}</td>
+      return `<tr class="${isNew?'tr--new':''}${isOverdue?' tr--overdue':''}">
+        <td style="font-family:monospace;font-size:var(--text-sm);font-weight:700;color:var(--accent)">${r.requestId}</td>
+        <td>${typeIcons[r.type]||'📋'} ${r.typeName}</td>
+        <td><div class="cell-primary">${UI.esc(d.name||'—')}</div><div class="cell-secondary">${UI.esc(d.phone||d.email||'')}</div></td>
+        <td class="text-meta">${UI.relDate(r.submittedAt?.slice(0,10)||'')}</td>
         <td>${UI.badge(r.urgency||'—', urgencyColors[r.urgency]||'gray')}</td>
-        <td>${UI.badge(r.status, statusColors[r.status]||'gray')}${isOverdue?'<br><span style="font-size:.68rem;color:var(--red)">⚠ Overdue</span>':''}</td>
-        <td style="font-size:.8rem">${r.assignedTo?UI.esc(r.assignedTo):`<span style="color:var(--text-muted);font-style:italic">Unassigned</span>`}</td>
+        <td>${UI.badge(r.status, statusColors[r.status]||'gray')}${isOverdue?'<br><span class="text-danger" style="font-size:.68rem">⚠ Overdue</span>':''}</td>
+        <td>${r.assignedTo?UI.esc(r.assignedTo):`<span class="text-placeholder">Unassigned</span>`}</td>
         <td>
           <button class="btn btn-primary btn-sm" onclick="RequestInbox.view('${r.requestId}')">Review</button>
         </td>
@@ -222,7 +222,7 @@ Navigation.register('request-inbox', function render(page) {
     </div>
 
     <!-- Filter chips -->
-    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;" id="inbox-chips">
+    <div class="chip-row" id="inbox-chips">
       ${[['all','All'],['new','New'],['open','Open'],['urgent','Urgent'],['unassigned','Unassigned'],['prayer','Prayer'],['help','Help'],['pantry','Pantry'],['pastoral','Pastoral'],['volunteer','Volunteer']].map(([f,l])=>`
         <button class="chip${activeFilter===f?' chip-active':''}" data-filter="${f}" onclick="RequestInbox._filter('${f}')">${l}</button>`).join('')}
     </div>
@@ -293,7 +293,7 @@ const RequestInbox = {
       title: '🔒 Staff Sign In',
       width: '400px',
       body: `
-        <p style="font-size:.86rem;color:var(--text-muted);margin-bottom:18px;">
+        <p class="text-meta" style="margin-bottom:var(--space-4)">
           Sign in with your staff account to access live Supabase data, including all requests and internal notes.
         </p>
         <div class="form-group">
@@ -389,7 +389,7 @@ const RequestInbox = {
 
     function fieldRows() {
       const rows = [];
-      const add = (label, val) => val ? rows.push(`<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;gap:12px;font-size:.85rem;"><span style="min-width:130px;color:var(--text-muted);font-weight:600">${label}</span><span>${UI.esc(String(val))}</span></div>`) : null;
+      const add = (label, val) => val ? rows.push(`<div class="detail-row"><span class="detail-label">${label}</span><span>${UI.esc(String(val))}</span></div>`) : null;
 
       add('Name', d.name);
       add('Phone', d.phone);
@@ -427,20 +427,20 @@ const RequestInbox = {
 
     Modal.open({ title:`${typeIcons[r.type]||'📋'} ${r.typeName} — ${r.requestId}`, width:'600px',
       body:`
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+        <div class="chip-row">
           ${UI.badge(r.status, statusColors[r.status]||'gray')}
           ${UI.badge(r.urgency+' Priority', r.urgency==='High'?'red':r.urgency==='Medium'?'yellow':'gray')}
-          <span style="font-size:.76rem;color:var(--text-muted);align-self:center">Submitted ${UI.relDate(r.submittedAt?.slice(0,10)||'')}</span>
+          <span class="text-meta" style="align-self:center">Submitted ${UI.relDate(r.submittedAt?.slice(0,10)||'')}</span>
         </div>
 
         <!-- Submission details -->
-        <div style="background:var(--surface-2);border-radius:var(--radius);padding:14px;margin-bottom:16px;">
-          <div style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px;">Submission Details</div>
+        <div class="detail-section">
+          <div class="section-label-sm">Submission Details</div>
           ${fieldRows()}
         </div>
 
         <!-- Internal Management -->
-        <div style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Internal Management</div>
+        <div class="section-label-sm">Internal Management</div>
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Status</label>
@@ -472,13 +472,13 @@ const RequestInbox = {
             placeholder="AI draft will appear here. Fill in the [placeholders] with the real details before sending."
             style="margin-top:8px;display:none;"></textarea>
           <button class="btn btn-ghost btn-sm" id="draft-copy" type="button" style="display:none;margin-top:4px;">Copy draft</button>
-          <div style="font-size:.72rem;color:var(--text-muted);margin-top:4px;">
+          <div class="text-meta" style="margin-top:var(--space-1)">
             Template only — no personal info is sent to the AI. Personalize the [brackets] before sending.
           </div>
         </div>
 
         <div class="form-group">
-          <label class="form-label">Internal Notes <span style="font-size:.72rem;color:var(--text-muted)">(not visible to requester)</span></label>
+          <label class="form-label">Internal Notes <span class="text-meta">(not visible to requester)</span></label>
           <textarea class="form-control" id="req-notes" rows="3">${UI.esc(r.internalNotes||'')}</textarea>
         </div>
 
@@ -487,7 +487,7 @@ const RequestInbox = {
         </div>
       `,
       footer:`
-        <button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Delete request" onclick="RequestInbox._delete('${r.requestId}')">Delete</button>
+        <button class="btn btn-ghost btn-sm text-danger" aria-label="Delete request" onclick="RequestInbox._delete('${r.requestId}')">Delete</button>
         <button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
         <button class="btn btn-primary" id="save-req-btn">Save Changes</button>
       `

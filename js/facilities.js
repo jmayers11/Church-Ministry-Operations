@@ -156,7 +156,7 @@ Navigation.register('facilities', function render(page) {
     } else if(activeTab==='maintenance') {
       let allMaint=Storage.getAll('maintenance');
       function thIcon(key){const {col,dir}=Fac._sort;if(col!==key)return`<span style="opacity:.25;font-size:.7rem;margin-left:3px">↕</span>`;return`<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'↑':'↓'}</span>`;}
-      function thM(label,key){const active=Fac._sort.col===key;return`<th style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent);':''}" onclick="Fac.sortBy('${key}')">${label}${thIcon(key)}</th>`;}
+      function thM(label,key){const {col,dir}=Fac._sort;const active=col===key;const aSort=active?(dir==='asc'?'ascending':'descending'):'none';return`<th aria-sort="${aSort}" style="white-space:nowrap;${active?'color:var(--accent);':''}"><button type="button" class="sort-btn" onclick="Fac.sortBy('${key}')">${label}${thIcon(key)}</button></th>`;}
       function renderMaint(data){
         const wrap=document.getElementById('maint-table-wrap');if(!wrap)return;
         const {col,dir}=Fac._sort;

@@ -44,14 +44,14 @@ Navigation.register('volunteers', function render(page) {
         return `<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'&#x2191;':'&#x2193;'}</span>`;
       }
       function thV(label,key) {
-        const active=Vols._sort.col===key;
-        return `<th style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent);':''}" onclick="Vols.sortBy('${key}')">${label}${thIconV(key)}</th>`;
+        const {col,dir}=Vols._sort;const active=col===key;const aSort=active?(dir==='asc'?'ascending':'descending'):'none';
+        return `<th aria-sort="${aSort}" style="white-space:nowrap;${active?'color:var(--accent);':''}"><button type="button" class="sort-btn" onclick="Vols.sortBy('${key}')">${label}${thIconV(key)}</button></th>`;
       }
       function renderTable(data) {
         const wrap = document.getElementById('vol-roster-wrap');
         if (!wrap) return;
         if (!data.length) {
-          wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon">&#x1F64C;</div><div class="empty-state-title">No volunteers found</div></div>`;
+          wrap.innerHTML = `<div class="empty-state"><div class="empty-state-icon"><i data-lucide="users" aria-hidden="true"></i></div><div class="empty-state-title">No volunteers found</div></div>`;
           return;
         }
         const {col,dir} = Vols._sort;
@@ -69,11 +69,11 @@ Navigation.register('volunteers', function render(page) {
             <td><span class="badge badge-blue">${UI.esc(v.team)}</span></td>
             <td>${UI.esc(v.availability || '&#x2014;')}</td>
             <td>${UI.badge(v.bgCheck, bgColors[v.bgCheck] || 'gray')}</td>
-            <td style="font-size:.8rem;color:var(--text-muted)">${UI.esc(v.schedulingNotes||'')}</td>
+            <td class="text-meta">${UI.esc(v.schedulingNotes||'')}</td>
             <td>
               <button class="btn btn-primary btn-sm" onclick="Vols.profile('${v.id}')">Profile</button>
               <button class="btn btn-ghost btn-sm" onclick="Vols.edit('${v.id}')">Edit</button>
-              <button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Remove volunteer" onclick="Vols.remove('${v.id}')">&times;</button>
+              <button class="btn btn-ghost btn-sm text-danger" aria-label="Remove volunteer" onclick="Vols.remove('${v.id}')">&times;</button>
             </td>
           </tr>`).join('')}</tbody></table>`;
       }
@@ -91,7 +91,7 @@ Navigation.register('volunteers', function render(page) {
       body.innerHTML = `
         <div class="toolbar">
           <div class="search-input-wrap">
-            <span class="search-icon">&#x1F50D;</span>
+            <i data-lucide="search" class="search-icon" aria-hidden="true"></i>
             <input type="text" class="search-input" id="vol-search" placeholder="Search volunteers&hellip;">
           </div>
           <select class="filter-select" id="vol-team-filter">
@@ -121,7 +121,7 @@ Navigation.register('volunteers', function render(page) {
       const notReq   = volunteers.filter(v => v.bgCheck === 'Not Required');
 
       function bgTable(list) {
-        if (!list.length) return '<div style="color:var(--text-muted);font-size:.85rem;padding:10px 0;">None</div>';
+        if (!list.length) return '<div class="text-meta" style="padding:10px 0">None</div>';
         return `<div class="table-wrap"><table class="data-table">
           <thead><tr><th>Name</th><th>Team</th><th>Role</th><th>Availability</th><th>Actions</th></tr></thead>
           <tbody>${list.map(v=>`<tr>
@@ -139,36 +139,36 @@ Navigation.register('volunteers', function render(page) {
 
       body.innerHTML = `
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin-bottom:20px;">
-          <div style="background:var(--alert-red-bg);border:1px solid var(--red);border-radius:8px;padding:14px;text-align:center;">
-            <div style="font-size:1.6rem;font-weight:900;color:var(--red)">${expired.length}</div>
-            <div style="font-size:.75rem;color:var(--text-muted)">Expired</div>
+          <div class="stat-box" style="border:1px solid var(--danger)">
+            <div class="stat-box__value text-danger">${expired.length}</div>
+            <div class="stat-box__label">Expired</div>
           </div>
-          <div style="background:var(--alert-yellow-bg);border:1px solid var(--orange);border-radius:8px;padding:14px;text-align:center;">
-            <div style="font-size:1.6rem;font-weight:900;color:var(--orange)">${pending.length}</div>
-            <div style="font-size:.75rem;color:var(--text-muted)">Pending</div>
+          <div class="stat-box" style="border:1px solid var(--warning)">
+            <div class="stat-box__value" style="color:var(--warning)">${pending.length}</div>
+            <div class="stat-box__label">Pending</div>
           </div>
-          <div style="background:var(--alert-green-bg);border:1px solid var(--green);border-radius:8px;padding:14px;text-align:center;">
-            <div style="font-size:1.6rem;font-weight:900;color:var(--green)">${approved.length}</div>
-            <div style="font-size:.75rem;color:var(--text-muted)">Approved</div>
+          <div class="stat-box" style="border:1px solid var(--success)">
+            <div class="stat-box__value text-success">${approved.length}</div>
+            <div class="stat-box__label">Approved</div>
           </div>
-          <div style="background:var(--surface-2);border-radius:8px;padding:14px;text-align:center;">
-            <div style="font-size:1.6rem;font-weight:900;">${notReq.length}</div>
-            <div style="font-size:.75rem;color:var(--text-muted)">Not Required</div>
+          <div class="stat-box">
+            <div class="stat-box__value">${notReq.length}</div>
+            <div class="stat-box__label">Not Required</div>
           </div>
         </div>
 
         ${expired.length ? `<div style="margin-bottom:20px;">
-          <h3 style="font-size:.9rem;font-weight:800;color:var(--red);margin-bottom:8px;">&#x1F534; Expired &mdash; Action Required</h3>
+          <h3 style="font-size:var(--text-sm);font-weight:800;color:var(--danger);margin-bottom:var(--space-2)"><i data-lucide="alert-circle" class="icon-inline" aria-hidden="true"></i>Expired &mdash; Action Required</h3>
           ${bgTable(expired)}
         </div>` : ''}
 
         ${pending.length ? `<div style="margin-bottom:20px;">
-          <h3 style="font-size:.9rem;font-weight:800;color:var(--orange);margin-bottom:8px;">&#x1F7E1; Pending Background Checks</h3>
+          <h3 style="font-size:var(--text-sm);font-weight:800;color:var(--warning);margin-bottom:var(--space-2)"><i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i>Pending Background Checks</h3>
           ${bgTable(pending)}
         </div>` : ''}
 
         <div style="margin-bottom:20px;">
-          <h3 style="font-size:.9rem;font-weight:800;color:var(--green);margin-bottom:8px;">&#x2705; Approved</h3>
+          <h3 style="font-size:var(--text-sm);font-weight:800;color:var(--success-text);margin-bottom:var(--space-2)"><i data-lucide="check-circle" class="icon-inline" aria-hidden="true"></i>Approved</h3>
           ${bgTable(approved)}
         </div>`;
 
@@ -203,8 +203,8 @@ Navigation.register('volunteers', function render(page) {
         return `<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'&#x2191;':'&#x2193;'}</span>`;
       }
       function thH(label,key) {
-        const active=Vols._sort.col===key;
-        return `<th style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent);':''}" onclick="Vols.sortBy('${key}')">${label}${thIconH(key)}</th>`;
+        const {col,dir}=Vols._sort;const active=col===key;const aSort=active?(dir==='asc'?'ascending':'descending'):'none';
+        return `<th aria-sort="${aSort}" style="white-space:nowrap;${active?'color:var(--accent);':''}"><button type="button" class="sort-btn" onclick="Vols.sortBy('${key}')">${label}${thIconH(key)}</button></th>`;
       }
       function renderHoursTable(data) {
         const wrap = document.getElementById('hours-table-wrap');
@@ -224,31 +224,31 @@ Navigation.register('volunteers', function render(page) {
           <td><span class="badge badge-blue">${UI.esc(h.team)}</span></td>
           <td>${UI.esc(h.activity||'')}</td>
           <td style="font-weight:700;color:var(--accent)">${h.hours}h</td>
-          <td><button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Remove hours log" onclick="Vols._removeHours('${h.id}')">&times;</button></td>
+          <td><button class="btn btn-ghost btn-sm text-danger" aria-label="Remove hours log" onclick="Vols._removeHours('${h.id}')">&times;</button></td>
         </tr>`).join('')}</tbody></table>`;
       }
 
       body.innerHTML = `
-        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px;align-items:center;">
-          <div style="background:var(--accent-light);border-radius:8px;padding:12px 18px;text-align:center;">
-            <div style="font-size:1.5rem;font-weight:900;color:var(--accent)">${totalHrs.toFixed(1)}h</div>
-            <div style="font-size:.72rem;color:var(--text-muted)">All-Time Hours</div>
+        <div class="flex-row flex-wrap" style="margin-bottom:var(--space-5)">
+          <div class="stat-box">
+            <div class="stat-box__value" style="color:var(--accent)">${totalHrs.toFixed(1)}h</div>
+            <div class="stat-box__label">All-Time Hours</div>
           </div>
-          <div style="background:var(--alert-green-bg);border-radius:8px;padding:12px 18px;text-align:center;">
-            <div style="font-size:1.5rem;font-weight:900;color:var(--green)">${monthHrs.toFixed(1)}h</div>
-            <div style="font-size:.72rem;color:var(--text-muted)">This Month</div>
+          <div class="stat-box">
+            <div class="stat-box__value text-success">${monthHrs.toFixed(1)}h</div>
+            <div class="stat-box__label">This Month</div>
           </div>
           <button class="btn btn-primary" style="margin-left:auto" onclick="Vols.logHours()">+ Log Hours</button>
         </div>
 
-        ${topVols.length ? `<div style="margin-bottom:20px;">
-          <div style="font-size:.8rem;font-weight:800;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Top Volunteers</div>
-          <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        ${topVols.length ? `<div style="margin-bottom:var(--space-5)">
+          <div class="section-label-sm">Top Volunteers</div>
+          <div class="chip-row" style="margin-bottom:0">
             ${topVols.slice(0,6).map((v,i)=>`
-              <div style="background:var(--surface-2);border-radius:8px;padding:8px 14px;font-size:.83rem;display:flex;align-items:center;gap:8px;">
-                <span style="color:var(--text-muted);font-weight:800;min-width:18px;">${i+1}.</span>
+              <div class="flex-row info-box" style="padding:var(--space-2) var(--space-3)">
+                <span class="text-meta" style="font-weight:800;min-width:18px">${i+1}.</span>
                 <span>${UI.esc(v.name)}</span>
-                <span class="badge badge-blue" style="font-size:.7rem;">${UI.esc(v.team)}</span>
+                <span class="badge badge-blue">${UI.esc(v.team)}</span>
                 <strong style="color:var(--accent)">${v.hours.toFixed(1)}h</strong>
               </div>`).join('')}
           </div>
@@ -256,7 +256,7 @@ Navigation.register('volunteers', function render(page) {
 
         <div class="toolbar" style="margin-bottom:12px;">
           <div class="search-input-wrap">
-            <span class="search-icon">&#x1F50D;</span>
+            <i data-lucide="search" class="search-icon" aria-hidden="true"></i>
             <input type="text" class="search-input" id="hours-search" placeholder="Search name or activity&hellip;">
           </div>
           <select class="filter-select" id="hours-team-filter">
@@ -270,6 +270,88 @@ Navigation.register('volunteers', function render(page) {
       document.getElementById('hours-search')?.addEventListener('input', () => renderHoursTable(hoursFiltered()));
       document.getElementById('hours-team-filter')?.addEventListener('change', () => renderHoursTable(hoursFiltered()));
       Vols._rerender = () => renderHoursTable(hoursFiltered());
+
+    /* ══════════════════════════════
+       TAB 4 — WEEK SCHEDULE GRID
+    ══════════════════════════════ */
+    } else if (activeTab === 'schedule') {
+      const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const AVAIL_MAP = {
+        'Weekends':    [0, 6],
+        'Sundays':     [0],
+        'Saturdays':   [6],
+        'Weekdays':    [1, 2, 3, 4, 5],
+        'Monday':      [1], 'Tuesday': [2], 'Wednesday': [3],
+        'Thursday':    [4], 'Friday':  [5],
+        'Any':         [0, 1, 2, 3, 4, 5, 6],
+      };
+
+      function availDays(avail) {
+        if (!avail) return [];
+        const lower = avail.toLowerCase();
+        for (const [key, days] of Object.entries(AVAIL_MAP)) {
+          if (lower.includes(key.toLowerCase())) return days;
+        }
+        return [];
+      }
+
+      // Build team → day → [volunteers] mapping
+      const schedMap = {};
+      teams.forEach(t => {
+        schedMap[t] = { 0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[] };
+      });
+      volunteers.forEach(v => {
+        const days = availDays(v.availability);
+        if (days.length && schedMap[v.team]) {
+          days.forEach(d => schedMap[v.team][d].push(v));
+        }
+      });
+
+      // Filter to teams with at least one assignment
+      const activeSched = Object.entries(schedMap).filter(([t, days]) =>
+        Object.values(days).some(arr => arr.length > 0)
+      );
+
+      body.innerHTML = `
+        <div class="section-label-sm" style="margin-bottom:var(--space-3)">
+          Team assignments based on volunteers' availability preferences.
+          ${volunteers.filter(v => !v.availability).length > 0
+            ? `<span class="text-meta"> · ${volunteers.filter(v=>!v.availability).length} volunteers have no availability set.</span>`
+            : ''}
+        </div>
+        ${activeSched.length === 0
+          ? UI.emptyState({ icon:'calendar-days', title:'No schedule data', body:'Set availability on volunteer profiles to populate the week grid.' })
+          : `<div class="vol-week-grid-wrap">
+          <table class="vol-week-grid data-table">
+            <thead>
+              <tr>
+                <th class="vol-week-team-col">Team</th>
+                ${DAY_NAMES.map(d => `<th class="vol-week-day-col">${d.slice(0,3)}</th>`).join('')}
+              </tr>
+            </thead>
+            <tbody>
+              ${activeSched.map(([team, days]) => `
+                <tr>
+                  <td class="vol-week-team-cell">
+                    <span class="badge badge-blue" style="white-space:nowrap">${UI.esc(team)}</span>
+                  </td>
+                  ${DAY_NAMES.map((_, di) => {
+                    const vols = days[di];
+                    if (!vols.length) return `<td class="vol-week-empty-cell">—</td>`;
+                    const hasExpired = vols.some(v => v.bgCheck === 'Expired');
+                    return `<td class="vol-week-cell${hasExpired ? ' vol-week-cell--warn' : ''}">
+                      ${vols.map(v =>
+                        `<button class="vol-week-chip" onclick="Vols.profile('${v.id}')" title="View ${UI.esc(v.name)}"${v.bgCheck==='Expired'?' style="border-color:var(--danger)"':''}>${UI.esc(v.name.split(' ')[0])}${v.bgCheck==='Expired'?'<i data-lucide="alert-circle" style="width:10px;height:10px;margin-left:2px;color:var(--danger)" aria-hidden="true"></i>':''}</button>`
+                      ).join('')}
+                    </td>`;
+                  }).join('')}
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>`}
+      `;
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+      Vols._rerender = () => Vols._tab('schedule');
     }
   }
 
@@ -286,33 +368,33 @@ Navigation.register('volunteers', function render(page) {
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">&#x1F64C; Volunteer Management</h2>
+        <h2 class="section-title"><i data-lucide="users" class="icon-inline" aria-hidden="true"></i>Volunteer Management</h2>
         <div class="section-subtitle">${volunteers.length} volunteers across ${new Set(volunteers.map(v=>v.team)).size} teams</div>
       </div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div class="flex-row flex-wrap">
         <button class="btn btn-primary" onclick="Vols.add()">+ Add Volunteer</button>
-        <button class="btn btn-outline" onclick="Vols.logHours()">&#x23F1; Log Hours</button>
+        <button class="btn btn-outline" onclick="Vols.logHours()"><i data-lucide="clock" class="icon-inline" aria-hidden="true"></i>Log Hours</button>
       </div>
     </div>
 
     ${expired ? `<div class="alert-banner alert-banner-red" onclick="Vols._tab('bgchecks')" style="cursor:pointer;">
-      &#x1F534; <strong>${expired} expired background check${expired>1?'s':''}</strong> require attention &mdash; <span style="text-decoration:underline;">review now &rarr;</span>
+      <i data-lucide="alert-circle" class="icon-inline" aria-hidden="true"></i><strong>${expired} expired background check${expired>1?'s':''}</strong> require attention &mdash; <span style="text-decoration:underline;">review now &rarr;</span>
     </div>` : ''}
     ${!expired && pending ? `<div class="alert-banner alert-banner-yellow" onclick="Vols._tab('bgchecks')" style="cursor:pointer;">
-      &#x1F7E1; <strong>${pending} background check${pending>1?'s':''} pending</strong> &mdash; <span style="text-decoration:underline;">review &rarr;</span>
+      <i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i><strong>${pending} background check${pending>1?'s':''} pending</strong> &mdash; <span style="text-decoration:underline;">review &rarr;</span>
     </div>` : ''}
 
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;">
+    <div class="chip-row" style="margin-bottom:var(--space-5)">
       ${teamStats.map(t => `
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 14px;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow);">
-          <span style="font-weight:700;font-size:1.2rem;color:var(--accent)">${t.count}</span>
-          <span style="font-size:.8rem;font-weight:700;">${UI.esc(t.team)}</span>
-          ${t.pending ? `<span style="font-size:.7rem;color:var(--orange)">&#x26A0; ${t.pending}</span>` : ''}
+        <div class="flex-row card" style="padding:var(--space-2) var(--space-4)">
+          <span style="font-weight:700;font-size:var(--text-xl);color:var(--accent)">${t.count}</span>
+          <span style="font-size:var(--text-sm);font-weight:700">${UI.esc(t.team)}</span>
+          ${t.pending ? `<span class="text-meta" style="color:var(--warning)"><i data-lucide="alert-triangle" class="icon-xs" aria-hidden="true"></i>${t.pending}</span>` : ''}
         </div>`).join('')}
     </div>
 
     <div id="vols-tabs" style="display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap;">
-      ${[['roster','&#x1F4CB; Roster'],['bgchecks','&#x1F50D; Background Checks'],['hours','&#x23F1; Hours Log']].map(([t,l])=>`
+      ${[['roster','<i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i>Roster'],['bgchecks','<i data-lucide="shield-check" class="icon-inline" aria-hidden="true"></i>Background Checks'],['hours','<i data-lucide="clock" class="icon-inline" aria-hidden="true"></i>Hours Log'],['schedule','<i data-lucide="calendar-days" class="icon-inline" aria-hidden="true"></i>Week Schedule']].map(([t,l])=>`
         <button class="tab-btn${activeTab===t?' active':''}" data-tab="${t}" onclick="Vols._tab('${t}')">${l}</button>`).join('')}
     </div>
     <div id="vols-body"></div>
@@ -365,47 +447,45 @@ const Vols = {
     const bgColors = { Approved:'green', Pending:'yellow', Expired:'red', 'Not Required':'gray' };
 
     Modal.open({ title: `&#x1F64C; ${UI.esc(v.name)}`, width: '560px', body: `
-      <div style="display:flex;gap:14px;align-items:flex-start;margin-bottom:20px;">
-        <div style="width:52px;height:52px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.3rem;font-weight:900;flex-shrink:0;">
-          ${(v.name||'?')[0]}
-        </div>
-        <div style="flex:1;">
-          <div style="font-size:1.1rem;font-weight:900;">${UI.esc(v.name)}</div>
-          <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;">
+      <div class="flex-row flex-wrap" style="margin-bottom:var(--space-5)">
+        ${UI.avatar(v.name, 52)}
+        <div style="flex:1">
+          <div style="font-size:var(--text-xl);font-weight:900">${UI.esc(v.name)}</div>
+          <div class="chip-row" style="margin:var(--space-2) 0 var(--space-1)">
             <span class="badge badge-blue">${UI.esc(v.team)}</span>
-            ${v.role ? `<span style="font-size:.82rem;color:var(--text-muted)">${UI.esc(v.role)}</span>` : ''}
+            ${v.role ? `<span class="text-meta">${UI.esc(v.role)}</span>` : ''}
             ${UI.badge(v.bgCheck, bgColors[v.bgCheck]||'gray')}
           </div>
-          <div style="font-size:.83rem;color:var(--text-muted);">
-            ${v.availability ? `<div>&#x1F5D3; ${UI.esc(v.availability)}</div>` : ''}
-            ${v.schedulingNotes ? `<div>&#x1F4DD; ${UI.esc(v.schedulingNotes)}</div>` : ''}
+          <div class="text-meta">
+            ${v.availability ? `<div><i data-lucide="calendar" class="icon-xs" aria-hidden="true"></i>${UI.esc(v.availability)}</div>` : ''}
+            ${v.schedulingNotes ? `<div><i data-lucide="file-text" class="icon-xs" aria-hidden="true"></i>${UI.esc(v.schedulingNotes)}</div>` : ''}
           </div>
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;">
-        <div style="background:var(--accent-light);border-radius:8px;padding:12px;text-align:center;">
-          <div style="font-size:1.4rem;font-weight:900;color:var(--accent)">${totalHrs.toFixed(1)}h</div>
-          <div style="font-size:.72rem;color:var(--text-muted)">Total Hours</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:var(--space-3);margin-bottom:var(--space-4)">
+        <div class="stat-box">
+          <div class="stat-box__value" style="color:var(--accent)">${totalHrs.toFixed(1)}h</div>
+          <div class="stat-box__label">Total Hours</div>
         </div>
-        <div style="background:var(--surface-2);border-radius:8px;padding:12px;text-align:center;">
-          <div style="font-size:1.4rem;font-weight:900;">${hours.length}</div>
-          <div style="font-size:.72rem;color:var(--text-muted)">Sessions</div>
+        <div class="stat-box">
+          <div class="stat-box__value">${hours.length}</div>
+          <div class="stat-box__label">Sessions</div>
         </div>
-        <div style="background:var(--surface-2);border-radius:8px;padding:12px;text-align:center;">
-          <div style="font-size:1.4rem;font-weight:900;">${hours.length ? (totalHrs/hours.length).toFixed(1) : '0'}h</div>
-          <div style="font-size:.72rem;color:var(--text-muted)">Avg / Session</div>
+        <div class="stat-box">
+          <div class="stat-box__value">${hours.length ? (totalHrs/hours.length).toFixed(1) : '0'}h</div>
+          <div class="stat-box__label">Avg / Session</div>
         </div>
       </div>
 
       ${hours.length ? `
-      <div style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;">Recent Hours</div>
+      <div class="section-label-sm">Recent Hours</div>
       ${hours.sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(h=>`
-        <div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.83rem;">
-          <span style="color:var(--text-muted)">${UI.fmtDate(h.date)}</span>
-          <span style="flex:1;margin:0 10px;">${UI.esc(h.activity||'')}</span>
+        <div class="flex-between detail-row">
+          <span class="text-meta">${UI.fmtDate(h.date)}</span>
+          <span style="flex:1;margin:0 var(--space-3)">${UI.esc(h.activity||'')}</span>
           <strong style="color:var(--accent)">${h.hours}h</strong>
-        </div>`).join('')}` : '<div style="color:var(--text-muted);font-size:.84rem;">No hours logged yet.</div>'}
+        </div>`).join('')}` : '<div class="text-meta">No hours logged yet.</div>'}
     `,
     footer: `<button class="btn btn-outline" onclick="Modal.close()">Close</button>
              <button class="btn btn-primary" onclick="Modal.close();Vols.edit('${id}')">Edit</button>` });

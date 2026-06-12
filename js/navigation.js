@@ -16,9 +16,12 @@ const Navigation = (() => {
   function navigate(pageId) {
     // Hide all pages
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    // Update nav links
+    // Update nav links + bottom tab bar
     document.querySelectorAll('.nav-link').forEach(l => {
       l.classList.toggle('active', l.dataset.page === pageId);
+    });
+    document.querySelectorAll('.bottom-tab[data-page]').forEach(t => {
+      t.classList.toggle('active', t.dataset.page === pageId);
     });
 
     const page = document.getElementById(`page-${pageId}`);
@@ -32,12 +35,18 @@ const Navigation = (() => {
 
     // Render module if registered
     if (_modules[pageId]) {
-      try {
-        _modules[pageId](page);
-      } catch(e) {
-        console.error('Render error on ' + pageId + ':', e);
-        page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)"><p>Error loading ' + pageId + '. Check console.</p></div>';
-      }
+      // Show skeleton for one paint frame — visible on slower hardware, imperceptible on fast
+      if (typeof UI !== 'undefined' && UI.skeletonPage) page.innerHTML = UI.skeletonPage();
+      requestAnimationFrame(function() {
+        try {
+          _modules[pageId](page);
+          if (typeof lucide !== 'undefined') lucide.createIcons();
+          if (typeof UI !== 'undefined' && UI.a11yEnhance) UI.a11yEnhance(page);
+        } catch(e) {
+          console.error('Render error on ' + pageId + ':', e);
+          page.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-muted)"><p>Error loading ' + pageId + '. Check console.</p></div>';
+        }
+      });
     } else {
       page.innerHTML = `
         <div class="coming-soon">
@@ -56,7 +65,8 @@ const Navigation = (() => {
 
   // ── Wire up nav links ────────────────────────────────────────
   function init() {
-    document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+    // Sidebar nav links + bottom tab links share the same click handler
+    document.querySelectorAll('.nav-link[data-page], .bottom-tab[data-page]').forEach(link => {
       link.addEventListener('click', e => {
         e.preventDefault();
         navigate(link.dataset.page);
@@ -86,11 +96,39 @@ const Navigation = (() => {
     // Close mobile nav on outside click
     document.addEventListener('click', e => {
       if (document.body.classList.contains('nav-open')) {
-        if (!e.target.closest('#sidebar') && !e.target.closest('#menu-btn')) {
+        if (!e.target.closest('#sidebar') && !e.target.closest('#menu-btn') && !e.target.closest('#bottom-tab-more')) {
           document.body.classList.remove('nav-open');
         }
       }
     });
+
+    // Nav scrim click closes the drawer
+    document.getElementById('nav-scrim')?.addEventListener('click', () => {
+      document.body.classList.remove('nav-open');
+    });
+
+    // Bottom "More" tab toggles the sidebar drawer
+    const moreBtn = document.getElementById('bottom-tab-more');
+    if (moreBtn) {
+      moreBtn.addEventListener('click', () => {
+        const isOpen = document.body.classList.toggle('nav-open');
+        moreBtn.setAttribute('aria-expanded', String(isOpen));
+      });
+    }
+
+    // Swipe left anywhere to close the sidebar drawer (touch devices)
+    let _swipeStartX = 0;
+    document.addEventListener('touchstart', e => {
+      _swipeStartX = e.touches[0].clientX;
+    }, { passive: true });
+    document.addEventListener('touchend', e => {
+      if (!document.body.classList.contains('nav-open')) return;
+      const dx = e.changedTouches[0].clientX - _swipeStartX;
+      if (dx < -48) {
+        document.body.classList.remove('nav-open');
+        if (moreBtn) moreBtn.setAttribute('aria-expanded', 'false');
+      }
+    }, { passive: true });
 
     // Theme toggle
     const themeBtn = document.getElementById('theme-toggle');
@@ -101,6 +139,7 @@ const Navigation = (() => {
         document.documentElement.setAttribute('data-theme', next);
         themeBtn.textContent = next === 'dark' ? '☀️' : '🌙';
         Storage.saveSettings({ theme: next });
+        window.dispatchEvent(new CustomEvent('themechange'));
       });
       // Set correct icon on load
       const theme = Storage.getSettings().theme;
@@ -116,6 +155,28 @@ const Navigation = (() => {
       if (logoEl) logoEl.innerHTML = `<img src="${settings.logoDataUrl}" alt="logo" style="width:100%;height:100%;border-radius:8px;object-fit:cover;">`;
     }
 
+    // ── Collapsible sidebar sections ──────────────────────────
+    document.querySelectorAll('.nav-section-toggle').forEach(btn => {
+      const sectionId = btn.getAttribute('aria-controls');
+      const section   = document.getElementById(sectionId);
+      if (!section) return;
+      // Restore collapse state
+      const savedKey = `_navSection_${btn.dataset.section}`;
+      if (Storage.get(savedKey) === false) {
+        btn.setAttribute('aria-expanded', 'false');
+        section.classList.add('collapsed');
+      }
+      btn.addEventListener('click', () => {
+        const isOpen = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', String(!isOpen));
+        section.classList.toggle('collapsed', isOpen);
+        Storage.set(savedKey, !isOpen);
+      });
+    });
+
+    // Render Lucide icons in sidebar chrome
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+
     // Navigate to last visited page or dashboard
     const lastPage = Storage.get('_lastPage') || 'dashboard';
     navigate(lastPage);
@@ -126,5 +187,8 @@ const Navigation = (() => {
 })();
 
 // Boot navigation after DOM is ready
-document.addEventListener('DOMContentLoaded', () => Navigation.init());
+document.addEventListener('DOMContentLoaded', () => {
+  Navigation.init();
+  if (typeof Onboarding !== 'undefined') Onboarding.maybeShow();
+});
 window.Navigation = Navigation;

@@ -4,7 +4,31 @@
    ============================================================= */
 
 Navigation.register('impact', function render(page) {
-  const today = Storage.today();
+  const today     = Storage.today();
+  const _period   = Storage.get('_impact_period') || '1m';
+
+  // Date range for the selected period
+  function periodRange(p) {
+    const now = new Date(today);
+    const start = new Date(today);
+    if (p === '1m')  start.setMonth(now.getMonth() - 1);
+    else if (p === '3m')  start.setMonth(now.getMonth() - 3);
+    else if (p === '6m')  start.setMonth(now.getMonth() - 6);
+    else if (p === 'ytd') start.setMonth(0, 1); // Jan 1
+    return { start: start.toISOString().slice(0,10), end: today };
+  }
+  function prevPeriodRange(p) {
+    const now   = new Date(today);
+    const range = periodRange(p);
+    const span  = new Date(today) - new Date(range.start);
+    const end   = new Date(range.start); end.setDate(end.getDate() - 1);
+    const start = new Date(end - span);
+    return { start: start.toISOString().slice(0,10), end: end.toISOString().slice(0,10) };
+  }
+  const range   = periodRange(_period);
+  const prevR   = prevPeriodRange(_period);
+
+  const inRange = (dateStr, r) => dateStr && dateStr >= r.start && dateStr <= r.end;
   const thisMonth = today.slice(0,7); // YYYY-MM
   const lastMonth  = (() => { const d=new Date(today); d.setMonth(d.getMonth()-1); return d.toISOString().slice(0,7); })();
 
@@ -24,34 +48,35 @@ Navigation.register('impact', function render(page) {
   const allMembers = Storage.getAll('members') || [];
   const allCommEv  = Storage.getAll('community_events') || [];
 
-  // Current month metrics
+  // Metrics for selected period vs prior period
   const m = {
-    familiesServed:  count(allFamAid, r => inMonth(r.dateAssisted || r.dateRequested, thisMonth)),
-    foodDistributions: count(allDists, r => inMonth(r.date, thisMonth)),
-    prayerRequests:  count(allPrayer, r => inMonth(r.createdAt, thisMonth)),
-    careVisits:      count(allCare, r => inMonth(r.lastContact || r.date, thisMonth)),
-    newVisitors:     count(allVisit, r => inMonth(r.createdAt, thisMonth)),
-    outreachEvents:  count(allCommEv, r => inMonth(r.date, thisMonth)),
-    activeVolunteers: allVols.length, // all roster entries are active volunteers
-    totalMembers:    allMembers.filter(m=>m.status==='Active').length,
+    familiesServed:    count(allFamAid, r => inRange(r.dateAssisted || r.dateRequested, range)),
+    foodDistributions: count(allDists,  r => inRange(r.date, range)),
+    prayerRequests:    count(allPrayer, r => inRange(r.createdAt || r.date, range)),
+    careVisits:        count(allCare,   r => inRange(r.lastContact || r.date, range)),
+    newVisitors:       count(allVisit,  r => inRange(r.visitDate || r.createdAt, range)),
+    outreachEvents:    count(allCommEv, r => inRange(r.date, range)),
+    activeVolunteers:  allVols.length,
+    totalMembers:      allMembers.filter(m=>m.status==='Active').length,
+  };
+  const lm = {
+    familiesServed:    count(allFamAid, r => inRange(r.dateAssisted || r.dateRequested, prevR)),
+    foodDistributions: count(allDists,  r => inRange(r.date, prevR)),
+    prayerRequests:    count(allPrayer, r => inRange(r.createdAt || r.date, prevR)),
+    careVisits:        count(allCare,   r => inRange(r.lastContact || r.date, prevR)),
+    newVisitors:       count(allVisit,  r => inRange(r.visitDate || r.createdAt, prevR)),
+    outreachEvents:    count(allCommEv, r => inRange(r.date, prevR)),
   };
 
-  const lm = {
-    familiesServed:  count(allFamAid, r => inMonth(r.dateAssisted || r.dateRequested, lastMonth)),
-    foodDistributions: count(allDists, r => inMonth(r.date, lastMonth)),
-    prayerRequests:  count(allPrayer, r => inMonth(r.createdAt, lastMonth)),
-    careVisits:      count(allCare, r => inMonth(r.lastContact || r.date, lastMonth)),
-    newVisitors:     count(allVisit, r => inMonth(r.createdAt, lastMonth)),
-    outreachEvents:  count(allCommEv, r => inMonth(r.date, lastMonth)),
-  };
+  const PERIOD_LABELS = { '1m':'Last Month', '3m':'Last 3 Months', '6m':'Last 6 Months', 'ytd':'Year to Date' };
 
   function delta(curr, prev) {
-    if (!prev) return curr > 0 ? `<span class="stat-delta up">+${curr} vs last mo.</span>` : '';
+    if (!prev) return curr > 0 ? `<span class="stat-delta up">+${curr} vs prior period</span>` : '';
     const d = curr - prev;
     const pct = Math.round((d/prev)*100);
     const cls = d > 0 ? 'up' : d < 0 ? 'down' : 'flat';
     const sign = d > 0 ? '+' : '';
-    return `<span class="stat-delta ${cls}">${sign}${d} (${sign}${pct}%) vs last mo.</span>`;
+    return `<span class="stat-delta ${cls}">${sign}${d} (${sign}${pct}%) vs prior period</span>`;
   }
 
   // Pantry totals
@@ -89,50 +114,60 @@ Navigation.register('impact', function render(page) {
   const visitorTrend = buildTrend(allVisit, r=>r.createdAt);
   const careTrend = buildTrend(allCare, r=>r.lastContact||r.date);
 
-  const displayMonth = new Date(today+'T00:00:00').toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  const expiredBG = allVols.filter(v => v.bgCheck === 'Expired').length;
 
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">📊 Community Impact Dashboard</h2>
-        <div class="section-subtitle">Aggregated metrics across all care & outreach ministries — ${displayMonth}</div>
+        <h2 class="section-title"><i data-lucide="bar-chart-2" class="icon-inline" aria-hidden="true"></i>Community Impact Dashboard</h2>
+        <div class="section-subtitle">Aggregated metrics across all care &amp; outreach ministries</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <select class="filter-select" id="impact-period-sel" aria-label="Select time period" style="min-width:150px">
+          ${Object.entries(PERIOD_LABELS).map(([k,v])=>
+            `<option value="${k}"${_period===k?' selected':''}>${v}</option>`
+          ).join('')}
+        </select>
+        <button class="btn btn-outline btn-sm" onclick="BoardReport.generate(-1)" aria-label="Generate board report for last month">
+          <i data-lucide="file-text" style="width:14px;height:14px" aria-hidden="true"></i> Board Report
+        </button>
       </div>
     </div>
 
     <!-- This Month Metrics -->
     <div class="stat-grid" style="margin-bottom:24px;">
       <div class="stat-card" data-accent="green">
-        <div class="stat-icon">🏠</div>
+        <div class="stat-icon"><i data-lucide="home" aria-hidden="true"></i></div>
         <div class="stat-value">${m.familiesServed}</div>
         <div class="stat-label">Families Assisted</div>
         ${delta(m.familiesServed, lm.familiesServed)}
       </div>
       <div class="stat-card" data-accent="orange">
-        <div class="stat-icon">🥫</div>
+        <div class="stat-icon"><i data-lucide="shopping-bag" aria-hidden="true"></i></div>
         <div class="stat-value">${m.foodDistributions}</div>
         <div class="stat-label">Food Distributions</div>
         ${delta(m.foodDistributions, lm.foodDistributions)}
       </div>
       <div class="stat-card" data-accent="blue">
-        <div class="stat-icon">🙏</div>
+        <div class="stat-icon"><i data-lucide="heart" aria-hidden="true"></i></div>
         <div class="stat-value">${m.prayerRequests}</div>
         <div class="stat-label">Prayer Requests</div>
         ${delta(m.prayerRequests, lm.prayerRequests)}
       </div>
       <div class="stat-card" data-accent="purple">
-        <div class="stat-icon">❤️</div>
+        <div class="stat-icon"><i data-lucide="hand-heart" aria-hidden="true"></i></div>
         <div class="stat-value">${m.careVisits}</div>
         <div class="stat-label">Care Contacts</div>
         ${delta(m.careVisits, lm.careVisits)}
       </div>
       <div class="stat-card" data-accent="teal">
-        <div class="stat-icon">👋</div>
+        <div class="stat-icon"><i data-lucide="user-plus" aria-hidden="true"></i></div>
         <div class="stat-value">${m.newVisitors}</div>
         <div class="stat-label">New Visitors</div>
         ${delta(m.newVisitors, lm.newVisitors)}
       </div>
       <div class="stat-card" data-accent="pink">
-        <div class="stat-icon">🌍</div>
+        <div class="stat-icon"><i data-lucide="globe" aria-hidden="true"></i></div>
         <div class="stat-value">${m.outreachEvents}</div>
         <div class="stat-label">Outreach Events</div>
         ${delta(m.outreachEvents, lm.outreachEvents)}
@@ -142,16 +177,16 @@ Navigation.register('impact', function render(page) {
     <!-- Charts row -->
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:24px;">
       <div class="card">
-        <div class="card-header"><h3 class="card-title">🏠 Family Assistance Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
-        <canvas id="impact-fam-chart" height="120"></canvas>
+        <div class="card-header"><h3 class="card-title"><i data-lucide="home" class="icon-inline" aria-hidden="true"></i>Family Assistance Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
+        <div class="chart-canvas-wrap" style="height:160px"><canvas id="impact-fam-chart"></canvas></div>
       </div>
       <div class="card">
-        <div class="card-header"><h3 class="card-title">👋 New Visitor Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
-        <canvas id="impact-vis-chart" height="120"></canvas>
+        <div class="card-header"><h3 class="card-title"><i data-lucide="user-plus" class="icon-inline" aria-hidden="true"></i>New Visitor Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
+        <div class="chart-canvas-wrap" style="height:160px"><canvas id="impact-vis-chart"></canvas></div>
       </div>
       <div class="card">
-        <div class="card-header"><h3 class="card-title">❤️ Care Ministry Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
-        <canvas id="impact-care-chart" height="120"></canvas>
+        <div class="card-header"><h3 class="card-title"><i data-lucide="hand-heart" class="icon-inline" aria-hidden="true"></i>Care Ministry Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
+        <div class="chart-canvas-wrap" style="height:160px"><canvas id="impact-care-chart"></canvas></div>
       </div>
     </div>
 
@@ -159,7 +194,7 @@ Navigation.register('impact', function render(page) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
 
       <div class="card">
-        <div class="card-header"><h3 class="card-title">🥫 Food Pantry Snapshot</h3></div>
+        <div class="card-header"><h3 class="card-title"><i data-lucide="shopping-bag" class="icon-inline" aria-hidden="true"></i>Food Pantry Snapshot</h3></div>
         <div style="display:flex;gap:20px;justify-content:space-around;padding:12px 0;text-align:center;">
           <div><div style="font-size:2rem;font-weight:900;color:var(--accent)">${totalItems}</div><div style="font-size:.76rem;color:var(--text-muted)">Total Items in Stock</div></div>
           <div><div style="font-size:2rem;font-weight:900;color:${lowStockCount>0?'var(--red)':'var(--green)'}">${lowStockCount}</div><div style="font-size:.76rem;color:var(--text-muted)">Low/Out of Stock</div></div>
@@ -169,7 +204,7 @@ Navigation.register('impact', function render(page) {
       </div>
 
       <div class="card">
-        <div class="card-header"><h3 class="card-title">⚠️ Action Items</h3></div>
+        <div class="card-header"><h3 class="card-title"><i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i>Action Items</h3></div>
         <div style="font-size:.86rem;display:flex;flex-direction:column;gap:8px;padding-top:4px;">
           ${overdueFollowUp > 0
             ? `<div style="padding:8px;background:rgba(239,68,68,.07);border-radius:6px;border-left:3px solid var(--red)">
@@ -186,8 +221,15 @@ Navigation.register('impact', function render(page) {
                 <strong style="color:var(--orange)">${lowStockCount} low-stock pantry item${lowStockCount>1?'s':''}</strong>
                 <div style="color:var(--text-muted);font-size:.76rem">Check Food Pantry inventory</div>
               </div>` : ''}
-          ${overdueFollowUp===0 && activeCare===0 && lowStockCount===0
-            ? `<div style="text-align:center;padding:20px;color:var(--text-muted)">✓ No urgent action items</div>` : ''}
+          ${expiredBG > 0
+            ? `<div style="padding:8px;background:rgba(239,68,68,.07);border-radius:6px;border-left:3px solid var(--danger)">
+                <strong style="color:var(--danger)"><i data-lucide="shield-alert" class="icon-inline" aria-hidden="true"></i>${expiredBG} expired volunteer background check${expiredBG>1?'s':''}</strong>
+                <div style="color:var(--text-muted);font-size:.76rem">Review in Volunteer Roster → Background Checks tab</div>
+              </div>` : ''}
+          ${overdueFollowUp===0 && activeCare===0 && lowStockCount===0 && expiredBG===0
+            ? `<div style="text-align:center;padding:20px;color:var(--text-muted)">
+                <i data-lucide="check-circle" class="icon-inline" aria-hidden="true"></i> No urgent action items
+              </div>` : ''}
         </div>
       </div>
     </div>
@@ -195,7 +237,7 @@ Navigation.register('impact', function render(page) {
     <!-- Recent Outreach Events -->
     <div class="card">
       <div class="card-header">
-        <h3 class="card-title">🌍 Recent Outreach Events</h3>
+        <h3 class="card-title"><i data-lucide="globe" class="icon-inline" aria-hidden="true"></i>Recent Outreach Events</h3>
         <span style="font-size:.76rem;color:var(--text-muted)">Cumulative impact: ${totalFamiliesEver.toLocaleString()} families served</span>
       </div>
       ${recentEvents.length ? `
@@ -225,4 +267,15 @@ Navigation.register('impact', function render(page) {
     UI.drawBarChart('impact-vis-chart',  visitorTrend.labels, visitorTrend.vals, 'var(--blue)');
     UI.drawBarChart('impact-care-chart', careTrend.labels,   careTrend.vals,  'var(--purple)');
   }, 50);
+
+  // Wire period selector
+  const periodSel = document.getElementById('impact-period-sel');
+  if (periodSel) {
+    periodSel.addEventListener('change', () => {
+      Storage.set('_impact_period', periodSel.value);
+      Navigation.navigate('impact');
+    });
+  }
+
+  lucide.createIcons();
 });

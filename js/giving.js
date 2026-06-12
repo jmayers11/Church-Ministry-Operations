@@ -129,12 +129,12 @@ Navigation.register('giving', function render(page) {
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:24px;">
           <!-- Monthly trend chart -->
           <div class="card" style="grid-column:1/-1">
-            <div class="card-header"><h3 class="card-title">📈 Monthly Giving — Last 6 Months</h3></div>
-            <canvas id="giving-trend-chart" height="100"></canvas>
+            <div class="card-header"><h3 class="card-title"><i data-lucide="trending-up" class="icon-inline" aria-hidden="true"></i>Monthly Giving — Last 6 Months</h3></div>
+            <div class="chart-canvas-wrap" style="height:160px"><canvas id="giving-trend-chart"></canvas></div>
           </div>
           <!-- Fund breakdown -->
           <div class="card">
-            <div class="card-header"><h3 class="card-title">🗂 Year-to-Date by Fund</h3></div>
+            <div class="card-header"><h3 class="card-title"><i data-lucide="folder-open" class="icon-inline" aria-hidden="true"></i>Year-to-Date by Fund</h3></div>
             ${fundTotals.map(f=>`
               <div style="margin-bottom:14px;">
                 <div style="display:flex;justify-content:space-between;font-size:.82rem;font-weight:700;margin-bottom:4px;">
@@ -151,7 +151,7 @@ Navigation.register('giving', function render(page) {
           </div>
           <!-- Top givers -->
           <div class="card">
-            <div class="card-header"><h3 class="card-title">🏅 Top Givers — YTD</h3><span style="font-size:.72rem;color:var(--text-muted)">Confidential</span></div>
+            <div class="card-header"><h3 class="card-title"><i data-lucide="award" class="icon-inline" aria-hidden="true"></i>Top Givers — YTD</h3><span style="font-size:.72rem;color:var(--text-muted)">Confidential</span></div>
             ${topGivers.length ? topGivers.map(([name,total],i)=>`
               <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);">
                 <div style="width:22px;height:22px;border-radius:50%;background:var(--accent-light);color:var(--accent);display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900">${i+1}</div>
@@ -165,7 +165,7 @@ Navigation.register('giving', function render(page) {
     } else if(activeTab==='donations') {
       body.innerHTML = `
         <div class="toolbar" style="margin-bottom:16px;">
-          <div class="search-input-wrap"><span class="search-icon">🔍</span><input type="text" class="search-input" id="giving-search" placeholder="Search donor, fund…"></div>
+          <div class="search-input-wrap"><i data-lucide="search" class="search-icon" aria-hidden="true"></i><input type="text" class="search-input" id="giving-search" placeholder="Search donor, fund…"></div>
           <select class="filter-select" id="giving-fund-filter">
             <option value="">All Funds</option>
             ${funds.map(f=>`<option value="${f.id}">${f.name}</option>`).join('')}
@@ -174,7 +174,7 @@ Navigation.register('giving', function render(page) {
         </div>
         <div class="table-wrap" id="giving-table-wrap"></div>`;
       function thIcon(key){const {col,dir}=Giving._sort;if(col!==key)return`<span style="opacity:.25;font-size:.7rem;margin-left:3px">↕</span>`;return`<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'↑':'↓'}</span>`;}
-      function th(label,key){const active=Giving._sort.col===key;return`<th style="cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--accent);':''}" onclick="Giving.sortBy('${key}')">${label}${thIcon(key)}</th>`;}
+      function th(label,key){const {col,dir}=Giving._sort;const active=col===key;const aSort=active?(dir==='asc'?'ascending':'descending'):'none';return`<th aria-sort="${aSort}" style="white-space:nowrap;${active?'color:var(--accent);':''}"><button type="button" class="sort-btn" onclick="Giving.sortBy('${key}')">${label}${thIcon(key)}</button></th>`;}
       function filteredDons(){
         const q=document.getElementById('giving-search')?.value.toLowerCase()||'';
         const fid=document.getElementById('giving-fund-filter')?.value||'';
@@ -279,7 +279,7 @@ Navigation.register('giving', function render(page) {
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">💰 Giving & Stewardship</h2>
+        <h2 class="section-title"><i data-lucide="dollar-sign" class="icon-inline" aria-hidden="true"></i>Giving &amp; Stewardship</h2>
         <div class="section-subtitle">Donation tracking · Fund management · Giving statements</div>
       </div>
       <button class="btn btn-primary" onclick="Giving.add()">+ Record Gift</button>
@@ -287,30 +287,30 @@ Navigation.register('giving', function render(page) {
 
     <div class="stat-grid" style="margin-bottom:20px;">
       <div class="stat-card" data-accent="green">
-        <div class="stat-icon">💵</div>
+        <div class="stat-icon"><i data-lucide="dollar-sign" aria-hidden="true"></i></div>
         <div class="stat-value">${fmt(monthTotal)}</div>
         <div class="stat-label">This Month</div>
         <div class="stat-delta ${monthDelta>0?'up':monthDelta<0?'down':'flat'}">${monthDelta>0?'+':''}${monthDelta}% vs last month</div>
       </div>
       <div class="stat-card" data-accent="blue">
-        <div class="stat-icon">📅</div>
+        <div class="stat-icon"><i data-lucide="calendar" aria-hidden="true"></i></div>
         <div class="stat-value">${fmt(yearTotal)}</div>
         <div class="stat-label">Year to Date</div>
       </div>
       <div class="stat-card" data-accent="purple">
-        <div class="stat-icon">🎁</div>
+        <div class="stat-icon"><i data-lucide="gift" aria-hidden="true"></i></div>
         <div class="stat-value">${thisMonthDons.length}</div>
         <div class="stat-label">Gifts This Month</div>
       </div>
       <div class="stat-card" data-accent="orange">
-        <div class="stat-icon">📊</div>
+        <div class="stat-icon"><i data-lucide="bar-chart-2" aria-hidden="true"></i></div>
         <div class="stat-value">${fmt(avgGift)}</div>
         <div class="stat-label">Avg Gift (This Month)</div>
       </div>
     </div>
 
     <div id="giving-tabs" style="display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap;">
-      ${[['overview','📊 Overview'],['donations','📋 All Donations'],['funds','🗂 Funds'],['statements','📄 Statements']].map(([t,l])=>`
+      ${[['overview','<i data-lucide="bar-chart-2" class="icon-inline" aria-hidden="true"></i>Overview'],['donations','<i data-lucide="list" class="icon-inline" aria-hidden="true"></i>All Donations'],['funds','<i data-lucide="folder-open" class="icon-inline" aria-hidden="true"></i>Funds'],['statements','<i data-lucide="file-text" class="icon-inline" aria-hidden="true"></i>Statements']].map(([t,l])=>`
         <button class="tab-btn${activeTab===t?' active':''}" data-tab="${t}" onclick="Giving._setTab('${t}')">${l}</button>`).join('')}
     </div>
 
