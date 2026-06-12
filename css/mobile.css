@@ -9,13 +9,103 @@
      <link rel="stylesheet" href="css/components.css" />
      <link rel="stylesheet" href="css/mobile.css" />   <-- add this line
 
-   Two breakpoints:
+   Breakpoints:
      • <=768px  → tablet / large phone (layout simplifies)
-     • <=480px  → phone (single column, full-screen modals)
+     • <=640px  → phone (resp-table card stack)
+     • <=480px  → small phone (single column, full-screen modals)
 
    Nothing here touches JavaScript. It only restyles existing
    markup (.stat-grid, .data-table, .modal, etc.).
    ============================================================= */
+
+
+/* ════════════════════════════════════════════════════════════
+   NAV SCRIM  (sidebar backdrop on mobile)
+   Always in DOM; invisible + non-interactive until nav-open.
+   ════════════════════════════════════════════════════════════ */
+.nav-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, .45);
+  z-index: 150;    /* above topbar(100)/tabs(110), below sidebar(200) */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity var(--motion-fast), visibility var(--motion-fast);
+}
+/* Only activates on mobile (sidebar is always visible on desktop) */
+@media (max-width: 768px) {
+  body.nav-open .nav-scrim {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   BOTTOM TAB BAR  (mobile-only; hidden on desktop)
+   ════════════════════════════════════════════════════════════ */
+@media (min-width: 769px) {
+  .bottom-tabs { display: none; }
+}
+
+@media (max-width: 768px) {
+  .bottom-tabs {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, .08);
+    z-index: 110;
+    /* iPhone notch / home-indicator clearance */
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  .bottom-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    padding: 8px 4px 10px;
+    font-family: inherit;
+    font-size: var(--text-xs);
+    font-weight: 500;
+    color: var(--text-muted);
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+    min-height: 52px;
+    transition: color var(--motion-fast);
+    -webkit-tap-highlight-color: transparent;
+    /* Prevent text selection on double-tap */
+    user-select: none;
+  }
+  .bottom-tab svg {
+    width: 22px;
+    height: 22px;
+    stroke-width: 1.75;
+    transition: stroke-width var(--motion-fast);
+  }
+  .bottom-tab.active {
+    color: var(--accent);
+  }
+  .bottom-tab.active svg { stroke-width: 2.25; }
+  .bottom-tab:hover:not(.active) { color: var(--text); }
+
+  /* "More" button — shows active state while sidebar is open */
+  body.nav-open #bottom-tab-more { color: var(--accent); }
+  body.nav-open #bottom-tab-more svg { stroke-width: 2.25; }
+
+  /* Push page content up so it clears the tab bar */
+  .page {
+    padding-bottom: calc(68px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
 
 
 /* ════════════════════════════════════════════════════════════
@@ -154,6 +244,92 @@
        display: none;
      }
   ── */
+}
+
+
+/* ════════════════════════════════════════════════════════════
+   RESPONSIVE CARD-TABLE  (.resp-table)
+   ≤640px: hide the thead, convert each <tr> into a card,
+   each <td> into a label/value row using data-label + ::before.
+   JS side: UI.table() adds class="resp-table" and data-label
+   attributes; no resize JS needed.
+   ════════════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+
+  /* Strip the table-wrap border/shadow — the card rows have their own */
+  .table-wrap:has(.resp-table) {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 0;
+    overflow-x: visible;
+    -webkit-overflow-scrolling: unset;
+  }
+
+  /* Cancel the min-width imposed on regular tables */
+  .resp-table { min-width: 0 !important; }
+
+  /* thead disappears — labels come from data-label via ::before */
+  .resp-table thead { display: none; }
+
+  /* Each row becomes a self-contained card */
+  .resp-table tbody tr {
+    display: block;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xs);
+    margin-bottom: 10px;
+  }
+  .resp-table tbody tr:last-child { margin-bottom: 0; }
+
+  /* Each cell = flex row: [column-label] [value] */
+  .resp-table tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: var(--text-sm);
+    min-height: 0;
+    /* reset desktop overrides */
+    border-radius: 0;
+    background: transparent;
+    white-space: normal;
+  }
+  .resp-table tbody td:last-child { border-bottom: none; }
+
+  /* Column label from data-label attribute */
+  .resp-table tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    min-width: 90px;
+    padding-top: 2px;
+    line-height: 1.4;
+  }
+
+  /* Cells with blank data-label (actions, intentionally unlabelled) */
+  .resp-table tbody td[data-label='']::before,
+  .resp-table tbody td.td-actions::before { display: none; }
+
+  /* Action buttons: cluster right, no label */
+  .resp-table tbody td.td-actions {
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 6px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  /* Columns tagged hideOnMobile vanish entirely */
+  .resp-table .mobile-hide { display: none !important; }
 }
 
 
