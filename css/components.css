@@ -1500,3 +1500,42 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   font-size: .72rem;
   color: var(--text-muted);
 }
+
+/* =============================================================
+   VISUAL POLISH PASS (Opus) — leftover refinements only.
+   CSS-only, additive, no markup/JS/feature changes. Reversible
+   by deleting this block.
+   ============================================================= */
+
+/* 1. Type floor: lift remaining sub-12px micro-labels to the 12px
+      token (design-system T-1 / A-1). Improves legibility + AA. */
+.sort-arrow,
+.cmd-esc-hint,
+.cmd-footer,
+.cmd-footer kbd,
+.cmd-trigger kbd,
+.vol-week-chip,
+.prayer-praying-count,
+.ci-family,
+.v-err,
+.topbar-sync-status {
+  font-size: var(--text-xs); /* 12px */
+}
+
+/* 2. Neutral table-row hover (audit TB-4). Brand-tinted hover read
+      as "selected" and looked wrong in dark mode. */
+tbody tr:hover,
+.table--striped tbody tr:nth-child(even):hover {
+  background: var(--surface-hover);
+}
+
+/* 3. "New" row tint: theme-aware token instead of a hard-coded
+      indigo rgba that didn't adapt to dark mode (audit C-2). */
+.tr--new {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+
+/* 4. Stat-card deltas use semantic text tokens so they stay legible
+      in dark mode (audit C-3) instead of raw --green/--red hues. */
+.stat-delta.up   { color: var(--success-text); }
+.stat-delta.down { color: var(--danger-text); }
