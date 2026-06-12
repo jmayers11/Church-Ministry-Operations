@@ -197,7 +197,8 @@ Navigation.register('prayer', function render(page) {
                 <span class="badge badge-gray">${UI.esc(r.category)}</span>
               </div>
             </div>`).join('')}
-        </div>`};
+        </div>`}
+      `;
       if (typeof lucide !== 'undefined') lucide.createIcons();
 
     /* ══════════════════════════════

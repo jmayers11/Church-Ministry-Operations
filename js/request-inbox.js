@@ -87,12 +87,16 @@
 Navigation.register('request-inbox', function render(page) {
   const today = Storage.today();
 
-  // ── Use Supabase cache if authenticated; otherwise fall back to localStorage ──
-  const sbEnabled = typeof SupabaseDB !== 'undefined' && SupabaseDB.isEnabled();
-  const sbAuthed  = sbEnabled && SupabaseDB.isAuthenticated();
-  const requests  = (sbAuthed && RequestInbox._sbCache !== null)
-                    ? RequestInbox._sbCache
-                    : Storage.getAll('ministry_requests');
+  // ── Use Supabase when authenticated; never flash stale local data ──────────
+  const sbEnabled  = typeof SupabaseDB !== 'undefined' && SupabaseDB.isEnabled();
+  const sbAuthed   = sbEnabled && SupabaseDB.isAuthenticated();
+  // When Supabase is authenticated: use its cache ([] while loading) so we
+  // never show a flash of stale localStorage data before the real data arrives.
+  // When not authenticated: fall back to localStorage as before.
+  const sbLoading  = sbAuthed && RequestInbox._sbCache === null;
+  const requests   = sbAuthed
+                     ? (RequestInbox._sbCache || [])
+                     : Storage.getAll('ministry_requests');
   requests.sort((a,b) => (b.submittedAt||'').localeCompare(a.submittedAt||''));
 
   const newReqs         = requests.filter(r=>r.status==='Received').length;
@@ -180,7 +184,9 @@ Navigation.register('request-inbox', function render(page) {
           <span style="color:#166534;font-weight:700;">🔒 Supabase Connected</span>
           <span style="color:#166534;">Signed in as ${UI.esc(userEmail)}</span>
           <span style="flex:1"></span>
-          ${RequestInbox._sbCache === null ? `<span style="color:#166534;font-style:italic">Loading…</span>` : `<span style="color:#166534;">${requests.length} requests loaded</span>`}
+          ${sbLoading
+            ? `<span style="color:#166534;font-style:italic;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Loading requests…</span>`
+            : `<span style="color:#166534;">${requests.length} request${requests.length !== 1 ? 's' : ''} loaded</span>`}
           <button class="btn btn-outline btn-sm" onclick="RequestInbox._signOut()" style="font-size:.78rem;padding:4px 10px;">Sign Out</button>
         </div>`;
     }
@@ -246,7 +252,18 @@ Navigation.register('request-inbox', function render(page) {
     document.head.appendChild(s);
   }
 
-  renderTable(applyFilters());
+  // If Supabase is authenticated but data hasn't loaded yet, show a spinner
+  // instead of the empty table so there's no flash of a blank list.
+  if (sbLoading) {
+    const wrap = document.getElementById('inbox-table-wrap');
+    if (wrap) wrap.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:56px;gap:14px;color:var(--text-muted)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        <span style="font-size:.88rem">Loading requests from Supabase…</span>
+      </div>`;
+  } else {
+    renderTable(applyFilters());
+  }
 
   document.getElementById('inbox-search')?.addEventListener('input', function() {
     activeSearch = this.value;
@@ -259,7 +276,7 @@ Navigation.register('request-inbox', function render(page) {
   RequestInbox._rerender = () => renderTable(applyFilters());
 
   // Kick off async Supabase refresh if authenticated and cache is stale
-  if (sbAuthed && RequestInbox._sbCache === null) {
+  if (sbLoading) {
     RequestInbox._refreshFromSupabase();
   }
 });
