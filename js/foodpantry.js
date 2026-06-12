@@ -92,6 +92,68 @@
   Storage.set('_pantry_inv_seeded', true);
 })();
 
+// Seed templates for users whose inventory was already seeded before templates existed
+(function seedTemplatesStandalone() {
+  if (Storage.get('_pantry_templates_seeded')) return;
+  const uid = Storage.uid;
+  const templates = [
+    { id: uid(), name: 'Standard Distribution Box', description: 'Full monthly box for a family of 4', color: 'blue',
+      items: [
+        { itemName: 'Canned Tuna',          qty: 2, unit: 'cans' },
+        { itemName: 'Canned Green Beans',   qty: 2, unit: 'cans' },
+        { itemName: 'Canned Soup (Chicken)', qty: 1, unit: 'can'  },
+        { itemName: 'Pasta (Spaghetti)',    qty: 1, unit: 'lb'   },
+        { itemName: 'Rice (Long Grain)',    qty: 1, unit: 'lb'   },
+        { itemName: 'Cereal (Cheerios)',    qty: 1, unit: 'box'  },
+        { itemName: 'Mac & Cheese (Box)',   qty: 1, unit: 'box'  },
+        { itemName: 'Canned Beans (Black)', qty: 1, unit: 'can'  },
+      ],
+    },
+    { id: uid(), name: 'Senior Box', description: 'Lighter portions for senior clients', color: 'green',
+      items: [
+        { itemName: 'Canned Chicken',       qty: 1, unit: 'can'  },
+        { itemName: 'Canned Green Beans',   qty: 1, unit: 'can'  },
+        { itemName: 'Canned Soup (Tomato)', qty: 1, unit: 'can'  },
+        { itemName: 'Instant Oatmeal',      qty: 1, unit: 'box'  },
+        { itemName: 'Applesauce Cups',      qty: 1, unit: 'pack' },
+        { itemName: 'Rice (Long Grain)',    qty: 1, unit: 'lb'   },
+      ],
+    },
+    { id: uid(), name: 'Drop-In Box', description: 'Quick walk-in assistance for immediate needs', color: 'orange',
+      items: [
+        { itemName: 'Canned Soup (Chicken)', qty: 1, unit: 'can'   },
+        { itemName: 'Peanut Butter',         qty: 1, unit: 'jar'   },
+        { itemName: 'Ramen Noodles',         qty: 3, unit: 'packs' },
+        { itemName: 'Mac & Cheese (Box)',    qty: 1, unit: 'box'   },
+      ],
+    },
+    { id: uid(), name: 'Holiday Box', description: 'Special seasonal distribution', color: 'purple',
+      items: [
+        { itemName: 'Canned Chicken',      qty: 2, unit: 'cans'   },
+        { itemName: 'Canned Green Beans',  qty: 2, unit: 'cans'   },
+        { itemName: 'Canned Corn',         qty: 2, unit: 'cans'   },
+        { itemName: 'Rice (Long Grain)',   qty: 2, unit: 'lbs'    },
+        { itemName: 'Mac & Cheese (Box)',  qty: 1, unit: 'box'    },
+        { itemName: 'Applesauce Cups',     qty: 1, unit: 'pack'   },
+        { itemName: 'Cooking Oil',         qty: 1, unit: 'bottle' },
+      ],
+    },
+    { id: uid(), name: "Children's Box", description: 'Kid-friendly items for families with young children', color: 'red',
+      items: [
+        { itemName: 'Mac & Cheese (Box)',   qty: 2, unit: 'boxes'  },
+        { itemName: 'Applesauce Cups',      qty: 1, unit: 'pack'   },
+        { itemName: 'Cereal (Cheerios)',    qty: 1, unit: 'box'    },
+        { itemName: 'Peanut Butter',        qty: 1, unit: 'jar'    },
+        { itemName: 'Ramen Noodles',        qty: 2, unit: 'packs'  },
+        { itemName: 'Canned Soup (Chicken)', qty: 1, unit: 'can'   },
+      ],
+    },
+  ];
+  const existing = Storage.getAll('pantry_box_templates') || [];
+  if (!existing.length) Storage.saveAll('pantry_box_templates', templates);
+  Storage.set('_pantry_templates_seeded', true);
+})();
+
 Navigation.register('foodpantry', function render(page) {
   const inventory = Storage.getAll('pantry_inventory');
   const distributions = Storage.getAll('foodpantry').sort((a,b) => b.date.localeCompare(a.date));
@@ -203,8 +265,12 @@ Navigation.register('foodpantry', function render(page) {
           + '<i data-lucide="trash-2" style="width:13px;height:13px" aria-hidden="true"></i></button>'
           + '</div></div>'
           + '<div style="min-height:48px;margin-bottom:12px;">' + bom + '</div>'
-          + '<button class="btn btn-primary btn-sm" style="width:100%" onclick="PantryMgr.buildBoxes(\'' + t.id + '\')">'
-          + '<i data-lucide="package-plus" style="width:13px;height:13px" aria-hidden="true"></i> Build This Box</button>'
+          + '<div style="display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:auto;">'
+          + '<button class="btn btn-primary btn-sm" onclick="PantryMgr.buildBoxes(\'' + t.id + '\')">'
+          + '<i data-lucide="package-plus" style="width:13px;height:13px" aria-hidden="true"></i> Build Order</button>'
+          + '<button class="btn btn-outline btn-sm" title="Auto-Issue 1 box immediately" onclick="PantryMgr.quickIssue(\'' + t.id + '\')">'
+          + '<i data-lucide="zap" style="width:13px;height:13px" aria-hidden="true"></i> Quick Issue</button>'
+          + '</div>'
           + '</div>';
       });
       tmplHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">' + cards + '</div>';
@@ -792,6 +858,7 @@ const PantryMgr = {
     if (typeof lucide !== 'undefined') lucide.createIcons();
   },
 
+
   _executeBuild(templateId) {
     const template = Storage.findById('pantry_box_templates', templateId); if (!template) return;
     const qty     = parseInt(document.getElementById('build-qty')?.value)||1;
@@ -800,7 +867,7 @@ const PantryMgr = {
     const notes   = (document.getElementById('build-notes')?.value||'').trim();
     const inventory = Storage.getAll('pantry_inventory') || [];
     const consumed  = [];
-    (template.items||[]).forEach(bomLine => {
+    (template.items||[]).forEach(function(bomLine) {
       const toConsume = bomLine.qty * qty;
       const best = PantryMgr._matchInv(inventory, bomLine.itemName);
       if (best) {
@@ -812,51 +879,122 @@ const PantryMgr = {
       templateId, templateName:template.name, quantity:qty, date, builtBy, notes, itemsConsumed:consumed,
     });
     Modal.close();
-    Toast.success('Built '+qty+' × '+template.name+' — inventory updated');
+    Toast.success('Built '+qty+' \xd7 '+template.name+' — inventory updated');
     Storage.set('_pantryTab','boxbuilder'); Navigation.navigate('foodpantry');
   },
 
-  // Live gap analysis (updates #planner-output in place, no page reload)
+  // ----------------------------------------------------------------
+  //  Quick Issue — auto-pick items from inventory, issue immediately
+  // ----------------------------------------------------------------
+  quickIssue(templateId) {
+    const template = Storage.findById('pantry_box_templates', templateId); if (!template) return;
+    const inventory = Storage.getAll('pantry_inventory') || [];
+    const picks = (template.items || []).map(function(bomLine) {
+      const best = PantryMgr._matchInv(inventory, bomLine.itemName);
+      return { bomLine: bomLine, best: best };
+    });
+    const missing = picks.filter(function(p) { return !p.best; });
+    let pickList = '<div style="margin:10px 0 14px;border:1px solid var(--border);border-radius:6px;overflow:hidden;">';
+    picks.forEach(function(p) {
+      const found = !!p.best;
+      pickList += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;'
+        + 'border-bottom:1px solid var(--border);background:' + (found ? 'transparent' : 'var(--accent-light)') + '">'
+        + '<span style="font-size:.83rem;">' + UI.esc(p.bomLine.itemName)
+        + (found ? '' : ' <span style="color:var(--red);font-size:.75rem;">⚠ not found</span>') + '</span>'
+        + '<span style="font-size:.83rem;font-weight:700;color:var(--accent)">'
+        + p.bomLine.qty + ' ' + UI.esc(p.bomLine.unit) + '</span></div>';
+    });
+    pickList += '</div>';
+    const banner = missing.length
+      ? '<div style="background:var(--accent-light);border:1px solid var(--orange);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:.82rem;color:var(--orange)">'
+        + '⚠ ' + missing.length + ' item(s) not in inventory — they will be skipped.</div>'
+      : '<div style="background:#22c55e22;border:1px solid #16a34a;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:.82rem;color:#15803d">'
+        + '✓ All items found — ready to issue.</div>';
+    const body = '<div style="font-size:.88rem;color:var(--text-muted);margin-bottom:4px;">Items pulled per box:</div>'
+      + pickList + banner
+      + '<div class="form-row">'
+      + '<div class="form-group"><label class="form-label">Qty to Issue</label>'
+      + '<input class="form-control" id="qi-qty" type="number" min="1" value="1"></div>'
+      + '<div class="form-group"><label class="form-label">Issued By</label>'
+      + '<input class="form-control" id="qi-by" placeholder="Staff name..."></div></div>'
+      + '<div class="form-group"><label class="form-label">Date</label>'
+      + '<input class="form-control" id="qi-date" type="date" value="' + Storage.today() + '"></div>';
+    Modal.open({ title: '⚡ Quick Issue: ' + UI.esc(template.name), body: body, width: '420px',
+      footer: '<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>'
+            + '<button class="btn btn-primary" onclick="PantryMgr._executeQuickIssue(\'' + templateId + '\')">'
+            + '<i data-lucide="zap" style="width:13px;height:13px" aria-hidden="true"></i> Issue &amp; Deduct</button>' });
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  },
+
+  _executeQuickIssue(templateId) {
+    const template = Storage.findById('pantry_box_templates', templateId); if (!template) return;
+    const qty     = parseInt(document.getElementById('qi-qty')?.value) || 1;
+    const builtBy = (document.getElementById('qi-by')?.value || '').trim();
+    const date    = document.getElementById('qi-date')?.value || Storage.today();
+    const inventory = Storage.getAll('pantry_inventory') || [];
+    const consumed  = [];
+    (template.items || []).forEach(function(bomLine) {
+      const toConsume = bomLine.qty * qty;
+      const best = PantryMgr._matchInv(inventory, bomLine.itemName);
+      if (best) {
+        Storage.update('pantry_inventory', best.id, { qty: Math.max(0, best.qty - toConsume) });
+        consumed.push({ itemName: best.name, qty: toConsume, unit: bomLine.unit });
+      }
+    });
+    Storage.insert('pantry_build_orders', {
+      templateId: templateId, templateName: template.name,
+      quantity: qty, date: date, builtBy: builtBy,
+      notes: 'Quick Issue', itemsConsumed: consumed,
+    });
+    Modal.close();
+    Toast.success('Issued ' + qty + ' \xd7 ' + template.name + ' — inventory updated');
+    Storage.set('_pantryTab', 'boxbuilder'); Navigation.navigate('foodpantry');
+  },
+
+  // ----------------------------------------------------------------
+  //  Monthly planner — gap analysis, in-place DOM update
+  // ----------------------------------------------------------------
   _runPlanner() {
     const tmplEl = document.getElementById('planner-tmpl');
     const qtyEl  = document.getElementById('planner-qty');
     const output = document.getElementById('planner-output');
-    if (!tmplEl||!qtyEl||!output) return;
+    if (!tmplEl || !qtyEl || !output) return;
     const templateId = tmplEl.value;
-    const targetQty  = parseInt(qtyEl.value)||0;
-    if (!templateId||targetQty<=0) { output.innerHTML=''; return; }
+    const targetQty  = parseInt(qtyEl.value) || 0;
+    if (!templateId || targetQty <= 0) { output.innerHTML = ''; return; }
     const template  = Storage.findById('pantry_box_templates', templateId); if (!template) return;
     const inventory = Storage.getAll('pantry_inventory') || [];
-    const rows = (template.items||[]).map(bomLine => {
+    const rows = (template.items || []).map(function(bomLine) {
       const needed = bomLine.qty * targetQty;
       const best   = PantryMgr._matchInv(inventory, bomLine.itemName);
       const onHand = best ? best.qty : 0;
       const gap    = needed - onHand;
-      return { bomLine, needed, onHand, gap };
+      return { bomLine: bomLine, needed: needed, onHand: onHand, gap: gap };
     });
-    const allOk = rows.every(r => r.gap<=0);
-    const gaps  = rows.filter(r => r.gap>0);
+    const allOk = rows.every(function(r) { return r.gap <= 0; });
+    const gaps  = rows.filter(function(r) { return r.gap > 0; });
     let tableRows = '';
-    rows.forEach(r => {
-      const ok = r.gap<=0;
+    rows.forEach(function(r) {
+      const ok = r.gap <= 0;
       tableRows += '<tr>'
-        + '<td>'+UI.esc(r.bomLine.itemName)+'</td>'
-        + '<td style="text-align:center">'+r.bomLine.qty+' '+UI.esc(r.bomLine.unit)+'/box</td>'
-        + '<td style="text-align:center;font-weight:700">'+r.needed+'</td>'
-        + '<td style="text-align:center">'+r.onHand+'</td>'
-        + '<td style="text-align:center;font-weight:700;color:'+(ok?'#15803d':'var(--red)')+'">'+
-          (ok?'&#10003; OK':('−'+r.gap+' needed'))+'</td></tr>';
+        + '<td>' + UI.esc(r.bomLine.itemName) + '</td>'
+        + '<td style="text-align:center">' + r.bomLine.qty + ' ' + UI.esc(r.bomLine.unit) + '/box</td>'
+        + '<td style="text-align:center;font-weight:700">' + r.needed + '</td>'
+        + '<td style="text-align:center">' + r.onHand + '</td>'
+        + '<td style="text-align:center;font-weight:700;color:' + (ok ? '#15803d' : 'var(--red)') + '">'
+        + (ok ? '✓ OK' : ('−' + r.gap + ' needed')) + '</td></tr>';
     });
     const banner = allOk
-      ? '<div style="background:#22c55e22;border:1px solid #16a34a;border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:.84rem;color:#15803d">&#10003; You have enough stock to build all <strong>'+targetQty+'</strong> boxes!</div>'
+      ? '<div style="background:#22c55e22;border:1px solid #16a34a;border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:.84rem;color:#15803d">'
+        + '✓ You have enough stock to build all <strong>' + targetQty + '</strong> boxes!</div>'
       : '<div style="background:var(--accent-light);border:1px solid var(--orange);border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:.84rem;">'
         + '<strong>Donation Gap:</strong> '
-        + gaps.map(r=>'<strong>'+r.gap+' '+r.bomLine.unit+'</strong> of '+UI.esc(r.bomLine.itemName)).join(', ')
+        + gaps.map(function(r) { return '<strong>' + r.gap + ' ' + r.bomLine.unit + '</strong> of ' + UI.esc(r.bomLine.itemName); }).join(', ')
         + '</div>';
     output.innerHTML = banner
       + '<div class="table-wrap"><table class="data-table" style="font-size:.83rem;">'
-      + '<thead><tr><th>Item</th><th>Per Box</th><th>Total Needed ('+targetQty+' boxes)</th><th>On Hand</th><th>Status</th></tr></thead>'
-      + '<tbody>'+tableRows+'</tbody></table></div>';
+      + '<thead><tr><th>Item</th><th>Per Box</th><th>Total Needed (' + targetQty + ' boxes)</th><th>On Hand</th><th>Status</th></tr></thead>'
+      + '<tbody>' + tableRows + '</tbody></table></div>';
   },
 };
 window.PantryMgr = PantryMgr;
