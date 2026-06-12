@@ -4,17 +4,28 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Church Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/main.css" />
   <link rel="stylesheet" href="css/dashboard.css" />
   <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/mobile.css" />
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@latest/dist/umd/lucide.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 </head>
 <body>
+
+  <!-- Skip-to-content for keyboard users -->
+  <a href="#main-content" class="skip-link">Skip to main content</a>
 
   <!-- ===== App Sign-In Gate (covers everything until authenticated) ===== -->
   <div id="auth-gate" role="dialog" aria-modal="true" aria-labelledby="auth-gate-title">
     <div class="auth-gate-card">
-      <div class="auth-gate-logo">✝</div>
+      <div class="auth-gate-logo">
+        <div class="auth-gate-logo-mark">✝</div>
+      </div>
       <h1 id="auth-gate-title" class="auth-gate-title">Grace Community Church</h1>
       <p class="auth-gate-subtitle">Staff sign-in required to access the ministry dashboard.</p>
       <form id="auth-gate-form" autocomplete="on">
@@ -53,101 +64,142 @@
     <nav class="sidebar-nav" role="navigation" aria-label="Main navigation">
       <ul>
         <!-- ── Church ── -->
-        <li class="nav-section-label">Church</li>
-        <li><a href="#" class="nav-link active" data-page="dashboard">
-          <span class="nav-icon">⊞</span><span class="nav-label">Dashboard</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="request-inbox" id="nav-inbox">
-          <span class="nav-icon">📬</span><span class="nav-label">Request Inbox</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="members">
-          <span class="nav-icon">👥</span><span class="nav-label">Members</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="visitors">
-          <span class="nav-icon">👋</span><span class="nav-label">Visitors</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="prayer">
-          <span class="nav-icon">🙏</span><span class="nav-label">Prayer Requests</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="events">
-          <span class="nav-icon">📅</span><span class="nav-label">Events</span>
-        </a></li>
+        <li class="nav-section-item">
+          <button class="nav-section-toggle" data-section="church" aria-expanded="true" aria-controls="nav-section-church">
+            <span class="nav-section-label">Church</span>
+            <i data-lucide="chevron-down" class="nav-section-chevron" aria-hidden="true"></i>
+          </button>
+          <ul id="nav-section-church" class="nav-section-items">
+            <li><a href="#" class="nav-link active" data-page="dashboard" data-tooltip="Dashboard">
+              <span class="nav-icon"><i data-lucide="layout-dashboard" aria-hidden="true"></i></span><span class="nav-label">Dashboard</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="request-inbox" id="nav-inbox" data-tooltip="Request Inbox">
+              <span class="nav-icon"><i data-lucide="inbox" aria-hidden="true"></i></span><span class="nav-label">Request Inbox</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="members" data-tooltip="Members">
+              <span class="nav-icon"><i data-lucide="users" aria-hidden="true"></i></span><span class="nav-label">Members</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="visitors" data-tooltip="Visitors">
+              <span class="nav-icon"><i data-lucide="user-plus" aria-hidden="true"></i></span><span class="nav-label">Visitors</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="prayer" data-tooltip="Prayer Requests">
+              <span class="nav-icon"><i data-lucide="hand-heart" aria-hidden="true"></i></span><span class="nav-label">Prayer Requests</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="events" data-tooltip="Events">
+              <span class="nav-icon"><i data-lucide="calendar-days" aria-hidden="true"></i></span><span class="nav-label">Events</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="checkin" data-tooltip="Check-In">
+              <span class="nav-icon"><i data-lucide="scan-line" aria-hidden="true"></i></span><span class="nav-label">Check-In</span>
+            </a></li>
+          </ul>
+        </li>
 
         <!-- ── Community Care ── -->
-        <li class="nav-section-label">Community Care</li>
-        <li><a href="#" class="nav-link" data-page="impact">
-          <span class="nav-icon">🌟</span><span class="nav-label">Impact Dashboard</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="foodpantry">
-          <span class="nav-icon">🥫</span><span class="nav-label">Food Pantry</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="family-assistance">
-          <span class="nav-icon">🏠</span><span class="nav-label">Family Assistance</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="care">
-          <span class="nav-icon">❤️</span><span class="nav-label">Care Ministry</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="community-events">
-          <span class="nav-icon">🌍</span><span class="nav-label">Community Events</span>
-        </a></li>
+        <li class="nav-section-item">
+          <button class="nav-section-toggle" data-section="care" aria-expanded="true" aria-controls="nav-section-care">
+            <span class="nav-section-label">Community Care</span>
+            <i data-lucide="chevron-down" class="nav-section-chevron" aria-hidden="true"></i>
+          </button>
+          <ul id="nav-section-care" class="nav-section-items">
+            <li><a href="#" class="nav-link" data-page="impact" data-tooltip="Impact Dashboard">
+              <span class="nav-icon"><i data-lucide="sparkles" aria-hidden="true"></i></span><span class="nav-label">Impact Dashboard</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="foodpantry" data-tooltip="Food Pantry">
+              <span class="nav-icon"><i data-lucide="shopping-basket" aria-hidden="true"></i></span><span class="nav-label">Food Pantry</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="family-assistance" data-tooltip="Family Assistance">
+              <span class="nav-icon"><i data-lucide="home" aria-hidden="true"></i></span><span class="nav-label">Family Assistance</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="care" data-tooltip="Care Ministry">
+              <span class="nav-icon"><i data-lucide="heart-handshake" aria-hidden="true"></i></span><span class="nav-label">Care Ministry</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="community-events" data-tooltip="Community Events">
+              <span class="nav-icon"><i data-lucide="globe" aria-hidden="true"></i></span><span class="nav-label">Community Events</span>
+            </a></li>
+          </ul>
+        </li>
 
-        <!-- ── Volunteers & Resources ── -->
-        <li class="nav-section-label">People & Resources</li>
-        <li><a href="#" class="nav-link" data-page="volunteer-center">
-          <span class="nav-icon">🙌</span><span class="nav-label">Volunteer Center</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="volunteers">
-          <span class="nav-icon">📋</span><span class="nav-label">Volunteer Roster</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="resources">
-          <span class="nav-icon">📦</span><span class="nav-label">Resources</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="scorecard">
-          <span class="nav-icon">📊</span><span class="nav-label">Health Scorecard</span>
-        </a></li>
+        <!-- ── People & Resources ── -->
+        <li class="nav-section-item">
+          <button class="nav-section-toggle" data-section="people" aria-expanded="true" aria-controls="nav-section-people">
+            <span class="nav-section-label">People &amp; Resources</span>
+            <i data-lucide="chevron-down" class="nav-section-chevron" aria-hidden="true"></i>
+          </button>
+          <ul id="nav-section-people" class="nav-section-items">
+            <li><a href="#" class="nav-link" data-page="volunteer-center" data-tooltip="Volunteer Center">
+              <span class="nav-icon"><i data-lucide="helping-hand" aria-hidden="true"></i></span><span class="nav-label">Volunteer Center</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="volunteers" data-tooltip="Volunteer Roster">
+              <span class="nav-icon"><i data-lucide="clipboard-list" aria-hidden="true"></i></span><span class="nav-label">Volunteer Roster</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="resources" data-tooltip="Resources">
+              <span class="nav-icon"><i data-lucide="package" aria-hidden="true"></i></span><span class="nav-label">Resources</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="scorecard" data-tooltip="Health Scorecard">
+              <span class="nav-icon"><i data-lucide="activity" aria-hidden="true"></i></span><span class="nav-label">Health Scorecard</span>
+            </a></li>
+          </ul>
+        </li>
 
         <!-- ── Stewardship & Admin ── -->
-        <li class="nav-section-label">Stewardship &amp; Admin</li>
-        <li><a href="#" class="nav-link" data-page="giving">
-          <span class="nav-icon">💰</span><span class="nav-label">Giving</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="communications">
-          <span class="nav-icon">📢</span><span class="nav-label">Communications</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="facilities">
-          <span class="nav-icon">🏛</span><span class="nav-label">Facilities</span>
-        </a></li>
+        <li class="nav-section-item">
+          <button class="nav-section-toggle" data-section="steward" aria-expanded="true" aria-controls="nav-section-steward">
+            <span class="nav-section-label">Stewardship &amp; Admin</span>
+            <i data-lucide="chevron-down" class="nav-section-chevron" aria-hidden="true"></i>
+          </button>
+          <ul id="nav-section-steward" class="nav-section-items">
+            <li><a href="#" class="nav-link" data-page="giving" data-tooltip="Giving">
+              <span class="nav-icon"><i data-lucide="hand-coins" aria-hidden="true"></i></span><span class="nav-label">Giving</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="communications" data-tooltip="Communications">
+              <span class="nav-icon"><i data-lucide="megaphone" aria-hidden="true"></i></span><span class="nav-label">Communications</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="facilities" data-tooltip="Facilities">
+              <span class="nav-icon"><i data-lucide="building-2" aria-hidden="true"></i></span><span class="nav-label">Facilities</span>
+            </a></li>
+          </ul>
+        </li>
 
         <!-- ── Tools ── -->
-        <li class="nav-section-label">Tools</li>
-        <li><a href="#" class="nav-link" data-page="tasks">
-          <span class="nav-icon">✅</span><span class="nav-label">Task Manager</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="sermons">
-          <span class="nav-icon">📖</span><span class="nav-label">Sermon Library</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="ministries">
-          <span class="nav-icon">🏛️</span><span class="nav-label">Ministries</span>
-        </a></li>
-        <li><a href="#" class="nav-link" data-page="prompts">
-          <span class="nav-icon">✨</span><span class="nav-label">Message Templates</span>
-        </a></li>
+        <li class="nav-section-item">
+          <button class="nav-section-toggle" data-section="tools" aria-expanded="true" aria-controls="nav-section-tools">
+            <span class="nav-section-label">Tools</span>
+            <i data-lucide="chevron-down" class="nav-section-chevron" aria-hidden="true"></i>
+          </button>
+          <ul id="nav-section-tools" class="nav-section-items">
+            <li><a href="#" class="nav-link" data-page="tasks" data-tooltip="Task Manager">
+              <span class="nav-icon"><i data-lucide="check-square" aria-hidden="true"></i></span><span class="nav-label">Task Manager</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="sermons" data-tooltip="Sermon Library">
+              <span class="nav-icon"><i data-lucide="book-open" aria-hidden="true"></i></span><span class="nav-label">Sermon Library</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="ministries" data-tooltip="Ministries">
+              <span class="nav-icon"><i data-lucide="church" aria-hidden="true"></i></span><span class="nav-label">Ministries</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="prompts" data-tooltip="Message Templates">
+              <span class="nav-icon"><i data-lucide="file-text" aria-hidden="true"></i></span><span class="nav-label">Message Templates</span>
+            </a></li>
+          </ul>
+        </li>
       </ul>
     </nav>
 
     <div class="sidebar-footer">
       <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
       <a href="#" class="nav-link" data-page="settings">
-        <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+        <span class="nav-icon"><i data-lucide="settings" aria-hidden="true"></i></span><span class="nav-label">Settings</span>
       </a>
       <button class="nav-link" id="global-signout" type="button" title="Sign out"
               style="background:none;border:none;cursor:pointer;width:100%;text-align:left;">
-        <span class="nav-icon">🚪</span><span class="nav-label">Sign Out</span>
+        <span class="nav-icon"><i data-lucide="log-out" aria-hidden="true"></i></span><span class="nav-label">Sign Out</span>
         <span id="global-signout-email" class="nav-label"
               style="display:block;font-size:.7rem;color:var(--text-muted);"></span>
       </button>
     </div>
   </aside>
+
+  <!-- Nav scrim: darkens page behind sidebar drawer on mobile -->
+  <div id="nav-scrim" class="nav-scrim" aria-hidden="true"></div>
 
   <main id="main-content" class="main-content">
     <header class="topbar">
@@ -156,6 +208,11 @@
         <h1 class="page-title" id="page-title">Dashboard</h1>
       </div>
       <div class="topbar-right">
+        <button class="cmd-trigger" id="cmd-trigger-btn" aria-label="Open command palette (⌘K)">
+          <i data-lucide="search" aria-hidden="true"></i>
+          <span class="cmd-trigger-text">Search…</span>
+          <kbd>⌘K</kbd>
+        </button>
         <span class="topbar-date" id="topbar-date"></span>
         <span id="sync-status" class="topbar-sync-status"></span>
         <button class="btn btn-sm btn-outline" id="sync-btn" title="Sync all data from Supabase">⟳ Sync</button>
@@ -174,6 +231,7 @@
     <div id="page-volunteers"        class="page"></div>
     <div id="page-prayer"            class="page"></div>
     <div id="page-events"            class="page"></div>
+    <div id="page-checkin"           class="page"></div>
     <div id="page-foodpantry"        class="page"></div>
     <div id="page-care"              class="page"></div>
     <div id="page-settings"          class="page"></div>
@@ -196,6 +254,31 @@
     <div id="page-request-inbox"     class="page"></div>
   </main>
 
+  <!-- ===== Command Palette (⌘K) ===== -->
+  <div id="cmd-overlay" class="cmd-overlay hidden" role="dialog" aria-modal="true" aria-label="Command palette">
+    <div class="cmd-palette" role="listbox">
+      <div class="cmd-header">
+        <i data-lucide="search" class="icon-inline" aria-hidden="true"></i>
+        <input type="text" id="cmd-input" class="cmd-input"
+               placeholder="Search pages, members, events…"
+               autocomplete="off" spellcheck="false" aria-label="Search">
+        <kbd class="cmd-esc-hint">esc</kbd>
+      </div>
+      <div id="cmd-results" class="cmd-results" aria-live="polite"></div>
+      <div class="cmd-footer" aria-hidden="true">
+        <span><kbd>↑↓</kbd> navigate</span>
+        <span><kbd>↵</kbd> open</span>
+        <span><kbd>Esc</kbd> close</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Member Profile Drawer (3.4) ===== -->
+  <aside id="profile-drawer" class="profile-drawer"
+         role="complementary" aria-label="Member profile"
+         aria-hidden="true"></aside>
+  <div id="profile-drawer-scrim" class="profile-drawer-scrim" aria-hidden="true"></div>
+
   <div id="modal-overlay" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal" id="modal">
       <div class="modal-header">
@@ -207,20 +290,70 @@
     </div>
   </div>
 
+  <!-- Onboarding first-run overlay -->
+  <div id="onboarding-overlay" class="onboarding-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
+    <div class="onboarding-panel">
+      <div class="onboarding-logo">
+        <i data-lucide="church" style="width:48px;height:48px;color:var(--accent)" aria-hidden="true"></i>
+      </div>
+      <h2 id="onboarding-title" style="font-size:1.4rem;font-weight:900;margin-bottom:8px">Welcome to Your Church Dashboard!</h2>
+      <p style="color:var(--text-muted);font-size:.9rem;margin-bottom:24px;max-width:400px;text-align:center">
+        Let's get you set up in a few quick steps. You can always come back to Settings to change any of this.
+      </p>
+      <div id="onboarding-steps" class="onboarding-steps"></div>
+      <div id="onboarding-footer" style="margin-top:24px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap"></div>
+    </div>
+  </div>
+
+  <!-- Bulk action bar (floats above bottom-tabs when rows are selected) -->
+  <div id="bulk-bar" class="bulk-bar" role="toolbar" aria-label="Bulk actions" hidden>
+    <span class="bulk-bar__count" id="bulk-bar-count">0 selected</span>
+    <div class="bulk-bar__actions" id="bulk-bar-actions"></div>
+    <button class="btn btn-ghost btn-sm" aria-label="Clear selection"
+            onclick="UI._clearSel(document.getElementById('bulk-bar').dataset.ns)">
+      <i data-lucide="x" aria-hidden="true"></i> Clear
+    </button>
+  </div>
+
   <!-- Toast container -->
-  <div id="toast-container"></div>
+  <div id="toast-container" role="status" aria-live="polite" aria-atomic="false"></div>
 
   <!-- Scripts — order matters -->
   <script>
     // Set true ONLY for local demos. MUST be false in production.
     window.DEMO_MODE = false;
+
+    // ── Service Worker registration (4.9) ───────────────────────
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js').then(reg => {
+          // Notify when a new SW is available
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                // New version available — show toast after UI is ready
+                setTimeout(() => {
+                  if (typeof Toast !== 'undefined') {
+                    Toast.info('Update available — reload to get the latest version.');
+                  }
+                }, 2000);
+              }
+            });
+          });
+        }).catch(err => console.warn('[SW] Registration failed:', err));
+      });
+    }
   </script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
   <script src="js/supabase-config.js"></script>
   <script src="js/auth-gate.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/ui-components.js"></script>
   <script src="js/navigation.js"></script>
+  <script src="js/command-palette.js"></script>
+  <script src="js/profile-drawer.js"></script>
   <script src="js/dashboard.js"></script>
   <script src="js/members.js"></script>
   <script src="js/visitors.js"></script>
@@ -243,5 +376,32 @@
   <script src="js/resources.js"></script>
   <script src="js/scorecard.js"></script>
   <script src="js/request-inbox.js"></script>
+  <script src="js/board-report.js"></script>
+  <script src="js/checkin.js"></script>
+
+  <!-- Bottom tab bar — shown only on mobile (≤768px via CSS) -->
+  <nav id="bottom-tabs" class="bottom-tabs" aria-label="Quick navigation">
+    <a href="#" class="bottom-tab" data-page="dashboard">
+      <i data-lucide="layout-dashboard" aria-hidden="true"></i>
+      <span>Home</span>
+    </a>
+    <a href="#" class="bottom-tab" data-page="request-inbox">
+      <i data-lucide="inbox" aria-hidden="true"></i>
+      <span>Inbox</span>
+    </a>
+    <a href="#" class="bottom-tab" data-page="members">
+      <i data-lucide="users" aria-hidden="true"></i>
+      <span>Members</span>
+    </a>
+    <a href="#" class="bottom-tab" data-page="events">
+      <i data-lucide="calendar-days" aria-hidden="true"></i>
+      <span>Events</span>
+    </a>
+    <button type="button" class="bottom-tab" id="bottom-tab-more"
+            aria-label="Open full navigation menu" aria-expanded="false">
+      <i data-lucide="menu" aria-hidden="true"></i>
+      <span>More</span>
+    </button>
+  </nav>
 </body>
 </html>
