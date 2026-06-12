@@ -254,11 +254,7 @@ Navigation.register('prayer', function render(page) {
 const Prayer = {
   _state: { search: '' },
   _rerender() {
-    const _s = document.getElementById('prayer-search');
-    if (_s) Prayer._state.search = _s.value;
-    Prayer._rerender();
-    const _ns = document.getElementById('prayer-search');
-    if (_ns && Prayer._state.search) { _ns.value = Prayer._state.search; _ns.dispatchEvent(new Event('input')); }
+    Navigation.navigate('prayer');
   },
   _tab(t) { Storage.set('_prayer_tab', t); Prayer._state.search = ''; Navigation.navigate('prayer'); },
 

@@ -231,27 +231,33 @@ Navigation.register('checkin', function render(page) {
   };
 
   CheckIn._toggle = function(memberId, memberType, btn) {
-    const alreadyIn = allCheckins.some(c => c.memberId === memberId && c.date === today && c.type === 'member');
+    // Always read fresh from storage — the closure snapshot is stale after mutations
+    const freshCheckins = Storage.getAll('checkins') || [];
+    const rec = freshCheckins.find(c => c.memberId === memberId && c.date === today && c.type === 'member');
+    const alreadyIn = !!rec;
+
+    // Counter badge (first .stat-box = "Checked In" box)
+    const statBox = document.querySelector('.stat-box');
+    const statVal = statBox ? statBox.querySelector('div') : null;
+
     if (alreadyIn) {
-      const rec = allCheckins.find(c => c.memberId === memberId && c.date === today && c.type === 'member');
-      if (rec) Storage.removeItem('checkins', rec.id);
+      Storage.removeItem('checkins', rec.id);
       btn.classList.remove('ci-member-card--checked');
       btn.setAttribute('aria-pressed', 'false');
-      btn.setAttribute('aria-label', btn.getAttribute('aria-label').replace('Check out', 'Check in'));
+      btn.setAttribute('aria-label', 'Check in ' + btn.getAttribute('aria-label').replace(/^Check (in|out) /, ''));
       const icon = btn.querySelector('[data-lucide]');
       if (icon) { icon.setAttribute('data-lucide', 'circle'); lucide.createIcons(); }
+      // Decrement counter
+      if (statVal) statVal.textContent = String(Math.max(0, Number(statVal.textContent) - 1));
     } else {
       Storage.insert('checkins', { date: today, type: 'member', memberId, memberType });
       btn.classList.add('ci-member-card--checked');
       btn.setAttribute('aria-pressed', 'true');
+      btn.setAttribute('aria-label', 'Check out ' + btn.getAttribute('aria-label').replace(/^Check (in|out) /, ''));
       const icon = btn.querySelector('[data-lucide]');
       if (icon) { icon.setAttribute('data-lucide', 'check-circle-2'); lucide.createIcons(); }
-      // Update counter badge
-      const todayCount = document.querySelector('.stat-box');
-      if (todayCount) {
-        const val = todayCount.querySelector('div');
-        if (val) val.textContent = String(Number(val.textContent) + 1);
-      }
+      // Increment counter
+      if (statVal) statVal.textContent = String(Number(statVal.textContent) + 1);
     }
   };
 
