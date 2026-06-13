@@ -685,25 +685,4 @@ var FPRP = (function () {
       + '<tr><th>Items Donated In</th><td>' + _round(ex.donated) + '</td></tr>'
       + '<tr><th>Pantry Health Score</th><td>' + hs.score + ' / 100 (' + (hs.score >= 85 ? 'Healthy' : hs.score >= 70 ? 'Stable' : 'At Risk') + ')</td></tr>'
       + '<tr><th>Readiness Score</th><td>' + r.score + '%</td></tr>'
-      + '</tbody></table>';
-    _printWindow('Pantry Executive Report', html);
-  }
-
-  return {
-    healthScore:        healthScore,
-    consumptionByItem:  consumptionByItem,
-    replenishment:      replenishment,
-    readiness:          readiness,
-    pantrySnapshot:     pantrySnapshot,
-    optimizer:          optimizer,
-    subSuggestions:     subSuggestions,
-    execSummary:        execSummary,
-    donations:          donations,
-    renderPlanning:     renderPlanning,
-    postRender:         postRender,
-    printDonationList:  printDonationList,
-    printExecReport:    printExecReport,
-    addSubstitution:    addSubstitution,
-    removeSubstitution: removeSubstitution,
-  };
-})();
+      + '</tbody

@@ -463,7 +463,7 @@ The narrative should:
 
   // ── Render ────────────────────────────────────────────────────
   function renderPage() {
-    const cat = categories.find(c => c.id === activeCategory) || categories[0];
+    const _cat = categories.find(c => c.id === activeCategory) || categories[0];
 
     page.innerHTML = `
       <div class="section-header">
@@ -565,7 +565,6 @@ The narrative should:
         const i = parseInt(el.dataset.expand);
         const cat = categories.find(c => c.id === activeCategory);
         const was = getState(activeCategory, i).expanded;
-        // Collapse all in this category first
         cat.prompts.forEach((_, j) => setState(activeCategory, j, { expanded: false }));
         setState(activeCategory, i, { expanded: !was });
         renderPage();
@@ -573,18 +572,17 @@ The narrative should:
     });
 
     // Wire generate buttons
-    const cat = categories.find(c => c.id === activeCategory) || categories[0];
-    cat.prompts.forEach((p, i) => {
-      const genBtn  = document.getElementById('gen-btn-' + i);
-      const regenBtn = document.getElementById('regen-btn-' + i);
+    _cat.prompts.forEach((p, i) => {
+      const genBtn       = document.getElementById('gen-btn-' + i);
+      const regenBtn     = document.getElementById('regen-btn-' + i);
       const copyPromptBtn = document.getElementById('copy-prompt-btn-' + i);
       const copyOutputBtn = document.getElementById('copy-output-btn-' + i);
 
       async function doGenerate() {
         setState(activeCategory, i, { loading: true, error: null, output: null });
         renderPage();
-        const prompt = p.generate();
-        const res = await SupabaseDB.generateContent(prompt);
+        const promptText = p.generate();
+        const res = await SupabaseDB.generateContent(promptText);
         if (res.ok) {
           setState(activeCategory, i, { loading: false, output: res.draft });
         } else {
@@ -593,38 +591,39 @@ The narrative should:
         renderPage();
       }
 
-      if (genBtn)  genBtn.addEventListener('click',  doGenerate);
+      if (genBtn)   genBtn.addEventListener('click', doGenerate);
       if (regenBtn) regenBtn.addEventListener('click', doGenerate);
 
       if (copyPromptBtn) {
         copyPromptBtn.addEventListener('click', e => {
           e.stopPropagation();
           const text = p.generate();
-          navigator.clipboard?.writeText(text).then(() => Toast.success('Prompt copied — paste into Claude.ai or ChatGPT.')).catch(() => {
-            const ta = document.createElement('textarea');
-            ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
-            document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
-            Toast.success('Prompt copied!');
-          });
+          navigator.clipboard?.writeText(text)
+            .then(() => Toast.success('Prompt copied — paste into Claude.ai or ChatGPT.'))
+            .catch(() => {
+              const ta = document.createElement('textarea');
+              ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+              document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+              Toast.success('Prompt copied!');
+            });
         });
       }
 
       if (copyOutputBtn) {
         copyOutputBtn.addEventListener('click', () => {
-          const ta = document.getElementById('output-' + i);
-          const text = ta ? ta.value : getState(activeCategory, i).output || '';
-          navigator.clipboard?.writeText(text).then(() => Toast.success('Copied!')).catch(() => {
-            if (ta) { ta.select(); document.execCommand('copy'); Toast.success('Copied!'); }
-          });
+          const ta   = document.getElementById('output-' + i);
+          const text = ta ? ta.value : (getState(activeCategory, i).output || '');
+          navigator.clipboard?.writeText(text)
+            .then(() => Toast.success('Copied!'))
+            .catch(() => { if (ta) { ta.select(); document.execCommand('copy'); Toast.success('Copied!'); } });
         });
       }
     });
   }
 
   renderPage();
-  // Auto-expand first prompt
-  const cat = categories.find(c => c.id === activeCategory) || categories[0];
-  if (!cat.prompts.some((_, i) => getState(activeCategory, i).expanded)) {
+  // Auto-expand first card
+  if (!categories.find(c=>c.id===activeCategory)?.prompts.some((_, i) => getState(activeCategory, i).expanded)) {
     setState(activeCategory, 0, { expanded: true });
     renderPage();
   }

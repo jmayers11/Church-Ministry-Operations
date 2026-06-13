@@ -42,7 +42,7 @@ const BoardReport = (() => {
     const churchName     = settings.churchName || 'Our Church';
     const allMembers     = Storage.getAll('members') || [];
     const allVisitors    = Storage.getAll('visitors') || [];
-    const allGiving      = Storage.getAll('giving') || [];
+    const allGiving      = Storage.getAll('giving_donations') || [];
     const allCare        = Storage.getAll('care') || [];
     const allVols        = Storage.getAll('volunteers') || [];
     const allPrayer      = Storage.getAll('prayer') || [];
@@ -324,7 +324,7 @@ Navigation.register('board-report', function render(page) {
   // Quick metrics for the selected month
   const inM = function(str){ return str && str.startsWith(selMonth); };
   const allMembers  = Storage.getAll('members') || [];
-  const allGiving   = Storage.getAll('giving') || [];
+  const allGiving   = Storage.getAll('giving_donations') || [];
   const allVols     = Storage.getAll('volunteers') || [];
   const allCare     = Storage.getAll('care') || [];
   const allCheckins = Storage.getAll('checkins') || [];
@@ -363,7 +363,7 @@ Navigation.register('board-report', function render(page) {
     +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px;">'
     +UI.kpi({ icon:'users', value:activeMembers, label:'Active Members', accent:'brand' })
     +UI.kpi({ icon:'user-plus', value:newMembersM, label:'New Members', accent:'success' })
-    +UI.kpi({ icon:'dollar-sign', value:'$'+(totalGivingM/1000).toFixed(1)+'k', label:'Giving This Month', accent:'info' })
+    +UI.kpi({ icon:'dollar-sign', value: totalGivingM >= 1000 ? '$'+(totalGivingM/1000).toFixed(1)+'k' : '$'+totalGivingM.toFixed(0), label:'Giving This Month', accent:'info' })
     +UI.kpi({ icon:'scan-line', value:avgAtt||'—', label:'Avg Weekly Attendance', accent:'warning' })
     +UI.kpi({ icon:'heart-handshake', value:activeVols, label:'Active Volunteers', accent:'brand' })
     +UI.kpi({ icon:'shield-alert', value:expiredBG, label:'Expired BG Checks', accent:expiredBG>0?'danger':'success' })

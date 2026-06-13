@@ -196,9 +196,9 @@ Navigation.register('impact', function render(page) {
       <div class="card">
         <div class="card-header"><h3 class="card-title"><i data-lucide="shopping-bag" class="icon-inline" aria-hidden="true"></i>Food Pantry Snapshot</h3></div>
         <div style="display:flex;gap:20px;justify-content:space-around;padding:12px 0;text-align:center;">
-          <div><div style="font-size:2rem;font-weight:900;color:var(--accent)">${totalItems}</div><div style="font-size:.76rem;color:var(--text-muted)">Total Items in Stock</div></div>
+          <div><div style="font-size:2rem;font-weight:900;color:var(--text)">${totalItems}</div><div style="font-size:.76rem;color:var(--text-muted)">Total Items in Stock</div></div>
           <div><div style="font-size:2rem;font-weight:900;color:${lowStockCount>0?'var(--red)':'var(--green)'}">${lowStockCount}</div><div style="font-size:.76rem;color:var(--text-muted)">Low/Out of Stock</div></div>
-          <div><div style="font-size:2rem;font-weight:900;color:var(--green)">${allDists.length}</div><div style="font-size:.76rem;color:var(--text-muted)">Total Distributions</div></div>
+          <div><div style="font-size:2rem;font-weight:900;color:var(--text)">${allDists.length}</div><div style="font-size:.76rem;color:var(--text-muted)">Total Distributions</div></div>
         </div>
         ${lowStockCount > 0 ? `<div style="font-size:.82rem;color:var(--red);text-align:center;padding-bottom:8px;"><i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> ${lowStockCount} item${lowStockCount>1?'s':''} need restocking</div>` : ''}
       </div>

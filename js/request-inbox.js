@@ -204,12 +204,12 @@ Navigation.register('request-inbox', function render(page) {
       const userEmail = session?.user?.email || 'Staff';
       authBanner = `
         <div id="sb-auth-banner" style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;margin-bottom:16px;font-size:.82rem;">
-          <span style="color:#166534;font-weight:700;"><i data-lucide="check-circle" class="icon-inline" aria-hidden="true"></i> Supabase Connected</span>
-          <span style="color:#166534;">Signed in as ${UI.esc(userEmail)}</span>
+          <span style="color:var(--success-text);font-weight:700;"><i data-lucide="check-circle" class="icon-inline" aria-hidden="true"></i> Supabase Connected</span>
+          <span style="color:var(--success-text);">Signed in as ${UI.esc(userEmail)}</span>
           <span style="flex:1"></span>
           ${sbLoading
-            ? `<span style="color:#166534;font-style:italic;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Loading requests…</span>`
-            : `<span style="color:#166534;">${requests.length} request${requests.length !== 1 ? 's' : ''} loaded</span>`}
+            ? `<span style="color:var(--success-text);font-style:italic;display:inline-flex;align-items:center;gap:6px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation:spin 1s linear infinite"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>Loading requests…</span>`
+            : `<span style="color:var(--success-text);">${requests.length} request${requests.length !== 1 ? 's' : ''} loaded</span>`}
           <button class="btn btn-outline btn-sm" onclick="RequestInbox._signOut()" style="font-size:.78rem;padding:4px 10px;">Sign Out</button>
         </div>`;
     }
@@ -617,43 +617,4 @@ const RequestInbox = {
         if (res.ok) {
           if (draftOutput) { draftOutput.value = res.draft; draftOutput.style.display = ''; }
           if (draftCopy)   { draftCopy.style.display = ''; }
-          Toast.success('Draft ready — personalize the [brackets] before sending.');
-        } else {
-          Toast.error('Draft failed: ' + (res.error || 'unknown error'));
-        }
-      });
-    }
-    if (draftCopy && draftOutput) {
-      draftCopy.addEventListener('click', () => {
-        navigator.clipboard?.writeText(draftOutput.value).then(() => Toast.success('Draft copied!')).catch(() => {
-          draftOutput.select();
-          document.execCommand('copy');
-          Toast.success('Draft copied!');
-        });
-      });
-    }
-  },
-
-  async _delete(requestId) {
-    const source = (RequestInbox._sbCache !== null) ? RequestInbox._sbCache : Storage.getAll('ministry_requests');
-    const r = source.find(x => x.requestId === requestId);
-    if (!r) return;
-    Modal.confirm({
-      title: 'Delete Request',
-      body:  `Are you sure you want to permanently delete request <strong>${UI.esc(requestId)}</strong>? This cannot be undone.`,
-      confirmLabel: 'Delete',
-      confirmClass: 'btn-danger',
-      onConfirm: async () => {
-        if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) {
-          await SupabaseDB.deleteRequest(requestId);
-          RequestInbox._sbCache = null;
-        }
-        Storage.removeItem('ministry_requests', r.id);
-        Toast.success('Request deleted');
-        RequestInbox._rerender?.();
-      },
-    });
-  },
-};
-
-window.RequestInbox = RequestInbox;
+          Toast.success('Draft ready — personalize the [brackets] before sen
