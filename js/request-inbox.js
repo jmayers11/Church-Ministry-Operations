@@ -328,7 +328,7 @@ const RequestInbox = {
       // spins forever. Fall back to local data and surface the error.
       console.warn('[RequestInbox] Supabase fetch failed:', result.error);
       if (typeof Toast !== 'undefined') {
-        Toast.error('Could not load requests from Supabase: ' + (result.error || 'unknown error') + '. Showing local data.');
+        Toast.info('Supabase unavailable — showing local data.');
       }
       RequestInbox._sbCache = Storage.getAll('ministry_requests') || [];
     }
