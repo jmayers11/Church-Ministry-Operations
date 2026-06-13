@@ -379,6 +379,37 @@
   </div>
 
   <!-- Scripts — order matters -->
+  <!-- ── SW Cache Buster ─────────────────────────────────────────────
+       If the stored cache version doesn't match, nuke all SW caches
+       and unregister workers, then reload once to get fresh files.
+  ──────────────────────────────────────────────────────────────── -->
+  <script>
+    (function() {
+      var TARGET = 'v36';
+      if (localStorage.getItem('_swCacheVer') !== TARGET) {
+        localStorage.setItem('_swCacheVer', TARGET);
+        var nuked = false;
+        function reload() { if (!nuked) { nuked = true; window.location.reload(true); } }
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function(regs) {
+            var ps = regs.map(function(r) { return r.unregister(); });
+            return Promise.all(ps);
+          }).then(function() {
+            if ('caches' in window) {
+              return caches.keys().then(function(keys) {
+                return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+              });
+            }
+          }).then(reload).catch(reload);
+        } else if ('caches' in window) {
+          caches.keys().then(function(keys) {
+            return Promise.all(keys.map(function(k) { return caches.delete(k); }));
+          }).then(reload).catch(reload);
+        }
+      }
+    })();
+  </script>
+
   <script>
     // Reads from localStorage so the onboarding wizard can toggle it.
     window.DEMO_MODE = localStorage.getItem('_demo_mode') === 'true';
@@ -442,16 +473,4 @@
   <script src="js/ministries.js"></script>
   <script src="js/prompts.js"></script>
   <script src="js/giving.js"></script>
-  <script src="js/communications.js"></script>
-  <script src="js/facilities.js"></script>
-  <script src="js/impact.js"></script>
-  <script src="js/family-assistance.js"></script>
-  <script src="js/community-events.js"></script>
-  <script src="js/resources.js"></script>
-  <script src="js/scorecard.js"></script>
-  <script src="js/request-inbox.js"></script>
-  <script src="js/board-report.js"></script>
-  <script src="js/checkin.js"></script>
-
-</body>
-</html>
+  <script src="js/communicat
