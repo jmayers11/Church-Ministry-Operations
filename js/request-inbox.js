@@ -617,4 +617,34 @@ const RequestInbox = {
         if (res.ok) {
           if (draftOutput) { draftOutput.value = res.draft; draftOutput.style.display = ''; }
           if (draftCopy)   { draftCopy.style.display = ''; }
-          Toast.success('Draft ready — personalize the [brackets] before sen
+          Toast.success('Draft ready — personalize the [brackets] before sending.');
+        } else {
+          Toast.error(res.error || 'Draft failed.');
+        }
+      });
+    }
+
+    if (draftCopy) {
+      draftCopy.addEventListener('click', () => {
+        const text = draftOutput?.value || '';
+        navigator.clipboard?.writeText(text).then(() => Toast.success('Copied!'))
+          .catch(() => { if (draftOutput) { draftOutput.select(); document.execCommand('copy'); Toast.success('Copied!'); } });
+      });
+    }
+  },
+
+  _delete(requestId) {
+    UI.confirm('Delete this request? This cannot be undone.', async () => {
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) {
+        await SupabaseDB.deleteRequest(requestId);
+        RequestInbox._sbCache = null;
+      }
+      Storage.removeWhere('ministry_requests', r => r.requestId === requestId);
+      Modal.close();
+      Toast.success('Request deleted');
+      RequestInbox._rerender?.();
+    });
+  },
+};
+
+window.RequestInbox = RequestInbox;

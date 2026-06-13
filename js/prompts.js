@@ -490,11 +490,11 @@ The narrative should:
         <div>
           <div style="margin-bottom:14px;">
             <h3 style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:6px;">
-              <i data-lucide="${cat.icon}" aria-hidden="true" style="width:16px;height:16px;color:${cat.color}"></i>
-              ${cat.label}
+              <i data-lucide="${_cat.icon}" aria-hidden="true" style="width:16px;height:16px;color:${_cat.color}"></i>
+              ${_cat.label}
             </h3>
             <p style="font-size:.82rem;color:var(--text-muted);margin-top:3px;">
-              ${cat.prompts.length} template${cat.prompts.length!==1?'s':''} · pre-filled with ${UI.esc(churchName)}'s data
+              ${_cat.prompts.length} template${_cat.prompts.length!==1?'s':''} · pre-filled with ${UI.esc(churchName)}'s data
             </p>
           </div>
 

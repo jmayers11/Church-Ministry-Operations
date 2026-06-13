@@ -685,4 +685,8 @@ var FPRP = (function () {
       + '<tr><th>Items Donated In</th><td>' + _round(ex.donated) + '</td></tr>'
       + '<tr><th>Pantry Health Score</th><td>' + hs.score + ' / 100 (' + (hs.score >= 85 ? 'Healthy' : hs.score >= 70 ? 'Stable' : 'At Risk') + ')</td></tr>'
       + '<tr><th>Readiness Score</th><td>' + r.score + '%</td></tr>'
-      + '</tbody
+      + '</tbody></table>';
+    _printWindow('Executive Report', html);
+  }
+
+})();

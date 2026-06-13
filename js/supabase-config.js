@@ -33,18 +33,20 @@ var SupabaseDB = (function () {
   // ── Initialization ─────────────────────────────────────────────
 
   function _init() {
+    console.log('[SupabaseDB] _init called. URL:', SUPABASE_URL, 'Key prefix:', (SUPABASE_ANON_KEY||'').slice(0,20));
     if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-      console.info('[SupabaseDB] Not configured — running in localStorage demo mode.');
+      console.warn('[SupabaseDB] Missing URL or key.');
       return;
     }
 
     if (typeof supabase === 'undefined' || typeof supabase.createClient !== 'function') {
-      console.warn('[SupabaseDB] Supabase JS library not loaded. Check the <script> tag in index.html.');
+      console.warn('[SupabaseDB] supabase JS not loaded. typeof supabase:', typeof supabase);
       return;
     }
-
+    console.log('[SupabaseDB] Calling createClient...');
     try {
       _client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      console.log('[SupabaseDB] createClient succeeded, _client:', !!_client);
 
       // Restore existing session if the user was previously signed in
       _client.auth.getSession().then(function (result) {
@@ -531,15 +533,8 @@ var SupabaseDB = (function () {
     }
   }
 
-  // ── Boot �
+  // ── Boot �
   // ── Boot: initialise on load ──────────────────────────────────
-  (function boot() {
-    const cfg = typeof Storage !== 'undefined' ? Storage.getSettings() : {};
-    if (cfg.supabaseUrl && cfg.supabaseKey) {
-      _init(cfg.supabaseUrl, cfg.supabaseKey);
-    }
-  })();
-
   return {
     init:                  _init,
     isEnabled:             isEnabled,
@@ -563,3 +558,6 @@ var SupabaseDB = (function () {
     draftResponse:         draftResponse,
   };
 })();
+
+// Auto-initialize on script load
+SupabaseDB.init();
