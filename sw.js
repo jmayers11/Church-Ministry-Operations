@@ -3,7 +3,7 @@
    Caches static assets + offline fallback page
    ============================================================= */
 
-const CACHE_NAME = 'church-dash-v21';
+const CACHE_NAME = 'church-dash-v22';
 const OFFLINE_URL = '/offline.html';
 
 // Static assets to pre-cache on install
@@ -102,19 +102,20 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // For static assets: cache-first
+  // For static assets: network-first so deployed updates appear on the next
+  // reload. Falls back to the cache only when the network is unavailable
+  // (offline support preserved).
   event.respondWith(
-    caches.match(request).then(cached => {
-      if (cached) return cached;
-      return fetch(request).then(response => {
-        // Cache successful responses
-        if (response && response.status === 200 && response.type === 'basic') {
-          const cloned = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(request, cloned));
-        }
-        return response;
-      }).catch(() => caches.match(OFFLINE_URL));
-    })
+    fetch(request).then(response => {
+      // Refresh the cache with the latest successful response
+      if (response && response.status === 200 && response.type === 'basic') {
+        const cloned = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(request, cloned));
+      }
+      return response;
+    }).catch(() =>
+      caches.match(request).then(cached => cached || caches.match(OFFLINE_URL))
+    )
   );
 });
 
