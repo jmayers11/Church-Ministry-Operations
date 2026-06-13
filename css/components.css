@@ -1572,8 +1572,11 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   transition: border-color var(--motion-fast), background var(--motion-fast), box-shadow var(--motion-fast);
   text-align: left;
   font-family: inherit;
+  color: var(--text);
   min-height: 70px;
 }
+.ci-name   { font-weight: 600; color: var(--text); font-size: .9rem; }
+.ci-family { color: var(--text-muted); font-size: .75rem; }
 .ci-member-card:hover {
   border-color: var(--accent);
   box-shadow: var(--shadow-sm);
@@ -1584,6 +1587,7 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 }
 .ci-check-icon {
   font-size: 1.1rem;
+}
 /* ================================================================
    POLISH PASS v2 — design-review implementation
    All additions; no existing rules removed.
