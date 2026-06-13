@@ -55,7 +55,7 @@ var Modal = (() => {
 
   function open({ title = '', body = '', footer = '', width = '' }) {
     _openerEl = document.activeElement; // save opener for focus restoration
-    titleEl.textContent = title;
+    titleEl.innerHTML = title;
     bodyEl.innerHTML    = body;
     footerEl.innerHTML  = footer;
     if (width) overlay.querySelector('.modal').style.maxWidth = width;

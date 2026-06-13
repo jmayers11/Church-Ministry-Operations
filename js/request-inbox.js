@@ -544,7 +544,7 @@ const RequestInbox = {
           </div>
         </div>
         <div class="form-group">
-          <button class="btn btn-outline" id="draft-btn" type="button">✨ Draft a Response</button>
+          <button class="btn btn-outline" id="draft-response-btn" type="button">✨ Draft a Response</button>
           <textarea class="form-control" id="draft-output" rows="9"
             placeholder="AI draft will appear here. Fill in the [placeholders] with the real details before sending."
             style="margin-top:8px;display:none;"></textarea>
@@ -598,7 +598,9 @@ const RequestInbox = {
     };
 
     // ── AI Draft a Response ──────────────────────────────────────
-    const draftBtn = document.getElementById('draft-response-btn');
+    const draftBtn    = document.getElementById('draft-response-btn');
+    const draftOutput = document.getElementById('draft-output');
+    const draftCopy   = document.getElementById('draft-copy');
     if (draftBtn) {
       draftBtn.addEventListener('click', async () => {
         draftBtn.disabled = true;
@@ -611,14 +613,23 @@ const RequestInbox = {
           status: r.status,
         });
         draftBtn.disabled = false;
-        draftBtn.textContent = 'Draft Response';
+        draftBtn.textContent = '✨ Draft a Response';
         if (res.ok) {
-          const el = document.getElementById('req-notes');
-          if (el) el.value = res.draft;
-          Toast.success('Draft inserted into notes');
+          if (draftOutput) { draftOutput.value = res.draft; draftOutput.style.display = ''; }
+          if (draftCopy)   { draftCopy.style.display = ''; }
+          Toast.success('Draft ready — personalize the [brackets] before sending.');
         } else {
           Toast.error('Draft failed: ' + (res.error || 'unknown error'));
         }
+      });
+    }
+    if (draftCopy && draftOutput) {
+      draftCopy.addEventListener('click', () => {
+        navigator.clipboard?.writeText(draftOutput.value).then(() => Toast.success('Draft copied!')).catch(() => {
+          draftOutput.select();
+          document.execCommand('copy');
+          Toast.success('Draft copied!');
+        });
       });
     }
   },
