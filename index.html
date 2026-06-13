@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Church Dashboard</title>
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#4f46e5" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -48,6 +50,29 @@
         <button class="btn btn-primary" id="auth-gate-btn" type="submit">Sign In</button>
       </form>
       <p id="auth-gate-status" class="auth-gate-status"></p>
+      <button id="auth-forgot-link" class="btn btn-ghost btn-sm"
+              style="margin-top:6px;font-size:.82rem;color:var(--text-muted);"
+              type="button">Forgot password?</button>
+
+      <!-- Forgot-password panel (hidden until toggled) -->
+      <div id="auth-forgot-panel" style="display:none;margin-top:16px;text-align:left;">
+        <p style="font-size:.84rem;color:var(--text-muted);margin-bottom:12px;">
+          Enter your staff email and we'll send a password reset link.
+        </p>
+        <div class="auth-gate-field">
+          <label class="form-label" for="auth-forgot-email">Email</label>
+          <input class="form-control" id="auth-forgot-email" type="email"
+                 autocomplete="email" placeholder="staff@church.org">
+        </div>
+        <div id="auth-forgot-error" class="auth-gate-error" role="alert"></div>
+        <div id="auth-forgot-success" style="display:none;color:var(--success-text);font-size:.84rem;margin-bottom:10px;"></div>
+        <button class="btn btn-primary" id="auth-forgot-btn" type="button" style="width:100%;">
+          Send Reset Link
+        </button>
+        <button id="auth-forgot-back" class="btn btn-ghost btn-sm"
+                style="width:100%;margin-top:8px;font-size:.82rem;color:var(--text-muted);"
+                type="button">← Back to sign in</button>
+      </div>
     </div>
   </div>
 
@@ -126,11 +151,8 @@
             <i data-lucide="chevron-down" class="nav-section-chevron" aria-hidden="true"></i>
           </button>
           <ul id="nav-section-people" class="nav-section-items">
-            <li><a href="#" class="nav-link" data-page="volunteer-center" data-tooltip="Volunteer Center">
-              <span class="nav-icon"><i data-lucide="helping-hand" aria-hidden="true"></i></span><span class="nav-label">Volunteer Center</span>
-            </a></li>
-            <li><a href="#" class="nav-link" data-page="volunteers" data-tooltip="Volunteer Roster">
-              <span class="nav-icon"><i data-lucide="clipboard-list" aria-hidden="true"></i></span><span class="nav-label">Volunteer Roster</span>
+            <li><a href="#" class="nav-link" data-page="volunteers" data-tooltip="Volunteer Center">
+              <span class="nav-icon"><i data-lucide="users" aria-hidden="true"></i></span><span class="nav-label">Volunteer Center</span>
             </a></li>
             <li><a href="#" class="nav-link" data-page="resources" data-tooltip="Resources">
               <span class="nav-icon"><i data-lucide="package" aria-hidden="true"></i></span><span class="nav-label">Resources</span>
@@ -156,6 +178,9 @@
             </a></li>
             <li><a href="#" class="nav-link" data-page="facilities" data-tooltip="Facilities">
               <span class="nav-icon"><i data-lucide="building-2" aria-hidden="true"></i></span><span class="nav-label">Facilities</span>
+            </a></li>
+            <li><a href="#" class="nav-link" data-page="board-report" data-tooltip="Board Report">
+              <span class="nav-icon"><i data-lucide="file-text" aria-hidden="true"></i></span><span class="nav-label">Board Report</span>
             </a></li>
           </ul>
         </li>
@@ -185,7 +210,9 @@
     </nav>
 
     <div class="sidebar-footer">
-      <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">🌙</button>
+      <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode" aria-pressed="false">
+        <i data-lucide="moon" id="theme-icon" aria-hidden="true"></i>
+      </button>
       <a href="#" class="nav-link" data-page="settings">
         <span class="nav-icon"><i data-lucide="settings" aria-hidden="true"></i></span><span class="nav-label">Settings</span>
       </a>
@@ -215,12 +242,24 @@
         </button>
         <span class="topbar-date" id="topbar-date"></span>
         <span id="sync-status" class="topbar-sync-status"></span>
-        <button class="btn btn-sm btn-outline" id="sync-btn" title="Sync all data from Supabase">⟳ Sync</button>
-        <button class="btn btn-sm btn-outline" id="export-btn" title="Export data backup">⬇ Export</button>
-        <label class="btn btn-sm btn-outline" title="Import data backup">
-          ⬆ Import
-          <input type="file" id="import-file" accept=".json" style="display:none;" />
-        </label>
+        <button class="btn btn-sm btn-outline" id="sync-btn" title="Sync all data from Supabase" aria-label="Sync data">
+          <i data-lucide="refresh-cw" style="width:14px;height:14px" aria-hidden="true"></i>
+          <span class="topbar-sync-label">Sync</span>
+        </button>
+        <div class="dropdown" style="position:relative">
+          <button class="btn btn-sm btn-outline" id="data-menu-btn" aria-label="Data actions" aria-haspopup="true" aria-expanded="false" title="Export / Import">
+            <i data-lucide="database" style="width:14px;height:14px" aria-hidden="true"></i>
+          </button>
+          <div id="data-menu" role="menu" style="display:none;position:absolute;right:0;top:calc(100% + 4px);background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-md);min-width:140px;z-index:200;">
+            <button class="btn btn-ghost" id="export-btn" role="menuitem" style="width:100%;justify-content:flex-start;gap:8px;padding:8px 12px;border-radius:0;">
+              <i data-lucide="download" style="width:14px;height:14px" aria-hidden="true"></i> Export Backup
+            </button>
+            <label class="btn btn-ghost" role="menuitem" style="width:100%;justify-content:flex-start;gap:8px;padding:8px 12px;border-radius:0;cursor:pointer;">
+              <i data-lucide="upload" style="width:14px;height:14px" aria-hidden="true"></i> Import Backup
+              <input type="file" id="import-file" accept=".json" style="display:none;" />
+            </label>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -243,9 +282,9 @@
     <div id="page-impact"            class="page"></div>
     <div id="page-family-assistance" class="page"></div>
     <div id="page-community-events"  class="page"></div>
-    <div id="page-volunteer-center"  class="page"></div>
     <div id="page-resources"         class="page"></div>
     <div id="page-scorecard"         class="page"></div>
+    <div id="page-board-report"      class="page"></div>
     <!-- Stewardship & Admin -->
     <div id="page-giving"            class="page"></div>
     <div id="page-communications"    class="page"></div>
@@ -318,46 +357,75 @@
   <!-- Toast container -->
   <div id="toast-container" role="status" aria-live="polite" aria-atomic="false"></div>
 
+
+  <!-- Offline indicator banner -->
+  <div id="offline-banner" class="offline-banner" hidden role="status" aria-live="polite">
+    <i data-lucide="wifi-off" class="icon-inline" aria-hidden="true"></i>
+    <span>You’re offline — changes are saved locally and will sync when you reconnect.</span>
+  </div>
+
+  <!-- SW update banner -->
+  <div id="sw-update-banner" class="sw-update-banner" hidden role="status">
+    <i data-lucide="refresh-cw" class="icon-inline" aria-hidden="true"></i>
+    <span>A new version is available.</span>
+    <button class="btn btn-sm btn-primary" onclick="OfflineManager.applyUpdate()">Reload to update</button>
+    <button class="btn btn-ghost btn-sm" aria-label="Dismiss update notification"
+            onclick="document.getElementById('sw-update-banner').hidden=true">
+      <i data-lucide="x" class="icon-inline" aria-hidden="true"></i>
+    </button>
+  </div>
+
   <!-- Scripts — order matters -->
   <script>
-    // Set true ONLY for local demos. MUST be false in production.
-    window.DEMO_MODE = false;
+    // Reads from localStorage so the onboarding wizard can toggle it.
+    window.DEMO_MODE = localStorage.getItem('_demo_mode') === 'true';
 
-    // ── Service Worker registration (4.9) ───────────────────────
+    // ── Service Worker registration ──────────────────────────────────────────────
+    window._swReg = null;
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').then(reg => {
-          // Notify when a new SW is available
+        navigator.serviceWorker.register('sw.js').then(reg => {
+          window._swReg = reg;
+          // Show banner if a SW is already waiting (page loaded after background update)
+          if (reg.waiting) {
+            document.getElementById('sw-update-banner').hidden = false;
+          }
+          // Watch for new SW installing
           reg.addEventListener('updatefound', () => {
-            const newWorker = reg.installing;
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New version available — show toast after UI is ready
-                setTimeout(() => {
-                  if (typeof Toast !== 'undefined') {
-                    Toast.info('Update available — reload to get the latest version.');
-                  }
-                }, 2000);
+            const nw = reg.installing;
+            nw.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                document.getElementById('sw-update-banner').hidden = false;
               }
             });
           });
         }).catch(err => console.warn('[SW] Registration failed:', err));
       });
+      // When SW activates (after reload), ensure page uses new SW
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (window._reloadingForSW) return;
+        window._reloadingForSW = true;
+        window.location.reload();
+      });
     }
   </script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
-  <script src="js/supabase-config.js"></script>
-  <script src="js/auth-gate.js"></script>
+
+  <!-- Core -->
   <script src="js/storage.js"></script>
   <script src="js/app.js"></script>
   <script src="js/ui-components.js"></script>
   <script src="js/navigation.js"></script>
   <script src="js/command-palette.js"></script>
   <script src="js/profile-drawer.js"></script>
+  <script src="js/auth-gate.js"></script>
+  <script src="js/supabase-config.js"></script>
+
+  <!-- Page modules -->
   <script src="js/dashboard.js"></script>
   <script src="js/members.js"></script>
   <script src="js/visitors.js"></script>
   <script src="js/volunteers.js"></script>
+  <script src="js/volunteer-center.js"></script>
   <script src="js/prayer.js"></script>
   <script src="js/events.js"></script>
   <script src="js/foodpantry.js"></script>
@@ -373,36 +441,11 @@
   <script src="js/impact.js"></script>
   <script src="js/family-assistance.js"></script>
   <script src="js/community-events.js"></script>
-  <script src="js/volunteer-center.js"></script>
   <script src="js/resources.js"></script>
   <script src="js/scorecard.js"></script>
   <script src="js/request-inbox.js"></script>
   <script src="js/board-report.js"></script>
   <script src="js/checkin.js"></script>
 
-  <!-- Bottom tab bar — shown only on mobile (≤768px via CSS) -->
-  <nav id="bottom-tabs" class="bottom-tabs" aria-label="Quick navigation">
-    <a href="#" class="bottom-tab" data-page="dashboard">
-      <i data-lucide="layout-dashboard" aria-hidden="true"></i>
-      <span>Home</span>
-    </a>
-    <a href="#" class="bottom-tab" data-page="request-inbox">
-      <i data-lucide="inbox" aria-hidden="true"></i>
-      <span>Inbox</span>
-    </a>
-    <a href="#" class="bottom-tab" data-page="members">
-      <i data-lucide="users" aria-hidden="true"></i>
-      <span>Members</span>
-    </a>
-    <a href="#" class="bottom-tab" data-page="events">
-      <i data-lucide="calendar-days" aria-hidden="true"></i>
-      <span>Events</span>
-    </a>
-    <button type="button" class="bottom-tab" id="bottom-tab-more"
-            aria-label="Open full navigation menu" aria-expanded="false">
-      <i data-lucide="menu" aria-hidden="true"></i>
-      <span>More</span>
-    </button>
-  </nav>
 </body>
 </html>

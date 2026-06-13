@@ -3,7 +3,7 @@
    Caches static assets + offline fallback page
    ============================================================= */
 
-const CACHE_NAME = 'church-dash-v5';
+const CACHE_NAME = 'church-dash-v18';
 const OFFLINE_URL = '/offline.html';
 
 // Static assets to pre-cache on install
@@ -15,19 +15,25 @@ const PRECACHE = [
   '/css/dashboard.css',
   '/css/components.css',
   '/css/mobile.css',
+  // Core
   '/js/storage.js',
   '/js/app.js',
   '/js/ui-components.js',
   '/js/navigation.js',
   '/js/command-palette.js',
   '/js/profile-drawer.js',
+  '/js/auth-gate.js',
+  '/js/supabase-config.js',
+  // Page modules
   '/js/dashboard.js',
   '/js/members.js',
   '/js/visitors.js',
   '/js/volunteers.js',
+  '/js/volunteer-center.js',
   '/js/prayer.js',
   '/js/events.js',
   '/js/foodpantry.js',
+  '/js/foodpantry-planning.js',
   '/js/care.js',
   '/js/tasks.js',
   '/js/sermons.js',
@@ -39,7 +45,6 @@ const PRECACHE = [
   '/js/impact.js',
   '/js/family-assistance.js',
   '/js/community-events.js',
-  '/js/volunteer-center.js',
   '/js/resources.js',
   '/js/scorecard.js',
   '/js/request-inbox.js',
