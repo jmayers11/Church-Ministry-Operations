@@ -315,12 +315,29 @@ const RequestInbox = {
   // ── Supabase: fetch all requests and refresh the table ──────────
   async _refreshFromSupabase() {
     if (typeof SupabaseDB === 'undefined' || !SupabaseDB.isEnabled() || !SupabaseDB.isAuthenticated()) return;
-    const result = await SupabaseDB.getRequests();
+    let result;
+    try {
+      result = await SupabaseDB.getRequests();
+    } catch (err) {
+      result = { ok: false, error: (err && err.message) || 'Network error' };
+    }
     if (result.ok) {
-      RequestInbox._sbCache = result.data;
-      RequestInbox._rerender?.();
+      RequestInbox._sbCache = result.data || [];
     } else {
+      // IMPORTANT: clear the loading state on failure, otherwise the inbox
+      // spins forever. Fall back to local data and surface the error.
       console.warn('[RequestInbox] Supabase fetch failed:', result.error);
+      if (typeof Toast !== 'undefined') {
+        Toast.error('Could not load requests from Supabase: ' + (result.error || 'unknown error') + '. Showing local data.');
+      }
+      RequestInbox._sbCache = Storage.getAll('ministry_requests') || [];
+    }
+    // Re-render so both the banner and the table reflect the loaded state,
+    // but only if the user is still on the inbox (don't yank them back).
+    if (document.getElementById('inbox-table-wrap') && typeof Navigation !== 'undefined') {
+      Navigation.navigate('request-inbox');
+    } else {
+      RequestInbox._rerender?.();
     }
   },
 
