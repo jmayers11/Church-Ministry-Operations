@@ -5,10 +5,10 @@
 
 Navigation.register('ministries', function render(page) {
   const ministryDefs = [
-    { id: 'children',    label: "Children's",  icon: 'baby', color: '#f97316', teamName: "Children's Ministry" },
-    { id: 'youth',       label: 'Youth',        icon: 'backpack', color: '#8b5cf6', teamName: 'Youth Ministry'       },
-    { id: 'smallgroups', label: 'Small Groups', icon: 'handshake', color: '#3b82f6', teamName: 'Small Groups'         },
-    { id: 'worship',     label: 'Worship',      icon: 'music', color: '#22c55e', teamName: 'Worship Team'         },
+    { id: 'children',    label: "Children's",  icon: '<i data-lucide="baby" class="icon-inline" aria-hidden="true"></i>', color: '#f97316', teamName: "Children's Ministry" },
+    { id: 'youth',       label: 'Youth',        icon: '<i data-lucide="backpack" class="icon-inline" aria-hidden="true"></i>', color: '#8b5cf6', teamName: 'Youth Ministry'       },
+    { id: 'smallgroups', label: 'Small Groups', icon: '<i data-lucide="handshake" class="icon-inline" aria-hidden="true"></i>', color: '#3b82f6', teamName: 'Small Groups'         },
+    { id: 'worship',     label: 'Worship',      icon: '<i data-lucide="music" class="icon-inline" aria-hidden="true"></i>', color: '#22c55e', teamName: 'Worship Team'         },
     { id: 'outreach',    label: 'Outreach',     icon: '<i data-lucide="globe" class="icon-inline" aria-hidden="true"></i>', color: '#ef4444', teamName: 'Outreach'             },
   ];
 

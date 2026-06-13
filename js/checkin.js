@@ -3,6 +3,9 @@
    Tabs: Today | 13-Week Trend | History | Absentees
    ============================================================= */
 
+// Global namespace for inline-handler actions (CheckIn._setTab, etc.)
+window.CheckIn = window.CheckIn || {};
+
 /* ── Demo seed: 13 weeks of attendance data ─────────────── */
 (function seedCheckIns() {
   if (Storage.get('_checkins_seeded')) return;

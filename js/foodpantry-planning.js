@@ -147,6 +147,26 @@ var FPRP = (function () {
     return { proj: proj, perTemplate: perTemplate, score: score };
   }
 
+  // ── compact snapshot for the main dashboard tile ───────────
+  function pantrySnapshot() {
+    try {
+      const d = data();
+      if (!d.templates.length || !d.inv.length) return { hasData: false };
+      const r = readiness(d);
+      const top = (r.perTemplate || []).reduce(function (a, b) {
+        return b.maxBuild > a.maxBuild ? b : a;
+      }, { maxBuild: 0, name: '—' });
+      return {
+        hasData: true,
+        score: r.score,
+        projFamilies: r.proj,
+        topBox: { maxBuild: top.maxBuild, name: top.name },
+      };
+    } catch (e) {
+      return { hasData: false };
+    }
+  }
+
   // ── replenishment (Feature 3) ──────────────────────────────
   function replenishment(d) {
     const cons = consumptionByItem(d).map;
@@ -674,6 +694,7 @@ var FPRP = (function () {
     consumptionByItem:  consumptionByItem,
     replenishment:      replenishment,
     readiness:          readiness,
+    pantrySnapshot:     pantrySnapshot,
     optimizer:          optimizer,
     subSuggestions:     subSuggestions,
     execSummary:        execSummary,

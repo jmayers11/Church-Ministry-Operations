@@ -1067,5 +1067,139 @@ const PantryMgr = {
     this._rerender?.();
   },
 
+  // ----------------------------------------------------------------
+  //  Box Order lifecycle  (collection: pantry_box_orders)
+  //  Open → In Progress → Completed → Distributed | Returned
+  //  Inventory is deducted on completion, restored on return.
+  // ----------------------------------------------------------------
+  _staffName() {
+    try {
+      const s = Storage.getSettings ? Storage.getSettings() : {};
+      if (s && s.staffName) return s.staffName;
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.getSession) {
+        const sess = SupabaseDB.getSession();
+        if (sess && sess.user && sess.user.email) return sess.user.email;
+      }
+    } catch (e) { /* ignore */ }
+    return '';
+  },
+
+  _cloudSync(localKey, record) {
+    if (record && typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated && SupabaseDB.isAuthenticated()) {
+      SupabaseDB.tableUpsert(localKey, record)
+        .then(r => { if (r && !r.ok) Toast.error('Saved locally — cloud sync failed.'); })
+        .catch(() => Toast.error('Saved locally — cloud sync failed.'));
+    }
+  },
+
+  createOrder() {
+    const templates = Storage.getAll('pantry_box_templates') || [];
+    if (!templates.length) {
+      Toast.error('Create a box template first (Box Builder tab).');
+      Storage.set('_pantryTab', 'boxbuilder'); Navigation.navigate('foodpantry');
+      return;
+    }
+    const opts = templates.map(t => '<option value="' + t.id + '">' + UI.esc(t.name) + '</option>').join('');
+    Modal.open({ title: 'Create Box Order', width: '480px',
+      body: '<div class="form-group"><label class="form-label">Box Template *</label>'
+        + '<select class="form-control" id="bo-template">' + opts + '</select></div>'
+        + '<div class="form-row">'
+        + '<div class="form-group"><label class="form-label">Quantity *</label>'
+        + '<input class="form-control" id="bo-qty" type="number" min="1" value="1"></div>'
+        + '<div class="form-group"><label class="form-label">Recipient / Notes</label>'
+        + '<input class="form-control" id="bo-notes" placeholder="e.g. Ayers family"></div></div>',
+      footer: '<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>'
+            + '<button class="btn btn-primary" id="bo-save">Create Order</button>' });
+    document.getElementById('bo-save').onclick = () => {
+      const t = Storage.findById('pantry_box_templates', document.getElementById('bo-template')?.value);
+      if (!t) { Toast.error('Pick a template'); return; }
+      const qty   = Math.max(1, parseInt(document.getElementById('bo-qty')?.value) || 1);
+      const notes = (document.getElementById('bo-notes')?.value || '').trim();
+      const order = Storage.insert('pantry_box_orders', {
+        templateId: t.id, templateName: t.name, color: t.color || 'blue',
+        quantity: qty,
+        bom: (t.items || []).map(b => ({ itemName: b.itemName, qty: b.qty, unit: b.unit })),
+        extras: [], notes, status: 'Open', createdBy: this._staffName(),
+      });
+      this._cloudSync('pantry_box_orders', order);
+      Modal.close(); Toast.success('Order created'); this._rerender?.();
+    };
+  },
+
+  startOrder(id) {
+    const o = Storage.findById('pantry_box_orders', id); if (!o || o.status !== 'Open') return;
+    const updated = Storage.update('pantry_box_orders', id, { status: 'In Progress', startedAt: new Date().toISOString() });
+    this._cloudSync('pantry_box_orders', updated);
+    Toast.success('Building started'); this._rerender?.();
+  },
+
+  completeOrder(id) {
+    const o = Storage.findById('pantry_box_orders', id); if (!o || o.status !== 'In Progress') return;
+    const consumed = [];
+    const deduct = (itemName, amount, unit) => {
+      if (!(amount > 0)) return;
+      const inv  = Storage.getAll('pantry_inventory') || [];
+      const best = PantryMgr._matchInv(inv, itemName);
+      if (!best) return;
+      const upd = Storage.update('pantry_inventory', best.id, { qty: Math.max(0, (best.qty || 0) - amount) });
+      consumed.push({ itemName: best.name, invId: best.id, qty: amount, unit: unit });
+      this._cloudSync('pantry_inventory', upd);
+    };
+    (o.bom    || []).forEach(b => deduct(b.itemName, (b.qty || 0) * (o.quantity || 1), b.unit));
+    (o.extras || []).forEach(e => deduct(e.itemName, (e.qty || 0), e.unit));
+    const updated = Storage.update('pantry_box_orders', id, {
+      status: 'Completed', completedAt: new Date().toISOString(),
+      completedBy: this._staffName(), itemsConsumed: consumed,
+    });
+    this._cloudSync('pantry_box_orders', updated);
+    Toast.success('Box built — inventory deducted'); this._rerender?.();
+  },
+
+  distributeOrder(id) {
+    const o = Storage.findById('pantry_box_orders', id); if (!o || o.status !== 'Completed') return;
+    const updated = Storage.update('pantry_box_orders', id, { status: 'Distributed', distributedAt: new Date().toISOString() });
+    this._cloudSync('pantry_box_orders', updated);
+    // Log a distribution record so it appears in the Distributions tab & impact totals
+    const dist = Storage.insert('foodpantry', {
+      date: Storage.today(),
+      familiesServed: o.quantity || 1,
+      individualServed: 0,
+      volunteerHours: 0,
+      items: (o.itemsConsumed || o.bom || []).map(x => x.itemName).filter(Boolean),
+      notes: 'Box order: ' + (o.templateName || '') + (o.notes ? ' — ' + o.notes : ''),
+    });
+    this._cloudSync('foodpantry', dist);
+    Toast.success('Marked distributed'); this._rerender?.();
+  },
+
+  returnOrder(id) {
+    const o = Storage.findById('pantry_box_orders', id); if (!o || o.status !== 'Completed') return;
+    // Restore the inventory that was deducted when the order was completed
+    (o.itemsConsumed || []).forEach(c => {
+      const inv  = Storage.getAll('pantry_inventory') || [];
+      const item = c.invId ? Storage.findById('pantry_inventory', c.invId) : PantryMgr._matchInv(inv, c.itemName);
+      if (item) {
+        const upd = Storage.update('pantry_inventory', item.id, { qty: (item.qty || 0) + (c.qty || 0) });
+        this._cloudSync('pantry_inventory', upd);
+      }
+    });
+    const updated = Storage.update('pantry_box_orders', id, { status: 'Returned', returnedAt: new Date().toISOString() });
+    this._cloudSync('pantry_box_orders', updated);
+    Toast.success('Returned to inventory'); this._rerender?.();
+  },
+
+  deleteOrder(id) {
+    const o = Storage.findById('pantry_box_orders', id); if (!o) return;
+    UI.confirm('Cancel this box order?', () => {
+      Storage.removeItem('pantry_box_orders', id);
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated && SupabaseDB.isAuthenticated()) {
+        SupabaseDB.tableDelete('pantry_box_orders', id)
+          .then(r => { if (r && !r.ok) Toast.error('Saved locally — cloud sync failed.'); })
+          .catch(() => Toast.error('Saved locally — cloud sync failed.'));
+      }
+      Toast.success('Order cancelled'); PantryMgr._rerender();
+    });
+  },
+
 };
 window.PantryMgr = PantryMgr;
