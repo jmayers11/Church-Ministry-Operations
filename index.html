@@ -210,9 +210,6 @@
     </nav>
 
     <div class="sidebar-footer">
-      <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode" aria-pressed="false">
-        <i data-lucide="moon" id="theme-icon" aria-hidden="true"></i>
-      </button>
       <a href="#" class="nav-link" data-page="settings">
         <span class="nav-icon"><i data-lucide="settings" aria-hidden="true"></i></span><span class="nav-label">Settings</span>
       </a>
@@ -222,6 +219,12 @@
         <span id="global-signout-email" class="nav-label"
               style="display:block;font-size:.7rem;color:var(--text-muted);"></span>
       </button>
+      <div class="sidebar-footer-top" style="margin-top:4px;">
+        <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode" aria-pressed="false">
+          <i data-lucide="moon" id="theme-icon" aria-hidden="true"></i>
+        </button>
+        <span class="nav-label" style="font-size:.72rem;color:var(--sidebar-text);opacity:.6;">Toggle theme</span>
+      </div>
     </div>
   </aside>
 

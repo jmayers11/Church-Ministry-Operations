@@ -115,12 +115,12 @@ Navigation.register('dashboard', function render(page) {
 
   // Giving MTD
   const givingMTD = (() => {
-    const giving = Storage.getAll('giving') || [];
+    const giving = Storage.getAll('giving_donations') || [];
     const mo = today.slice(0,7);
     return giving.filter(g=>g.date?.startsWith(mo)).reduce((s,g)=>s+(parseFloat(g.amount)||0),0);
   })();
   const givingLastMTD = (() => {
-    const giving = Storage.getAll('giving') || [];
+    const giving = Storage.getAll('giving_donations') || [];
     const d = new Date(today); d.setMonth(d.getMonth()-1);
     const mo = d.toISOString().slice(0,7);
     return giving.filter(g=>g.date?.startsWith(mo)).reduce((s,g)=>s+(parseFloat(g.amount)||0),0);

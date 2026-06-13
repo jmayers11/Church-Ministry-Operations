@@ -392,8 +392,16 @@ body.sidebar-collapsed .nav-section-toggle { display: none; }
   padding: 10px 8px 14px;
   border-top: 1px solid rgba(255,255,255,.07);
   display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Row for theme toggle + label */
+.sidebar-footer-top {
+  display: flex;
   align-items: center;
   gap: 8px;
+  padding: 0 4px 4px;
 }
 
 .theme-toggle {

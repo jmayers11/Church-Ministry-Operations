@@ -777,7 +777,7 @@ Navigation.register('settings', function render(page) {
       </div>
     </div>
 
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:20px;">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:20px;align-items:start;">
 
       <!-- Church Info -->
       <div class="card">
@@ -806,8 +806,9 @@ Navigation.register('settings', function render(page) {
       </div>
 
       <!-- Appearance / White-label -->
-      <div class="card">
+      <div class="card" style="grid-column:span 2 / auto;">
         <div class="card-header"><span class="card-title"><i data-lucide="palette" class="icon-inline" aria-hidden="true"></i> Brand &amp; Appearance</span></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0 32px;">
         <div class="form-group">
           <label class="form-label">Theme</label>
           <div style="display:flex;gap:12px;margin-top:6px;">
@@ -886,7 +887,8 @@ Navigation.register('settings', function render(page) {
           <textarea class="form-control" id="set-custom-css" rows="4" placeholder="/* e.g. :root { --radius: 0; } */"
                     style="font-family:monospace;font-size:.82rem">${UI.esc(s.customCss||'')}</textarea>
         </div>
-        <button class="btn btn-primary" id="save-appearance-btn">
+        </div><!-- /inner appearance grid -->
+        <button class="btn btn-primary" id="save-appearance-btn" style="margin-top:8px;">
           <i data-lucide="save" class="icon-sm" aria-hidden="true"></i> Save Appearance
         </button>
       </div>
