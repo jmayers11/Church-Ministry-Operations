@@ -323,7 +323,7 @@ body.sidebar-collapsed .church-logo + .church-name-wrap { display: none; }
   color: rgba(255,255,255,.45);
 }
 
-/* ── Collapsible sidebar sections (3.9) ─────────────────────── */
+/* ── Collapsible sidebar sections ─────────────────────── */
 .nav-section-item { list-style: none; }
 
 .nav-section-toggle {
@@ -350,7 +350,7 @@ body.sidebar-collapsed .church-logo + .church-name-wrap { display: none; }
 .nav-section-items { list-style: none; padding: 0; overflow: hidden; }
 .nav-section-items.collapsed { display: none; }
 
-/* ── Collapsed rail tooltips (3.9) ─────────────────────────── */
+/* ── Collapsed rail tooltips ─────────────────────────── */
 body.sidebar-collapsed .nav-link { position: relative; }
 body.sidebar-collapsed .nav-link:hover::after,
 body.sidebar-collapsed .nav-link:focus-visible::after {
