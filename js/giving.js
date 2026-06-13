@@ -79,6 +79,8 @@ Navigation.register('giving', function render(page) {
   const inMonth = (d,ym) => d && d.startsWith(ym);
   const sumAmt = arr => arr.reduce((s,d)=>s+(Number(d.amount)||0),0);
   const fmt = n => '$' + Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2});
+  // Compact format for stat cards — keeps values short enough to fit
+  const fmtK = n => { const v = Number(n); return v >= 10000 ? '$' + (v/1000).toFixed(1) + 'k' : v >= 1000 ? '$' + (v/1000).toFixed(1) + 'k' : '$' + v.toLocaleString('en-US', {minimumFractionDigits:0, maximumFractionDigits:0}); };
 
   const thisMonthDons = donations.filter(d=>inMonth(d.date,thisMonth));
   const lastMonthDons = donations.filter(d=>inMonth(d.date,lastMonth));
@@ -288,13 +290,13 @@ Navigation.register('giving', function render(page) {
     <div class="stat-grid" style="margin-bottom:20px;">
       <div class="stat-card" data-accent="green">
         <div class="stat-icon"><i data-lucide="dollar-sign" aria-hidden="true"></i></div>
-        <div class="stat-value">${fmt(monthTotal)}</div>
+        <div class="stat-value">${fmtK(monthTotal)}</div>
         <div class="stat-label">This Month</div>
         <div class="stat-delta ${monthDelta>0?'up':monthDelta<0?'down':'flat'}">${monthDelta>0?'+':''}${monthDelta}% vs last month</div>
       </div>
       <div class="stat-card" data-accent="blue">
         <div class="stat-icon"><i data-lucide="calendar" aria-hidden="true"></i></div>
-        <div class="stat-value">${fmt(yearTotal)}</div>
+        <div class="stat-value">${fmtK(yearTotal)}</div>
         <div class="stat-label">Year to Date</div>
       </div>
       <div class="stat-card" data-accent="purple">
@@ -304,7 +306,7 @@ Navigation.register('giving', function render(page) {
       </div>
       <div class="stat-card" data-accent="orange">
         <div class="stat-icon"><i data-lucide="bar-chart-2" aria-hidden="true"></i></div>
-        <div class="stat-value">${fmt(avgGift)}</div>
+        <div class="stat-value">${fmtK(avgGift)}</div>
         <div class="stat-label">Avg Gift (This Month)</div>
       </div>
     </div>

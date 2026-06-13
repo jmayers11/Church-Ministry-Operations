@@ -158,7 +158,7 @@ Navigation.register('dashboard', function render(page) {
         value: avg13,
         label: 'Avg Attendance',
         meta: `13-wk avg · ${nonZero13.length} wk${nonZero13.length !== 1 ? 's' : ''} of data`,
-        delta: avgPrior13 > 0 ? (avg13 >= avgPrior13 ? '▲' : '▼') + Math.abs(avg13 - avgPrior13) + ' vs prior 13 wks' : null,
+        delta: avgPrior13 > 0 ? Math.abs(avg13 - avgPrior13) + ' vs prior 13 wks' : null,
         deltaDir: avg13 >= avgPrior13 ? 'up' : 'down',
         onClickPage: 'checkin', accent: 'brand',
       })}
@@ -167,7 +167,7 @@ Navigation.register('dashboard', function render(page) {
         value: '$' + (givingMTD >= 1000 ? (givingMTD/1000).toFixed(1)+'k' : givingMTD.toFixed(0)),
         label: 'Giving MTD',
         meta: 'This month to date',
-        delta: givingLastMTD > 0 ? (givingMTD >= givingLastMTD ? '▲' : '▼') + '$' + Math.abs(Math.round(givingMTD-givingLastMTD)) + ' vs last mo' : null,
+        delta: givingLastMTD > 0 ? '$' + Math.abs(Math.round(givingMTD-givingLastMTD)) + ' vs last mo' : null,
         deltaDir: givingMTD >= givingLastMTD ? 'up' : 'down',
         onClickPage: 'giving', accent: 'success',
       })}

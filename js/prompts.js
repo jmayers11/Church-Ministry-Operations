@@ -1,7 +1,6 @@
 /* =============================================================
-   prompts.js  —  Message Template Center
-   Generates copy-ready prompts to paste into ChatGPT / Claude.
-   No direct AI connection — prompts only.
+   prompts.js  —  AI Content Studio
+   Generate church communications directly in the dashboard.
    ============================================================= */
 
 Navigation.register('prompts', function render(page) {
@@ -19,12 +18,12 @@ Navigation.register('prompts', function render(page) {
   const newVisitors = visitors.filter(v => v.followUpStatus === 'New').slice(0, 3);
   const openPrayer  = prayer.filter(p => p.status !== 'Answered' && !p.private).slice(0, 3);
 
-  // ── Prompt definitions ───────────────────────────────────────
+  // ── Category & prompt definitions ────────────────────────────
   const categories = [
     {
       id: 'volunteer',
       label: 'Volunteer Recruitment',
-      icon: '<i data-lucide="users" class="icon-inline" aria-hidden="true"></i>',
+      icon: 'users',
       color: 'var(--blue)',
       prompts: [
         {
@@ -34,7 +33,7 @@ Navigation.register('prompts', function render(page) {
 The email should:
 - Be friendly and non-pressuring
 - Emphasize that every role matters, no matter how small
-- List these ministry areas needing volunteers: ${[...new Set(volunteers.map(v=>v.team))].join(', ')}
+- List these ministry areas needing volunteers: ${[...new Set(volunteers.map(v=>v.team))].filter(Boolean).join(', ') || 'Worship, Children, Hospitality, Outreach'}
 - Include a clear call to action to sign up or reach out to ${pastorName}
 - Be approximately 200 words
 - End with an encouraging Bible verse about serving`,
@@ -70,7 +69,7 @@ Requirements:
     {
       id: 'events',
       label: 'Event Announcements',
-      icon: '<i data-lucide="calendar" class="icon-inline" aria-hidden="true"></i>',
+      icon: 'calendar',
       color: 'var(--purple)',
       prompts: [
         {
@@ -81,8 +80,8 @@ Requirements:
             return `Write an engaging Sunday service announcement for ${churchName}.
 Event details:
 - Event: ${ev.name}
-- Date/Time: ${UI.fmtDate(ev.date)} at ${ev.time}
-- Location: ${ev.location}
+- Date/Time: ${UI.fmtDate(ev.date)} at ${ev.time || '10:00 AM'}
+- Location: ${ev.location || 'Main Sanctuary'}
 - Pastor: ${pastorName}
 
 The announcement should:
@@ -103,13 +102,13 @@ The announcement should:
 
 Event: ${ev.name}
 Date: ${UI.fmtDate(ev.date)}
-Time: ${ev.time}
-Location: ${ev.location}
+Time: ${ev.time || 'TBD'}
+Location: ${ev.location || 'the church'}
 
 Please write THREE versions:
-1. **Facebook/Instagram post** (80 words max, with 3-5 relevant hashtags)
-2. **Church bulletin insert** (100-120 words, formal tone)
-3. **Text message blast** (160 characters max)
+1. Facebook/Instagram post (80 words max, with 3-5 relevant hashtags)
+2. Church bulletin insert (100-120 words, formal tone)
+3. Text message blast (160 characters max)
 
 All versions should emphasize community, fun, and that the event is open to everyone.`;
           },
@@ -120,9 +119,9 @@ All versions should emphasize community, fun, and that the event is open to ever
           generate: () => `Write exciting promotional copy for Vacation Bible School at ${churchName}.
 
 Include THREE versions:
-1. **Parent email** (200 words) — emphasize safety, fun, spiritual growth, and registration info
-2. **Social media graphic caption** (60 words + hashtags) — visual, energetic, emoji-friendly
-3. **Church bulletin blurb** (75 words) — concise, dates/times, registration link placeholder
+1. Parent email (200 words) — emphasize safety, fun, spiritual growth, and registration info
+2. Social media graphic caption (60 words + hashtags) — visual, energetic, emoji-friendly
+3. Church bulletin blurb (75 words) — concise, dates/times, registration link placeholder
 
 Tone: energetic, family-friendly, faith-filled
 Target audience: families with children ages 4-12
@@ -133,7 +132,7 @@ Include a call-to-action to register or contact the church office`,
     {
       id: 'visitors',
       label: 'Visitor Follow-Up',
-      icon: 'hand',
+      icon: 'hand-shake',
       color: 'var(--orange)',
       prompts: [
         {
@@ -159,7 +158,7 @@ The email should:
         },
         {
           title: 'Second Visit Invitation',
-          description: 'Follow-up to a visitor who was "Contacted" but has not returned',
+          description: 'Follow-up to a visitor who was contacted but has not returned',
           generate: () => `Write a gentle second-follow-up message to a visitor at ${churchName} who was contacted once but hasn't returned.
 
 Scenario: They visited about 3-4 weeks ago. We reached out once and they were friendly but haven't come back.
@@ -173,7 +172,7 @@ The message should:
 - Offer to connect them with a specific small group or ministry based on their interests`,
         },
         {
-          title: 'New Member Connection Letter',
+          title: 'New Member Welcome Letter',
           description: 'Official welcome when a visitor decides to join',
           generate: () => `Write a formal yet warm welcome letter for a new member joining ${churchName}.
 
@@ -194,7 +193,7 @@ The letter should:
     {
       id: 'prayer',
       label: 'Prayer Team Messages',
-      icon: '<i data-lucide="hands" class="icon-inline" aria-hidden="true"></i>',
+      icon: 'heart-handshake',
       color: 'var(--green)',
       prompts: [
         {
@@ -219,7 +218,7 @@ The email should:
         },
         {
           title: 'Answered Prayer Praise Report',
-          description: 'Celebratory message sharing answered prayers with the congregation',
+          description: 'Celebratory message sharing answered prayers',
           generate: () => `Write a praise report email for ${churchName} sharing answered prayer.
 
 Format:
@@ -256,26 +255,25 @@ The message should:
       color: 'var(--yellow)',
       prompts: [
         {
-          title: 'Monthly Newsletter Template',
+          title: 'Monthly Newsletter',
           description: 'Full monthly newsletter with all sections',
           generate: () => {
-            const evList = upcomingEvs.slice(0,4).map(e => `- ${e.name}: ${UI.fmtDate(e.date)} at ${e.time}`).join('\n') || '- Sunday Services: Weekly at 10:00 AM\n- Wednesday Bible Study: Weekly at 7:00 PM';
+            const evList = upcomingEvs.slice(0,4).map(e => `- ${e.name}: ${UI.fmtDate(e.date)} at ${e.time||'TBD'}`).join('\n') || '- Sunday Services: Weekly at 10:00 AM\n- Wednesday Bible Study: Weekly at 7:00 PM';
             return `Create a monthly newsletter for ${churchName}.
 
 Church details:
 - Pastor: ${pastorName}
 - Active Members: ${members.filter(m=>m.status==='Active').length}
-- Upcoming Events:
-${evList}
+- Upcoming Events:\n${evList}
 
 Newsletter sections to include:
-1. **Pastor's Note** (150 words) — encouraging monthly message with Scripture
-2. **What's Happening** — brief descriptions of 3-4 upcoming events
-3. **Ministry Spotlight** — 100-word feature on one ministry area (your choice)
-4. **Prayer & Praise** — 3-4 items (mix of needs and answered prayers)
-5. **Volunteer Spotlight** — 75-word recognition of a faithful volunteer
-6. **Giving Update** — brief thank you for faithful generosity (no specific numbers needed)
-7. **Closing Blessing** — short benediction paragraph
+1. Pastor's Note (150 words) — encouraging monthly message with Scripture
+2. What's Happening — brief descriptions of 3-4 upcoming events
+3. Ministry Spotlight — 100-word feature on one ministry area
+4. Prayer & Praise — 3-4 items (mix of needs and answered prayers)
+5. Volunteer Spotlight — 75-word recognition of a faithful volunteer
+6. Giving Update — brief thank you for faithful generosity
+7. Closing Blessing — short benediction paragraph
 
 Tone: warm, community-focused, inspiring
 Total length: 700-900 words`;
@@ -289,7 +287,7 @@ Total length: 700-900 words`;
 The letter should:
 - Come from ${pastorName}
 - Open with gratitude for the congregation's faithfulness
-- Share 3-4 specific ways giving made an impact this year (use placeholder stats: "X families served," "X lives touched," etc.)
+- Share 3-4 specific ways giving made an impact this year (use placeholder stats)
 - Cast vision for what giving will accomplish next year
 - Present the ask as an opportunity to partner in God's work, not an obligation
 - Include a Scripture on stewardship and generosity
@@ -303,7 +301,7 @@ The letter should:
     {
       id: 'social',
       label: 'Social Media Posts',
-      icon: '<i data-lucide="smartphone" class="icon-inline" aria-hidden="true"></i>',
+      icon: 'smartphone',
       color: 'var(--red)',
       prompts: [
         {
@@ -315,32 +313,32 @@ Church info: ${churchName} · Pastor: ${pastorName}
 ${nextEvent ? `Featured event: ${nextEvent.name} on ${UI.fmtDate(nextEvent.date)}` : ''}
 
 Write one post for each day:
-- **Monday** — Motivational/inspirational Scripture with a brief reflection (Instagram/Facebook)
-- **Tuesday** — Behind-the-scenes or "did you know about our church" post
-- **Wednesday** — Mid-week encouragement tied to this week's Bible study theme
-- **Thursday** — Upcoming event promotion or volunteer spotlight
-- **Friday** — Weekend service preview / invite post
+- Monday — Motivational/inspirational Scripture with a brief reflection (Instagram/Facebook)
+- Tuesday — Behind-the-scenes or "did you know about our church" post
+- Wednesday — Mid-week encouragement tied to this week's Bible study theme
+- Thursday — Upcoming event promotion or volunteer spotlight
+- Friday — Weekend service preview / invite post
 
 For each post include:
 - Caption (max 150 words)
 - 5-8 relevant hashtags
-- Suggested image description (e.g., "Photo of congregation worshipping")
+- Suggested image description
 - Platform note: Facebook, Instagram, or both`,
         },
         {
-          title: 'Outreach & Community Impact Post',
+          title: 'Outreach & Community Impact Posts',
           description: 'Posts highlighting food pantry, service projects, and community work',
           generate: () => {
-            const pantryTotal = Storage.getAll('foodpantry').reduce((s,r)=>s+r.familiesServed,0);
+            const pantryTotal = Storage.getAll('foodpantry').reduce((s,r)=>s+(r.familiesServed||0),0);
             return `Write 3 social media posts for ${churchName} highlighting community outreach.
 
 Impact data:
 - Food pantry families served: ${pantryTotal || 147}
-- Volunteer hours this year: ${Storage.getAll('foodpantry').reduce((s,r)=>s+r.volunteerHours,0) || 312}
+- Volunteer hours this year: ${Storage.getAll('foodpantry').reduce((s,r)=>s+(r.volunteerHours||0),0) || 312}
 
-Post 1: **Food Pantry impact post** — celebrate families served, invite donations
-Post 2: **Volunteer appreciation post** — thank volunteers for their service hours
-Post 3: **Community invitation post** — invite the community to receive help OR serve alongside us
+Post 1: Food Pantry impact post — celebrate families served, invite donations
+Post 2: Volunteer appreciation post — thank volunteers for their service hours
+Post 3: Community invitation post — invite the community to receive help OR serve alongside us
 
 For each post:
 - Caption (100 words max)
@@ -358,7 +356,7 @@ For each post:
       color: 'var(--text-muted)',
       prompts: [
         {
-          title: 'Monthly Ministry Report Summary',
+          title: 'Monthly Ministry Report',
           description: 'Summary report for leadership / board meetings',
           generate: () => {
             const activeVols = volunteers.filter(v=>v.bgCheck==='Approved').length;
@@ -371,7 +369,7 @@ Data to include:
 - Volunteers serving: ${activeVols} (${volunteers.filter(v=>v.bgCheck==='Pending').length} background checks pending)
 - Events held: ${eventsThisMonth}
 - Prayer requests received: ${prayer.filter(p=>p.date>=Storage.today(-30)).length}
-- Food pantry families served: ${Storage.getAll('foodpantry').filter(r=>r.date>=Storage.today(-30)).reduce((s,r)=>s+r.familiesServed,0)}
+- Food pantry families served: ${Storage.getAll('foodpantry').filter(r=>r.date>=Storage.today(-30)).reduce((s,r)=>s+(r.familiesServed||0),0)}
 
 Format the report with these sections:
 1. Executive Summary (3-4 sentences)
@@ -408,156 +406,228 @@ The narrative should:
     },
   ];
 
-  // Active category
+  // ── State ──────────────────────────────────────────────────────
   let activeCategory = Storage.get('_promptCategory') || 'volunteer';
-  let activePromptIndex = 0;
 
+  // Per-prompt output state: { [catId_index]: { loading, output, error } }
+  const _state = {};
+  function stateKey(catId, i) { return catId + '_' + i; }
+  function getState(catId, i) { return _state[stateKey(catId, i)] || {}; }
+  function setState(catId, i, patch) {
+    const k = stateKey(catId, i);
+    _state[k] = Object.assign({}, _state[k], patch);
+  }
+
+  // ── Inject styles once ─────────────────────────────────────────
+  if (!document.getElementById('prompts-style')) {
+    const style = document.createElement('style');
+    style.id = 'prompts-style';
+    style.textContent = `
+      .prompt-cat-btn {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 12px; border-radius: var(--radius);
+        border: 1px solid var(--border); background: var(--surface);
+        font-size: .84rem; font-weight: 600; color: var(--text-muted);
+        cursor: pointer; text-align: left; transition: all .15s; width: 100%;
+      }
+      .prompt-cat-btn:hover { background: var(--surface-hover); color: var(--text); }
+      .prompt-cat-btn.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
+      .prompt-cat-btn .cat-count {
+        margin-left: auto; background: var(--surface-2);
+        border-radius: 99px; padding: 1px 8px; font-size: .72rem; font-weight: 700;
+      }
+      .prompt-card {
+        border: 1px solid var(--border); border-radius: var(--radius-md);
+        background: var(--surface); transition: border-color .15s;
+      }
+      .prompt-card-header {
+        display: flex; align-items: flex-start; justify-content: space-between;
+        gap: 12px; padding: 16px 18px;
+        cursor: pointer;
+      }
+      .prompt-card-body { padding: 0 18px 16px; border-top: 1px solid var(--border); padding-top: 16px; }
+      .prompt-output {
+        width: 100%; box-sizing: border-box;
+        font-family: inherit; font-size: .85rem; line-height: 1.7;
+        background: var(--surface-2); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 14px; color: var(--text);
+        resize: vertical; min-height: 180px;
+      }
+      .prompt-generate-btn { min-width: 140px; }
+      @media (max-width: 640px) {
+        #prompts-layout { grid-template-columns: 1fr !important; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  // ── Render ────────────────────────────────────────────────────
   function renderPage() {
     const cat = categories.find(c => c.id === activeCategory) || categories[0];
 
     page.innerHTML = `
       <div class="section-header">
         <div>
-          <h2 class="section-title">Message Template Center</h2>
-          <div class="section-subtitle">Copy a prompt → paste into ChatGPT or Claude → get polished content instantly</div>
+          <h2 class="section-title"><i data-lucide="sparkles" class="icon-inline" aria-hidden="true"></i>AI Content Studio</h2>
+          <div class="section-subtitle">Generate church communications directly — pre-filled with your real data</div>
         </div>
       </div>
 
-      <!-- Info Banner -->
-      <div style="background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--radius);padding:12px 16px;margin-bottom:24px;display:flex;align-items:center;gap:12px;font-size:.86rem;">
-        <i data-lucide="lightbulb" class="icon-inline" aria-hidden="true"></i>
-        <div>
-          <strong>How it works:</strong> Select a prompt category, choose a template, click <strong>Copy Prompt</strong>, then paste it into
-          <a href="https://chat.openai.com" target="_blank" style="color:var(--accent)">ChatGPT</a> or
-          <a href="https://claude.ai" target="_blank" style="color:var(--accent)">Claude.ai</a>.
-          Prompts are pre-filled with your church's real data from this dashboard.
-        </div>
-      </div>
+      <div style="display:grid;grid-template-columns:210px 1fr;gap:20px;align-items:start;" id="prompts-layout">
 
-      <div style="display:grid;grid-template-columns:220px 1fr;gap:20px;align-items:start;" id="prompts-layout">
-
-        <!-- Category Sidebar -->
-        <div style="display:flex;flex-direction:column;gap:4px;">
+        <!-- Category sidebar -->
+        <div style="display:flex;flex-direction:column;gap:3px;">
           ${categories.map(c => `
-            <button class="prompt-cat-btn ${c.id === activeCategory ? 'active' : ''}" data-cat="${c.id}"
-              style="--cat-color:${c.color}">
-              <span style="font-size:1.1rem;">${c.icon}</span>
-              <span>${c.label}</span>
-              <span style="margin-left:auto;background:var(--surface-2);border-radius:99px;padding:1px 7px;font-size:.72rem;">${c.prompts.length}</span>
+            <button class="prompt-cat-btn ${c.id === activeCategory ? 'active' : ''}" data-cat="${c.id}">
+              <i data-lucide="${c.icon}" aria-hidden="true" style="width:16px;height:16px;flex-shrink:0;"></i>
+              <span style="flex:1">${c.label}</span>
+              <span class="cat-count">${c.prompts.length}</span>
             </button>
           `).join('')}
         </div>
 
-        <!-- Prompt Content -->
+        <!-- Prompt cards -->
         <div>
-          <div style="margin-bottom:16px;">
-            <h3 style="font-size:1rem;font-weight:700;">${cat.icon} ${cat.label}</h3>
-            <p style="font-size:.84rem;color:var(--text-muted);margin-top:3px;">
-              ${cat.prompts.length} ready-to-use prompt${cat.prompts.length!==1?'s':''} · customised with ${UI.esc(churchName)}'s data
+          <div style="margin-bottom:14px;">
+            <h3 style="font-size:1rem;font-weight:700;display:flex;align-items:center;gap:6px;">
+              <i data-lucide="${cat.icon}" aria-hidden="true" style="width:16px;height:16px;color:${cat.color}"></i>
+              ${cat.label}
+            </h3>
+            <p style="font-size:.82rem;color:var(--text-muted);margin-top:3px;">
+              ${cat.prompts.length} template${cat.prompts.length!==1?'s':''} · pre-filled with ${UI.esc(churchName)}'s data
             </p>
           </div>
 
-          <div style="display:flex;flex-direction:column;gap:12px;" id="prompt-cards-container">
-            ${cat.prompts.map((p, i) => `
-              <div class="card prompt-card" data-index="${i}" style="cursor:pointer;border:2px solid ${i===activePromptIndex ? 'var(--accent)' : 'var(--border)'};">
-                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;">
+          <div style="display:flex;flex-direction:column;gap:10px;" id="prompt-cards-container">
+            ${cat.prompts.map((p, i) => {
+              const st = getState(cat.id, i);
+              return `
+              <div class="prompt-card" id="pcard-${i}">
+                <div class="prompt-card-header" data-expand="${i}">
                   <div>
                     <div style="font-weight:700;font-size:.92rem;">${UI.esc(p.title)}</div>
                     <div style="font-size:.8rem;color:var(--text-muted);margin-top:3px;">${UI.esc(p.description)}</div>
                   </div>
-                  <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();Prompts.copy('${activeCategory}',${i})" title="Copy prompt to clipboard">
-                    <i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i> Copy
-                  </button>
+                  <i data-lucide="chevron-down" aria-hidden="true" style="width:16px;height:16px;flex-shrink:0;margin-top:2px;color:var(--text-muted);transition:transform .2s;${st.expanded?'transform:rotate(180deg)':''}"></i>
                 </div>
-                ${i === activePromptIndex ? `
-                  <div style="margin-top:14px;">
-                    <div style="font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Generated Prompt Preview</div>
-                    <pre id="prompt-preview-${i}" style="white-space:pre-wrap;font-family:inherit;font-size:.82rem;line-height:1.7;background:var(--surface-2);border-radius:var(--radius);padding:14px;border:1px solid var(--border);overflow:auto;max-height:280px;">${UI.esc(p.generate())}</pre>
-                    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-                      <button class="btn btn-primary" onclick="Prompts.copy('${activeCategory}',${i})"><i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i> Copy Full Prompt</button>
-                      <a href="https://claude.ai" target="_blank" class="btn btn-outline">Open Claude.ai ↗</a>
-                      <a href="https://chat.openai.com" target="_blank" class="btn btn-outline">Open ChatGPT ↗</a>
-                    </div>
+                ${st.expanded ? `
+                <div class="prompt-card-body">
+                  <div style="margin-bottom:12px;">
+                    <button class="btn btn-primary prompt-generate-btn" id="gen-btn-${i}" ${st.loading?'disabled':''}>
+                      ${st.loading
+                        ? `<i data-lucide="loader-2" aria-hidden="true" style="width:14px;height:14px;animation:spin 1s linear infinite;margin-right:6px;"></i>Generating…`
+                        : `<i data-lucide="sparkles" aria-hidden="true" style="width:14px;height:14px;margin-right:6px;"></i>Generate`}
+                    </button>
+                    <button class="btn btn-ghost btn-sm" id="copy-prompt-btn-${i}" style="margin-left:6px;" title="Copy the raw prompt to clipboard instead">
+                      <i data-lucide="clipboard" aria-hidden="true" style="width:13px;height:13px;margin-right:4px;"></i>Copy Prompt
+                    </button>
                   </div>
+                  ${st.error ? `<div style="color:var(--red);font-size:.82rem;margin-bottom:10px;">${UI.esc(st.error)}</div>` : ''}
+                  ${st.output ? `
+                    <textarea class="prompt-output" id="output-${i}">${UI.esc(st.output)}</textarea>
+                    <div style="display:flex;gap:8px;margin-top:10px;">
+                      <button class="btn btn-outline btn-sm" id="copy-output-btn-${i}">
+                        <i data-lucide="copy" aria-hidden="true" style="width:13px;height:13px;margin-right:4px;"></i>Copy Output
+                      </button>
+                      <button class="btn btn-ghost btn-sm" id="regen-btn-${i}">
+                        <i data-lucide="refresh-cw" aria-hidden="true" style="width:13px;height:13px;margin-right:4px;"></i>Regenerate
+                      </button>
+                    </div>
+                  ` : (!st.loading && !st.error ? `
+                    <div style="font-size:.8rem;color:var(--text-muted);padding:10px 0;">
+                      Click <strong>Generate</strong> to create this content using your church's data.
+                      ${!SupabaseDB.isAuthenticated() ? '<br><span style="color:var(--orange);">Sign in to Supabase to enable AI generation.</span>' : ''}
+                    </div>
+                  ` : '')}
+                </div>
                 ` : ''}
-              </div>
-            `).join('')}
+              </div>`;
+            }).join('')}
           </div>
         </div>
       </div>
     `;
 
-    // Category button styles
-    if (!document.getElementById('prompt-cat-style')) {
-      const style = document.createElement('style');
-      style.id = 'prompt-cat-style';
-      style.textContent = `
-        .prompt-cat-btn {
-          display: flex; align-items: center; gap: 8px;
-          padding: 9px 12px; border-radius: var(--radius);
-          border: 1px solid var(--border); background: var(--surface);
-          font-size: .84rem; font-weight: 600; color: var(--text-muted);
-          cursor: pointer; text-align: left; transition: all .15s;
-        }
-        .prompt-cat-btn:hover { background: var(--accent-light); color: var(--text); }
-        .prompt-cat-btn.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent); }
-        @media (max-width: 640px) {
-          #prompts-layout { grid-template-columns: 1fr !important; }
-          .prompt-cat-btn { font-size: .78rem; padding: 7px 10px; }
-        }
-      `;
-      document.head.appendChild(style);
-    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // Wire category buttons
+    // Category buttons
     document.querySelectorAll('.prompt-cat-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         activeCategory = btn.dataset.cat;
-        activePromptIndex = 0;
         Storage.set('_promptCategory', activeCategory);
         renderPage();
       });
     });
 
-    // Wire prompt card expansion
-    document.querySelectorAll('.prompt-card').forEach(card => {
-      card.addEventListener('click', () => {
-        const newIndex = parseInt(card.dataset.index);
-        if (activePromptIndex === newIndex) return;
-        activePromptIndex = newIndex;
+    // Expand/collapse
+    document.querySelectorAll('[data-expand]').forEach(el => {
+      el.addEventListener('click', () => {
+        const i = parseInt(el.dataset.expand);
+        const cat = categories.find(c => c.id === activeCategory);
+        const was = getState(activeCategory, i).expanded;
+        // Collapse all in this category first
+        cat.prompts.forEach((_, j) => setState(activeCategory, j, { expanded: false }));
+        setState(activeCategory, i, { expanded: !was });
         renderPage();
       });
+    });
+
+    // Wire generate buttons
+    const cat = categories.find(c => c.id === activeCategory) || categories[0];
+    cat.prompts.forEach((p, i) => {
+      const genBtn  = document.getElementById('gen-btn-' + i);
+      const regenBtn = document.getElementById('regen-btn-' + i);
+      const copyPromptBtn = document.getElementById('copy-prompt-btn-' + i);
+      const copyOutputBtn = document.getElementById('copy-output-btn-' + i);
+
+      async function doGenerate() {
+        setState(activeCategory, i, { loading: true, error: null, output: null });
+        renderPage();
+        const prompt = p.generate();
+        const res = await SupabaseDB.generateContent(prompt);
+        if (res.ok) {
+          setState(activeCategory, i, { loading: false, output: res.draft });
+        } else {
+          setState(activeCategory, i, { loading: false, error: 'Generation failed: ' + res.error });
+        }
+        renderPage();
+      }
+
+      if (genBtn)  genBtn.addEventListener('click',  doGenerate);
+      if (regenBtn) regenBtn.addEventListener('click', doGenerate);
+
+      if (copyPromptBtn) {
+        copyPromptBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          const text = p.generate();
+          navigator.clipboard?.writeText(text).then(() => Toast.success('Prompt copied — paste into Claude.ai or ChatGPT.')).catch(() => {
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+            document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+            Toast.success('Prompt copied!');
+          });
+        });
+      }
+
+      if (copyOutputBtn) {
+        copyOutputBtn.addEventListener('click', () => {
+          const ta = document.getElementById('output-' + i);
+          const text = ta ? ta.value : getState(activeCategory, i).output || '';
+          navigator.clipboard?.writeText(text).then(() => Toast.success('Copied!')).catch(() => {
+            if (ta) { ta.select(); document.execCommand('copy'); Toast.success('Copied!'); }
+          });
+        });
+      }
     });
   }
 
   renderPage();
+  // Auto-expand first prompt
+  const cat = categories.find(c => c.id === activeCategory) || categories[0];
+  if (!cat.prompts.some((_, i) => getState(activeCategory, i).expanded)) {
+    setState(activeCategory, 0, { expanded: true });
+    renderPage();
+  }
 });
 
-const Prompts = {
-  copy(catId, index) {
-    const categories_ref = Navigation._modules; // not accessible; rebuild inline
-    // Re-generate the prompt text
-    const page = document.getElementById('page-prompts');
-    const pre = page?.querySelector(`pre[id^="prompt-preview"]`);
-    const text = pre?.textContent || document.querySelector('.prompt-card:nth-child(' + (index+1) + ') pre')?.textContent;
-
-    if (text) {
-      navigator.clipboard.writeText(text).then(() => {
-        Toast.success('Prompt copied to clipboard! Paste it into ChatGPT or Claude.');
-      }).catch(() => {
-        // Fallback for browsers without clipboard API
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed'; ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        ta.remove();
-        Toast.success('Prompt copied!');
-      });
-    } else {
-      Toast.info('Click the prompt card first to expand it, then copy.');
-    }
-  },
-};
-window.Prompts = Prompts;
+window.Prompts = {};

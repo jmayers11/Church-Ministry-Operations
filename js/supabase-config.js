@@ -483,6 +483,30 @@ var SupabaseDB = (function () {
   }
 
   /**
+   * Send a freeform prompt to the Edge Function and return generated content.
+   * Returns { ok: true, draft } or { ok: false, error }.
+   */
+  async function generateContent(prompt) {
+    if (!_client) return { ok: false, error: 'Supabase not configured.' };
+    try {
+      var res = await fetch(SUPABASE_URL + '/functions/v1/draft-response', {
+        method: 'POST',
+        headers: {
+          'Content-Type':  'application/json',
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+          'apikey':        SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ type: 'content_generation', prompt: prompt }),
+      });
+      var data = await res.json();
+      if (!res.ok || !data.ok) return { ok: false, error: data.error || ('HTTP ' + res.status) };
+      return { ok: true, draft: data.draft };
+    } catch (err) {
+      return { ok: false, error: err.message || 'Generation failed.' };
+    }
+  }
+
+  /**
    * Ask the draft-response Edge Function for a reply template.
    * Sends ONLY non-identifying categorical fields — never PII.
    * Returns { ok: true, draft } or { ok: false, error }.
@@ -530,5 +554,6 @@ var SupabaseDB = (function () {
     tableDelete:           tableDelete,
     syncAllTables:         syncAllTables,
     draftResponse:         draftResponse,
+    generateContent:       generateContent,
   };
 })();

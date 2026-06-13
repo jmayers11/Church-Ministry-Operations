@@ -44,8 +44,12 @@ UI.kpi = function({ icon, value, label, meta, delta, deltaDir, onClickPage, acce
     `aria-label="${UI.esc(label)}: ${value}. Activate to view details."`,
   ].join(' ') : '';
 
-  const numVal = typeof value === 'number' ? value
-    : parseInt(String(value).replace(/[^0-9]/g, ''), 10) || 0;
+  // Only animate plain numbers — string values like '$3.3k' or '57%' must
+  // NOT get a count-target, because countUp overwrites textContent with a
+  // raw integer and strips the prefix/suffix.
+  const isNumeric = typeof value === 'number';
+  const numVal    = isNumeric ? value : 0;
+  const countAttr = isNumeric ? `data-count-target="${numVal}"` : '';
 
   const classes = ['kpi', sm ? 'kpi--sm' : '', onClickPage ? 'kpi--clickable' : ''].filter(Boolean).join(' ');
   const iconHtml = icon ? `<div class="kpi__icon" style="background:${bg};color:${fg}"><i data-lucide="${icon}" aria-hidden="true"></i></div>` : '';
@@ -53,7 +57,7 @@ UI.kpi = function({ icon, value, label, meta, delta, deltaDir, onClickPage, acce
   return `
     <div class="${classes}" ${clickAttrs}>
       ${topHtml}
-      <div class="kpi__value" data-count-target="${numVal}">${typeof value === 'number' ? numVal.toLocaleString() : UI.esc(String(value))}</div>
+      <div class="kpi__value" ${countAttr}>${isNumeric ? numVal.toLocaleString() : UI.esc(String(value))}</div>
       <div class="kpi__label">${UI.esc(label)}</div>
       ${meta ? `<div class="kpi__meta">${UI.esc(String(meta))}</div>` : ''}
     </div>`;
