@@ -931,12 +931,18 @@ textarea.form-control { resize: vertical; min-height: 80px; }
 /* Search-bar icon (positioned absolutely) */
 .search-input-wrap .search-icon svg { width: 16px; height: 16px; }
 
-/* Inline icon in headings / card titles */
+/* Inline icon in headings / card titles.
+   Lucide replaces <i class="icon-inline"> with <svg class="icon-inline">,
+   so sizing must be on the element itself, not a child svg selector. */
 .icon-inline {
   display: inline-block;
   vertical-align: middle;
   margin-right: 6px;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
 }
+/* Fallback for wrappers that contain a nested svg (non-Lucide contexts) */
 .icon-inline svg { width: 18px; height: 18px; stroke-width: 2; }
 
 /* Tiny inline icon in body text (contact info, notes) */
@@ -944,6 +950,9 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   display: inline-block;
   vertical-align: middle;
   margin-right: 4px;
+  width: 13px;
+  height: 13px;
+  flex-shrink: 0;
 }
 .icon-xs svg { width: 13px; height: 13px; stroke-width: 2; }
 
@@ -1571,12 +1580,12 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   cursor: pointer;
   transition: border-color var(--motion-fast), background var(--motion-fast), box-shadow var(--motion-fast);
   text-align: left;
-  font-family: inherit;
+  font-family: var(--font-sans);
   color: var(--text);
   min-height: 70px;
 }
-.ci-name   { font-weight: 600; color: var(--text); font-size: .9rem; }
-.ci-family { color: var(--text-muted); font-size: .75rem; }
+.ci-name   { font-weight: 600; color: var(--text); font-size: var(--text-base); font-family: var(--font-sans); line-height: 1.3; }
+.ci-family { color: var(--text-muted); font-size: var(--text-xs); line-height: 1.3; }
 .ci-member-card:hover {
   border-color: var(--accent);
   box-shadow: var(--shadow-sm);
@@ -1585,9 +1594,15 @@ textarea.form-control { resize: vertical; min-height: 80px; }
   background: var(--accent-subtle, rgba(99,102,241,.08));
   border-color: var(--accent);
 }
+/* Check icon — Lucide replaces <i> with <svg>, so size on the element directly */
 .ci-check-icon {
-  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  width: 18px;
+  height: 18px;
+  margin-bottom: 4px;
 }
+.ci-check-icon svg { width: 18px; height: 18px; stroke-width: 2; }
 /* ================================================================
    POLISH PASS v2 — design-review implementation
    All additions; no existing rules removed.
@@ -1751,7 +1766,9 @@ tr:focus-within .row-actions { opacity: 1; }
    browser renders them as default white buttons, so define the
    underline tab look here for both light and dark themes. */
 .tab-btn {
-  background: none;
+  background: transparent;
+  -webkit-appearance: none;
+  appearance: none;
   border: none;
   border-bottom: 3px solid transparent;
   margin-bottom: -2px;
@@ -1764,8 +1781,9 @@ tr:focus-within .row-actions { opacity: 1; }
   align-items: center;
   gap: 6px;
   white-space: nowrap;
-  transition: color .15s, border-color .15s;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  transition: color .15s, border-color .15s, background .15s;
 }
-.tab-btn:hover { color: var(--text); }
-.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab-btn:hover { color: var(--text); background: var(--surface-hover); }
+.tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: transparent; }
 .tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
