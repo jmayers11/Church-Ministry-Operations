@@ -461,6 +461,11 @@ body.sidebar-collapsed .nav-section-toggle { display: none; }
 .topbar-date {
   font-size: .82rem;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex-shrink: 1;
 }
 
 /* ── 7. Pages ──────────────────────────────────────────────── */
@@ -470,6 +475,27 @@ body.sidebar-collapsed .nav-section-toggle { display: none; }
   flex: 1;
 }
 .page.active { display: block; }
+/* ── Tab buttons ───────────────────────────────────────────── */
+.tab-btn {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 8px 14px;
+  font-size: .88rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color var(--motion-fast), border-color var(--motion-fast);
+  white-space: nowrap;
+  margin-bottom: -2px;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
 .page > * { max-width: 1320px; margin-inline: auto; }
 
 /* ── 8. Responsive ─────────────────────────────────────────── */
@@ -487,14 +513,4 @@ body.sidebar-collapsed .nav-section-toggle { display: none; }
     margin-left: 0 !important;
   }
   .menu-btn { display: block; }
-  .topbar { padding: 0 16px; }
-  .page { padding: 20px 16px 48px; }
-}
-
-/* ── 9. Reduced Motion ─────────────────────────────────────── */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: .01ms !important;
-    transition-duration: .01ms !important;
-  }
-}
+  .topbar { padding: 

@@ -531,14 +531,20 @@ var SupabaseDB = (function () {
     }
   }
 
-  // ── Boot ───────────────────────────────────────────────────────
-  _init();
+  // ── Boot �
+  // ── Boot: initialise on load ──────────────────────────────────
+  (function boot() {
+    const cfg = typeof Storage !== 'undefined' ? Storage.getSettings() : {};
+    if (cfg.supabaseUrl && cfg.supabaseKey) {
+      _init(cfg.supabaseUrl, cfg.supabaseKey);
+    }
+  })();
 
-  // ── Exports ────────────────────────────────────────────────────
   return {
-    isEnabled:        isEnabled,
-    isAuthenticated:  isAuthenticated,
-    getSession:       getSession,
+    init:                  _init,
+    isEnabled:             isEnabled,
+    isAuthenticated:       isAuthenticated,
+    getSession:            getSession,
     onAuthChange:          onAuthChange,
     signIn:                signIn,
     signOut:               signOut,
@@ -547,13 +553,13 @@ var SupabaseDB = (function () {
     lookupRequest:         lookupRequest,
     getRequests:           getRequests,
     updateRequest:         updateRequest,
-    deleteRequest:         deleteRequest,
     notifyNewRequest:      notifyNewRequest,
+    deleteRequest:         deleteRequest,
     tableGet:              tableGet,
     tableUpsert:           tableUpsert,
     tableDelete:           tableDelete,
     syncAllTables:         syncAllTables,
-    draftResponse:         draftResponse,
     generateContent:       generateContent,
+    draftResponse:         draftResponse,
   };
 })();

@@ -3,7 +3,7 @@
    Caches static assets + offline fallback page
    ============================================================= */
 
-const CACHE_NAME = 'church-dash-v29';
+const CACHE_NAME = 'church-dash-v30';
 const OFFLINE_URL = '/offline.html';
 
 // Static assets to pre-cache on install
@@ -119,9 +119,4 @@ self.addEventListener('fetch', event => {
   );
 });
 
-// ── Message: force update ──────────────────────────────────
-self.addEventListener('message', event => {
-  if (event.data === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
-});
+// ── Message: force update ──────────────────────────────
