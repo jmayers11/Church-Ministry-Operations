@@ -3,7 +3,7 @@
    Caches static assets + offline fallback page
    ============================================================= */
 
-const CACHE_NAME = 'church-dash-v34';
+const CACHE_NAME = 'church-dash-v35';
 const OFFLINE_URL = '/offline.html';
 
 // Static assets to pre-cache on install
@@ -76,6 +76,12 @@ self.addEventListener('activate', event => {
           .map(k => caches.delete(k))
       )
     ).then(() => self.clients.claim())
+     .then(() => {
+       // Tell all open tabs to reload so they get the fresh files
+       return self.clients.matchAll({ type: 'window' }).then(clients => {
+         clients.forEach(client => client.navigate(client.url));
+       });
+     })
   );
 });
 
