@@ -47,7 +47,7 @@ Navigation.register('family-assistance', function render(page) {
       });
     }
     if (!data.length) {
-      wrap.innerHTML = `<table><tbody><tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">🏠</div><div class="empty-state-title">No records found</div></div></td></tr></tbody></table>`;
+      wrap.innerHTML = `<table><tbody><tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon"><i data-lucide="home" class="icon-inline" aria-hidden="true"></i></div><div class="empty-state-title">No records found</div></div></td></tr></tbody></table>`;
       return;
     }
     wrap.innerHTML = `<table><thead><tr>
@@ -58,7 +58,7 @@ Navigation.register('family-assistance', function render(page) {
         <td>
           <strong>${UI.esc(f.name)}</strong>
           ${overdueFollowup.find(x=>x.id===f.id) ? '<span class="badge badge-red" style="margin-left:6px">Overdue</span>' : ''}
-          <br><small style="color:var(--text-muted)">👥 ${f.householdSize} · ${UI.esc(f.phone||'—')}</small>
+          <br><small style="color:var(--text-muted)"><i data-lucide="users" class="icon-inline" aria-hidden="true"></i> ${f.householdSize} · ${UI.esc(f.phone||'—')}</small>
         </td>
         <td>${UI.badge(f.assistanceType, typeColors[f.assistanceType]||'gray')}</td>
         <td>${UI.fmtDate(f.dateRequested)}</td>
@@ -82,7 +82,7 @@ Navigation.register('family-assistance', function render(page) {
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">🏠 Family Assistance Tracker</h2>
+        <h2 class="section-title">Family Assistance Tracker</h2>
         <div class="section-subtitle">Track families served and follow-up needs</div>
       </div>
       <button class="btn btn-primary" onclick="FamilyAid.add()">+ New Request</button>
@@ -91,18 +91,18 @@ Navigation.register('family-assistance', function render(page) {
     <!-- Overdue alert -->
     ${overdueFollowup.length ? `
       <div class="alert-banner alert-banner-yellow">
-        ⚠️ <strong>${overdueFollowup.length} overdue follow-up${overdueFollowup.length>1?'s':''}:</strong>
+        <i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> <strong>${overdueFollowup.length} overdue follow-up${overdueFollowup.length>1?'s':''}:</strong>
         ${overdueFollowup.map(f=>`<a href="#" onclick="FamilyAid.edit('${f.id}')" style="color:var(--accent)">${UI.esc(f.name)}</a>`).join(', ')}
       </div>` : ''}
 
     <!-- Stat Cards -->
     <div class="stat-grid" style="margin-bottom:24px;">
-      <div class="stat-card" data-accent="blue"><div class="stat-icon">🏠</div><div class="stat-value">${families.length}</div><div class="stat-label">Total Families</div></div>
-      <div class="stat-card" data-accent="orange"><div class="stat-icon">🆕</div><div class="stat-value">${byStatus('New').length}</div><div class="stat-label">New Requests</div></div>
-      <div class="stat-card" data-accent="blue"><div class="stat-icon">⏳</div><div class="stat-value">${byStatus('In Progress').length}</div><div class="stat-label">In Progress</div></div>
-      <div class="stat-card" data-accent="green"><div class="stat-icon">✅</div><div class="stat-value">${byStatus('Completed').length}</div><div class="stat-label">Completed</div></div>
-      <div class="stat-card" data-accent="purple"><div class="stat-icon">🔔</div><div class="stat-value">${families.filter(f=>f.followUpNeeded).length}</div><div class="stat-label">Follow-Ups Needed</div></div>
-      <div class="stat-card" data-accent="red"><div class="stat-icon">⚠️</div><div class="stat-value">${overdueFollowup.length}</div><div class="stat-label">Overdue Follow-Ups</div></div>
+      <div class="stat-card" data-accent="blue"><div class="stat-icon"><i data-lucide="home" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${families.length}</div><div class="stat-label">Total Families</div></div>
+      <div class="stat-card" data-accent="orange"><div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${byStatus('New').length}</div><div class="stat-label">New Requests</div></div>
+      <div class="stat-card" data-accent="blue"><div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${byStatus('In Progress').length}</div><div class="stat-label">In Progress</div></div>
+      <div class="stat-card" data-accent="green"><div class="stat-icon"><i data-lucide="check-circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${byStatus('Completed').length}</div><div class="stat-label">Completed</div></div>
+      <div class="stat-card" data-accent="purple"><div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${families.filter(f=>f.followUpNeeded).length}</div><div class="stat-label">Follow-Ups Needed</div></div>
+      <div class="stat-card" data-accent="red"><div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${overdueFollowup.length}</div><div class="stat-label">Overdue Follow-Ups</div></div>
     </div>
 
     <!-- Assistance Type Breakdown -->
@@ -123,7 +123,7 @@ Navigation.register('family-assistance', function render(page) {
     <!-- Table -->
     <div class="toolbar">
       <div class="search-input-wrap">
-        <span class="search-icon">🔍</span>
+        <i data-lucide="search" class="icon-inline search-icon-lucide" aria-hidden="true"></i>
         <input type="text" class="search-input" id="fa-search" placeholder="Search families…">
       </div>
       <select class="filter-select" id="fa-status-filter">
@@ -231,7 +231,7 @@ const FamilyAid = {
     function f(id){ return document.getElementById(id)?.value?.trim()||''; }
   },
   add() {
-    Modal.open({ title:'🏠 New Assistance Request', body:this._form(), width:'580px',
+    Modal.open({ title:'New Assistance Request', body:this._form(), width:'580px',
       footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
               <button class="btn btn-primary" id="save-fa-btn">Save</button>` });
     document.getElementById('save-fa-btn').onclick = () => {

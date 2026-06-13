@@ -109,7 +109,7 @@ Navigation.register('scorecard', function render(page) {
         </div>
         ${suggestions.length ? `
           <div style="border-top:1px solid var(--border);padding-top:10px;">
-            <div style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;">💡 Suggestions</div>
+            <div style="font-size:.72rem;font-weight:800;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;"><i data-lucide="lightbulb" class="icon-inline" aria-hidden="true"></i> Suggestions</div>
             ${suggestions.map(s=>`<div style="font-size:.78rem;color:var(--text-muted);padding:3px 0;">→ ${s}</div>`).join('')}
           </div>` : ''}
       </div>`;
@@ -121,7 +121,7 @@ Navigation.register('scorecard', function render(page) {
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">🏆 Ministry Health Scorecard</h2>
+        <h2 class="section-title">Ministry Health Scorecard</h2>
         <div class="section-subtitle">Visual health indicators across all ministry areas</div>
       </div>
     </div>
@@ -149,7 +149,7 @@ Navigation.register('scorecard', function render(page) {
     <!-- Score cards grid -->
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;">
 
-      ${scoreCard('🙌','Volunteer Engagement', Math.min(100,volScore),
+      ${scoreCard('<i data-lucide="users" class="icon-inline" aria-hidden="true"></i>','Volunteer Engagement', Math.min(100,volScore),
         [
           `<strong>${activeVols}</strong> active volunteers out of <strong>${activeMembers}</strong> members`,
           `<strong>${bgChecked}</strong> volunteers with cleared background checks`,
@@ -162,7 +162,7 @@ Navigation.register('scorecard', function render(page) {
         ] : ['Great volunteer engagement — keep recognizing your team!']
       )}
 
-      ${scoreCard('❤️','Care Ministry Activity', Math.min(100,careScore),
+      ${scoreCard('<i data-lucide="heart" class="icon-inline" aria-hidden="true"></i>','Care Ministry Activity', Math.min(100,careScore),
         [
           `<strong>${openCare}</strong> active care cases open`,
           `<strong>${contactedRecently}</strong> contacts made in the last 14 days`,
@@ -175,7 +175,7 @@ Navigation.register('scorecard', function render(page) {
         ] : ['Care team is staying on top of follow-ups — well done!']
       )}
 
-      ${scoreCard('🌍','Community Outreach', Math.min(100,outreachScore),
+      ${scoreCard('<i data-lucide="globe" class="icon-inline" aria-hidden="true"></i>','Community Outreach', Math.min(100,outreachScore),
         [
           `<strong>${completedOutreach.length}</strong> outreach events completed`,
           `<strong>${upcomingOutreach.length}</strong> events planned or upcoming`,
@@ -188,7 +188,7 @@ Navigation.register('scorecard', function render(page) {
         ] : ['Strong outreach presence in the community!']
       )}
 
-      ${scoreCard('👋','Visitor Follow-Up', Math.min(100,visitorScore),
+      ${scoreCard('','Visitor Follow-Up', Math.min(100,visitorScore),
         [
           `<strong>${totalVisitors}</strong> total visitors recorded`,
           `<strong>${followUpRate}%</strong> followed up (contacted or invited back)`,
@@ -201,7 +201,7 @@ Navigation.register('scorecard', function render(page) {
         ] : ['Excellent follow-up culture — visitors feel welcomed!']
       )}
 
-      ${scoreCard('📅','Event Participation', Math.min(100,eventScore),
+      ${scoreCard('<i data-lucide="calendar" class="icon-inline" aria-hidden="true"></i>','Event Participation', Math.min(100,eventScore),
         [
           `<strong>${recentEvents.length}</strong> recent events tracked`,
           `Average attendance: <strong>${avgAttendance}</strong> people`,
@@ -218,7 +218,7 @@ Navigation.register('scorecard', function render(page) {
 
     <!-- Score Legend -->
     <div class="card" style="margin-top:20px;">
-      <div class="card-header"><h3 class="card-title">📋 Score Legend</h3></div>
+      <div class="card-header"><h3 class="card-title"><i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i> Score Legend</h3></div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:.8rem;">
         ${[['A+/A','90–100','Excellent'],['B+','70–89','Good'],['B','55–69','Developing'],['C','40–54','Needs Attention'],['D','<40','Critical']].map(([g,r,l])=>
           `<div style="display:flex;align-items:center;gap:6px;padding:6px 12px;background:var(--surface-2);border-radius:6px;">

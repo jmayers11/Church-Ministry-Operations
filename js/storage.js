@@ -82,6 +82,7 @@ const Storage = (() => {
     website:      'www.gracecommunity.org',
     accentColor:  '#4f6ef7',
     theme:        'light',
+    fontFamily:   'Inter',
     logoDataUrl:  '',
   };
 

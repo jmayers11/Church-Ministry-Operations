@@ -91,11 +91,19 @@ window._tsExpired  = function ()      { window._tsToken = null;  };
       }
 
       btn.disabled = true;
-      btn.textContent = 'Signing in…';
+      btn.innerHTML = '<i data-lucide="loader-2" class="icon-sm" style="animation:spin 1s linear infinite" aria-hidden="true"></i> Signing in…';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
 
       var result = await SupabaseDB.signIn(email, password, token);
       if (!result.ok) {
-        if (errEl) errEl.textContent = result.error || 'Sign-in failed. Check your credentials.';
+        var errMsg = result.error || '';
+        var isNetwork = errMsg.toLowerCase().includes('fetch') || errMsg.toLowerCase().includes('network') || errMsg.toLowerCase().includes('failed to');
+        var isCredentials = errMsg.toLowerCase().includes('invalid') || errMsg.toLowerCase().includes('credentials') || errMsg.toLowerCase().includes('email') || errMsg.toLowerCase().includes('password');
+        if (errEl) errEl.textContent = isNetwork
+          ? 'Connection failed — check your internet and try again.'
+          : isCredentials
+            ? 'Incorrect email or password.'
+            : 'Sign-in failed. Check your credentials.';
         btn.disabled = false;
         btn.textContent = 'Sign In';
         resetTurnstile();
@@ -123,12 +131,75 @@ window._tsExpired  = function ()      { window._tsToken = null;  };
   if (syncBtn) {
     syncBtn.addEventListener('click', async function () {
       syncBtn.disabled = true;
-      syncBtn.textContent = '⟳ Syncing…';
+      syncBtn.innerHTML = '<i data-lucide="refresh-cw" class="icon-sm" style="animation:spin 1s linear infinite" aria-hidden="true"></i> Syncing…';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
       await SupabaseDB.syncAllTables();
       syncBtn.disabled = false;
-      syncBtn.textContent = '⟳ Sync';
+      syncBtn.innerHTML = '<i data-lucide="refresh-cw" class="icon-sm" aria-hidden="true"></i> Sync';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
       _setSyncTime();
       if (typeof Toast !== 'undefined') Toast.success('Data synced');
+    });
+  }
+
+  // ── Forgot-password flow ───────────────────────────────────────
+  var forgotLink    = document.getElementById('auth-forgot-link');
+  var forgotPanel   = document.getElementById('auth-forgot-panel');
+  var forgotEmailEl = document.getElementById('auth-forgot-email');
+  var forgotErrEl   = document.getElementById('auth-forgot-error');
+  var forgotOkEl    = document.getElementById('auth-forgot-success');
+  var forgotBtn     = document.getElementById('auth-forgot-btn');
+  var forgotBack    = document.getElementById('auth-forgot-back');
+
+  function _showForgot() {
+    if (form) form.style.display = 'none';
+    if (statusEl) statusEl.style.display = 'none';
+    if (forgotLink) forgotLink.style.display = 'none';
+    if (forgotPanel) forgotPanel.style.display = '';
+    if (forgotEmailEl) forgotEmailEl.focus();
+  }
+
+  function _hideForgot() {
+    if (form) form.style.display = '';
+    if (statusEl) statusEl.style.display = '';
+    if (forgotLink) forgotLink.style.display = '';
+    if (forgotPanel) forgotPanel.style.display = 'none';
+    if (forgotOkEl) { forgotOkEl.style.display = 'none'; forgotOkEl.textContent = ''; }
+    if (forgotErrEl) forgotErrEl.textContent = '';
+    if (forgotEmailEl) forgotEmailEl.value = '';
+  }
+
+  if (forgotLink) forgotLink.addEventListener('click', _showForgot);
+  if (forgotBack) forgotBack.addEventListener('click', _hideForgot);
+
+  if (forgotBtn) {
+    forgotBtn.addEventListener('click', async function () {
+      var email = (forgotEmailEl ? forgotEmailEl.value || '' : '').trim();
+      if (forgotErrEl) forgotErrEl.textContent = '';
+      if (forgotOkEl) { forgotOkEl.style.display = 'none'; forgotOkEl.textContent = ''; }
+
+      if (!email) {
+        if (forgotErrEl) forgotErrEl.textContent = 'Enter your email address.';
+        return;
+      }
+
+      forgotBtn.disabled = true;
+      forgotBtn.innerHTML = '<i data-lucide="loader-2" class="icon-sm" style="animation:spin 1s linear infinite" aria-hidden="true"></i> Sending…';
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+
+      var result = await SupabaseDB.resetPasswordForEmail(email);
+      forgotBtn.disabled = false;
+      forgotBtn.textContent = 'Send Reset Link';
+
+      if (result.ok) {
+        if (forgotOkEl) {
+          forgotOkEl.textContent = 'Reset link sent — check your email (including spam).';
+          forgotOkEl.style.display = '';
+        }
+        if (forgotEmailEl) forgotEmailEl.value = '';
+      } else {
+        if (forgotErrEl) forgotErrEl.textContent = result.error || 'Failed to send reset link.';
+      }
     });
   }
 

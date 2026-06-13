@@ -50,13 +50,13 @@ Navigation.register('resources', function render(page) {
         <tr ${isOverdue?'style="background:rgba(239,68,68,.05)"':''}>
           <td>
             <div style="font-weight:700">${UI.esc(r.name)}</div>
-            <div style="font-size:.74rem;color:var(--text-muted)">${UI.esc(r.category)} · 📍 ${UI.esc(r.location)}</div>
+            <div style="font-size:.74rem;color:var(--text-muted)">${UI.esc(r.category)} · <i data-lucide="map-pin" class="icon-inline" aria-hidden="true"></i> ${UI.esc(r.location)}</div>
           </td>
           <td>${UI.badge(r.condition, conditionColor[r.condition]||'gray')}</td>
           <td>${r.available
             ? `<span style="color:var(--green);font-weight:700">✓ Available</span>`
             : `<div><span style="color:${isOverdue?'var(--red)':'var(--orange)'};font-weight:700">
-                ${isOverdue?'⚠ Overdue':'● Out'}
+                ${isOverdue?'<i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> Overdue':'● Out'}
                </span><div style="font-size:.74rem;color:var(--text-muted)">→ ${UI.esc(r.checkedOutTo)}</div>
                <div style="font-size:.74rem;color:${isOverdue?'var(--red)':'var(--text-muted)'}">Due: ${UI.fmtDate(r.dueDate)}</div></div>`
           }</td>
@@ -78,26 +78,26 @@ Navigation.register('resources', function render(page) {
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">📦 Resource Sharing</h2>
+        <h2 class="section-title">Resource Sharing</h2>
         <div class="section-subtitle">Equipment, vehicles & supplies checkout system</div>
       </div>
       <button class="btn btn-primary" onclick="Resources.add()">+ Add Resource</button>
     </div>
 
     <div class="stat-grid" style="margin-bottom:24px;">
-      <div class="stat-card" data-accent="blue"><div class="stat-icon">📦</div><div class="stat-value">${resources.length}</div><div class="stat-label">Total Resources</div></div>
-      <div class="stat-card" data-accent="green"><div class="stat-icon">✓</div><div class="stat-value">${available}</div><div class="stat-label">Available Now</div></div>
-      <div class="stat-card" data-accent="orange"><div class="stat-icon">🔄</div><div class="stat-value">${checkedOut}</div><div class="stat-label">Checked Out</div></div>
-      <div class="stat-card" data-accent="red"><div class="stat-icon">⚠</div><div class="stat-value">${overdue}</div><div class="stat-label">Overdue Returns</div></div>
+      <div class="stat-card" data-accent="blue"><div class="stat-icon"><i data-lucide="package" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${resources.length}</div><div class="stat-label">Total Resources</div></div>
+      <div class="stat-card" data-accent="green"><div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${available}</div><div class="stat-label">Available Now</div></div>
+      <div class="stat-card" data-accent="orange"><div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${checkedOut}</div><div class="stat-label">Checked Out</div></div>
+      <div class="stat-card" data-accent="red"><div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${overdue}</div><div class="stat-label">Overdue Returns</div></div>
     </div>
 
     ${overdue ? `<div style="background:rgba(239,68,68,.08);border:1px solid var(--red);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;font-size:.86rem;">
-      <strong style="color:var(--red)">⚠ ${overdue} overdue return${overdue>1?'s':''}</strong> — please follow up with borrowers.
+      <strong style="color:var(--red)"><i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> ${overdue} overdue return${overdue>1?'s':''}</strong> — please follow up with borrowers.
     </div>` : ''}
 
     <div class="toolbar">
       <div class="search-input-wrap">
-        <span class="search-icon">🔍</span>
+        <i data-lucide="search" class="icon-inline search-icon-lucide" aria-hidden="true"></i>
         <input type="text" class="search-input" id="res-search" placeholder="Search resources…">
       </div>
       <select class="filter-select" id="res-cat-filter">
@@ -167,7 +167,7 @@ const Resources = {
     return { name:v('r-name'), category:v('r-cat'), condition:v('r-cond'), location:v('r-loc'), notes:v('r-notes') };
   },
   add() {
-    Modal.open({ title:'📦 Add Resource', body:this._form(), width:'500px',
+    Modal.open({ title:'Add Resource', body:this._form(), width:'500px',
       footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
               <button class="btn btn-primary" id="save-r-btn">Add Resource</button>` });
     document.getElementById('save-r-btn').onclick = () => {

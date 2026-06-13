@@ -89,7 +89,8 @@ var FPRP = (function () {
     const today = _today();
     let earliest = today;
     ev.forEach(function (e) { if (e.date < earliest) earliest = e.date; });
-    const windowDays = Math.min(180, Math.max(30, _daysBetween(earliest, today) || 30));
+    const actualDays = ev.length ? (_daysBetween(earliest, today) || 0) : 0;
+    const windowDays = Math.min(180, Math.max(30, actualDays || 30));
     const cut30 = Storage.today(-30), cut60 = Storage.today(-60);
     const map = {};
     ev.forEach(function (e) {
@@ -107,7 +108,7 @@ var FPRP = (function () {
       m.trend = m.last30 > m.prev30 * 1.1 ? 'up' : (m.last30 < m.prev30 * 0.9 ? 'down' : 'flat');
       m.daysSupply = m.monthly > 0 ? Math.round(m.onHand / (m.monthly / 30)) : Infinity;
     });
-    return { map: map, windowDays: windowDays };
+    return { map: map, windowDays: windowDays, actualDays: actualDays };
   }
 
   // ── build capacity (Feature 1) ─────────────────────────────
@@ -285,9 +286,15 @@ var FPRP = (function () {
     const reds = repl.filter(function (x) { return x.zone === 'red'; });
     const subs = subSuggestions(d, reds.map(function (x) { return x.item.name; }).concat(r.perTemplate.map(function (p) { return p.limiting; }).filter(Boolean)));
 
+    // Average days between distributions (for per-distribution rate)
+    const distsSorted = (d.dists || []).filter(function (r) { return r.date; }).sort(function (a, b) { return a.date.localeCompare(b.date); });
+    const avgDistDays = distsSorted.length >= 2
+      ? Math.round(_daysBetween(distsSorted[0].date, distsSorted[distsSorted.length - 1].date) / (distsSorted.length - 1))
+      : 14;
+
     let html = '<div class="flex-between" style="margin-bottom:18px;flex-wrap:wrap;gap:10px;">'
       + '<div><div style="font-weight:700;font-size:.95rem;">Resource Planning (FPRP)</div>'
-      + '<div class="text-meta">Live forecasting from inventory, recipes, and build history · ' + cons.windowDays + '-day usage window</div></div></div>';
+      + '<div class="text-meta">Live forecasting from inventory, recipes, and build history · Based on ' + cons.actualDays + ' days of history</div></div></div>';
 
     /* ── Feature 8: Pantry Health Score + Feature 4 readiness KPIs ── */
     const hsColor = hs.score >= 85 ? 'var(--success)' : hs.score >= 70 ? 'var(--warning)' : 'var(--danger)';
@@ -309,9 +316,21 @@ var FPRP = (function () {
       + '<div style="margin-top:12px;font-size:.84rem;"><strong>Primary risk:</strong> ' + hs.primaryRisk.label + ' (' + Math.round(hs.primaryRisk.val * 100) + '%)</div>'
       + '</div>';
 
+    /* ── 45-day history gate ── */
+    if (cons.actualDays < 45) {
+      html += '<div class="card" style="margin-bottom:20px;border-left:4px solid var(--warning);">'
+        + '<div style="display:flex;gap:12px;align-items:flex-start;">'
+        + '<i data-lucide="clock" class="icon-inline" style="color:var(--warning);flex-shrink:0;margin-top:2px;" aria-hidden="true"></i>'
+        + '<div><div style="font-weight:700;margin-bottom:4px;">Not enough history for forecasts</div>'
+        + '<div class="text-meta">Forecasting requires at least 45 days of distribution data. '
+        + (cons.actualDays > 0 ? 'Based on ' + cons.actualDays + ' days so far — ' + (45 - cons.actualDays) + ' more days needed.' : 'Complete some distributions to start tracking.')
+        + '</div></div></div></div>';
+      return html;
+    }
+
     /* ── Feature 4: Distribution Readiness ── */
     html += '<div class="section-label-sm">Distribution Readiness</div>';
-    html += '<div class="stat-grid" style="margin-bottom:8px;">'
+    html += '<div class="kpi-grid kpi-grid--sm">'
       + _stat('blue', r.score + '%', 'Readiness Score', 'vs projected demand')
       + _stat('green', (d.dists.length ? _num(d.dists[d.dists.length - 1].familiesServed) : 0), 'Families Last Distribution', '')
       + _stat('purple', r.proj, 'Projected Families Next', '3-distribution average')
@@ -353,23 +372,11 @@ var FPRP = (function () {
     html += '<div class="section-label-sm">Inventory Consumption</div>';
     if (cRows.length) {
       const fastest = cRows[0], slowest = cRows[cRows.length - 1];
-      html += '<div class="stat-grid" style="margin-bottom:8px;">'
+      html += '<div class="kpi-grid kpi-grid--sm">'
         + _stat('red', UI.esc(fastest.name), 'Fastest Consumed', _round(fastest.monthly) + ' ' + UI.esc(fastest.unit) + '/mo')
         + _stat('green', UI.esc(slowest.name), 'Slowest Consumed', _round(slowest.monthly) + ' ' + UI.esc(slowest.unit) + '/mo')
         + '</div>';
-      let rows = '';
-      cRows.forEach(function (m) {
-        const tIcon = m.trend === 'up' ? '<span style="color:var(--danger)">▲</span>' : m.trend === 'down' ? '<span style="color:var(--success)">▼</span>' : '<span style="color:var(--text-muted)">▬</span>';
-        rows += '<tr><td><strong>' + UI.esc(m.name) + '</strong></td>'
-          + '<td style="text-align:center">' + m.onHand + ' ' + UI.esc(m.unit) + '</td>'
-          + '<td style="text-align:center">' + (m.monthly >= 0.1 ? m.monthly.toFixed(1) : '0') + ' / mo</td>'
-          + '<td style="text-align:center">' + (m.weekly >= 0.1 ? m.weekly.toFixed(1) : '0') + ' / wk</td>'
-          + '<td style="text-align:center">' + tIcon + '</td>'
-          + '<td style="text-align:center">' + _depletion(m.onHand, m.monthly) + '</td></tr>';
-      });
-      html += '<div class="table-wrap" style="margin-bottom:20px;"><table class="data-table" style="font-size:.84rem;">'
-        + '<thead><tr><th>Item</th><th>On Hand</th><th>Monthly Use</th><th>Weekly Use</th><th>Trend</th><th>Est. Stockout</th></tr></thead><tbody>'
-        + rows + '</tbody></table></div>';
+      html += '<div id="fprp-cons-wrap" style="margin-bottom:20px;"></div>';
     } else {
       html += '<div class="card" style="margin-bottom:20px;"><div class="text-meta">No consumption history yet — complete some box orders or builds and usage rates will appear here.</div></div>';
     }
@@ -378,38 +385,24 @@ var FPRP = (function () {
     const before = repl.filter(function (x) { return x.zone === 'red'; }).sort(function (a, b) { return a.days - b.days; });
     const yellow = repl.filter(function (x) { return x.zone === 'yellow'; }).sort(function (a, b) { return a.days - b.days; });
     html += '<div class="section-label-sm">Replenishment Planner</div>';
-    html += '<div class="stat-grid" style="margin-bottom:8px;">'
+    html += '<div class="kpi-grid kpi-grid--sm">'
       + _stat('red', before.length, 'Needed Before Next Distribution', '< 30 days supply')
       + _stat('yellow', yellow.length, 'Needed Within 60–90 Days', '30–90 days supply')
       + _stat('green', repl.filter(function (x) { return x.zone === 'green'; }).length, 'Well Stocked', '90+ days supply')
       + '</div>';
     const planRows = repl.filter(function (x) { return x.suggest > 0; }).sort(function (a, b) { return a.days - b.days; });
-    if (planRows.length) {
-      let rows = '';
-      planRows.forEach(function (x) {
-        rows += '<tr><td><strong>' + UI.esc(x.item.name) + '</strong></td>'
-          + '<td style="text-align:center">' + x.item.qty + ' ' + UI.esc(x.item.unit) + '</td>'
-          + '<td style="text-align:center">' + _daysLabel(x.days) + '</td>'
-          + '<td>' + _zoneBadge(x.zone) + '</td>'
-          + '<td style="text-align:center;font-weight:700;color:var(--accent)">+' + x.suggest + ' ' + UI.esc(x.item.unit) + '</td></tr>';
-      });
-      html += '<div class="card card--flush" style="margin-bottom:20px;"><div class="table-wrap"><table class="data-table" style="font-size:.84rem;">'
-        + '<thead><tr><th>Item</th><th>On Hand</th><th>Supply</th><th>Status</th><th>Suggested Order</th></tr></thead><tbody>'
-        + rows + '</tbody></table></div></div>';
-    } else {
-      html += '<div class="card" style="margin-bottom:20px;"><div class="text-meta">Everything is stocked to a 90-day target. 🎉</div></div>';
-    }
+    html += '<div id="fprp-repl-wrap" style="margin-bottom:20px;"></div>';
 
     /* ── Feature 5: Substitute Item Engine ── */
     html += '<div class="flex-between" style="margin-bottom:8px;"><div class="section-label-sm" style="margin:0;">Substitution Engine</div>'
-      + '<button class="btn btn-outline btn-sm" onclick="FPRP.addSubstitution()"><i data-lucide="plus" style="width:13px;height:13px" aria-hidden="true"></i> Add Rule</button></div>';
+      + '<button class="btn btn-outline btn-sm" onclick="FPRP.addSubstitution()"><i data-lucide="plus" class="icon-xs" aria-hidden="true"></i> Add Rule</button></div>';
     html += '<div class="card" style="margin-bottom:20px;">';
     if (subs.length) {
       html += '<div style="margin-bottom:12px;">';
       subs.forEach(function (s) {
         const ok = s.available > 0;
         html += '<div class="alert-banner ' + (ok ? 'alert-banner-blue' : 'alert-banner-yellow') + '" style="margin-bottom:6px;">'
-          + '<i data-lucide="' + (ok ? 'replace' : 'alert-triangle') + '" style="width:15px;height:15px" aria-hidden="true"></i>'
+          + '<i data-lucide="' + (ok ? 'replace' : 'alert-triangle') + '" class="icon-sm" aria-hidden="true"></i>'
           + '<span><strong>' + UI.esc(s.from) + '</strong> running short — '
           + (ok ? 'substitute <strong>' + UI.esc(s.to) + '</strong> (' + s.available + ' available, ' + s.ratio + ')' : 'suggested sub <strong>' + UI.esc(s.to) + '</strong> is also out')
           + (s.note ? ' · ' + UI.esc(s.note) : '') + '</span></div>';
@@ -420,21 +413,14 @@ var FPRP = (function () {
     }
     // rules table
     if (d.subs.length) {
-      let rules = '';
-      d.subs.forEach(function (s) {
-        rules += '<tr><td>' + (s.fromQty || 1) + ' ' + UI.esc(s.fromItem) + '</td><td style="text-align:center">→</td>'
-          + '<td>' + (s.toQty || 1) + ' ' + UI.esc(s.toItem) + '</td>'
-          + '<td style="font-size:.78rem;color:var(--text-muted)">' + UI.esc(s.note || '') + '</td>'
-          + '<td style="text-align:right"><button class="btn btn-ghost btn-sm text-danger" aria-label="Remove rule" onclick="FPRP.removeSubstitution(\'' + s.id + '\')"><i data-lucide="x" style="width:13px;height:13px" aria-hidden="true"></i></button></td></tr>';
-      });
-      html += '<div class="table-wrap"><table class="data-table" style="font-size:.82rem;"><thead><tr><th>If short</th><th></th><th>Substitute</th><th>Note</th><th></th></tr></thead><tbody>' + rules + '</tbody></table></div>';
+      html += '<div id="fprp-subs-wrap"></div>';
     }
     html += '</div>';
 
     /* ── Feature 6: Template Optimizer ── */
     if (opt) {
       html += '<div class="section-label-sm">Template Optimizer</div>';
-      html += '<div class="stat-grid" style="margin-bottom:8px;">'
+      html += '<div class="kpi-grid kpi-grid--sm">'
         + _stat('purple', UI.esc(opt.mostExpensive.t.name), 'Most Comprehensive Box', opt.mostExpensive.weight + ' items per family')
         + _stat('green', UI.esc(opt.lowestRisk.t.name), 'Lowest Inventory Risk', opt.lowestRisk.cap.maxBuild + ' buildable')
         + _stat('blue', UI.esc(opt.highestDemand.t.name), 'Highest Demand', opt.highestDemand.demand + ' built to date')
@@ -459,29 +445,17 @@ var FPRP = (function () {
     /* ── Feature 7: Donation Planning ── */
     const need = donations(d).slice(0, 10);
     html += '<div class="flex-between" style="margin-bottom:8px;"><div class="section-label-sm" style="margin:0;">Donation Planning</div>'
-      + '<button class="btn btn-outline btn-sm" onclick="FPRP.printDonationList()"><i data-lucide="printer" style="width:13px;height:13px" aria-hidden="true"></i> Print Request List</button></div>';
+      + '<button class="btn btn-outline btn-sm" onclick="FPRP.printDonationList()"><i data-lucide="printer" class="icon-xs" aria-hidden="true"></i> Print Request List</button></div>';
     html += '<div class="card" style="margin-bottom:20px;"><div class="card-header"><h3 class="card-title">Top Needed Donations</h3>'
       + '<span class="text-meta">Ranked by urgency &amp; consumption</span></div>';
-    if (need.length) {
-      let rows = '';
-      need.forEach(function (x, i) {
-        rows += '<tr><td style="text-align:center;font-weight:700;color:var(--accent)">' + (i + 1) + '</td>'
-          + '<td><strong>' + UI.esc(x.item.name) + '</strong></td>'
-          + '<td>' + _zoneBadge(x.zone) + '</td>'
-          + '<td style="text-align:center">' + _daysLabel(x.days) + '</td>'
-          + '<td style="text-align:center;font-weight:700">+' + x.suggest + ' ' + UI.esc(x.item.unit) + '</td></tr>';
-      });
-      html += '<div class="table-wrap"><table class="data-table" style="font-size:.84rem;"><thead><tr><th>#</th><th>Item</th><th>Status</th><th>Supply</th><th>Requested</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
-    } else {
-      html += '<div class="text-meta">No urgent donation needs right now.</div>';
-    }
+    html += '<div id="fprp-donation-wrap"></div>';
     html += '</div>';
 
     /* ── Feature 9: Executive Reporting ── */
     const ex = execSummary(d);
     html += '<div class="flex-between" style="margin-bottom:8px;"><div class="section-label-sm" style="margin:0;">Executive Summary — Last 30 Days</div>'
-      + '<button class="btn btn-outline btn-sm" onclick="FPRP.printExecReport()"><i data-lucide="file-text" style="width:13px;height:13px" aria-hidden="true"></i> Print Report</button></div>';
-    html += '<div class="stat-grid" style="margin-bottom:8px;">'
+      + '<button class="btn btn-outline btn-sm" onclick="FPRP.printExecReport()"><i data-lucide="file-text" class="icon-xs" aria-hidden="true"></i> Print Report</button></div>';
+    html += '<div class="kpi-grid kpi-grid--sm">'
       + _stat('green', ex.families, 'Families Served', '')
       + _stat('blue', ex.boxes, 'Boxes Distributed', '')
       + _stat('orange', ex.volHrs, 'Volunteer Hours', '')
@@ -495,14 +469,122 @@ var FPRP = (function () {
       + '<strong>Pantry health:</strong> ' + hs.score + '/100 — ' + hsStatus
       + '</div></div>';
 
+    _pd = { cRows: cRows, avgDistDays: avgDistDays, planRows: planRows, d: d, need: need };
     return html;
   }
 
-  function _stat(accent, value, label, delta) {
-    return '<div class="stat-card" data-accent="' + accent + '">'
-      + '<div class="stat-value" style="font-size:1.5rem;">' + value + '</div>'
-      + '<div class="stat-label">' + label + '</div>'
-      + (delta ? '<div class="stat-delta flat">' + delta + '</div>' : '') + '</div>';
+  // ── Post-render: populate UI.table() placeholders ─────────────
+  var _pd = null;
+  function postRender() {
+    if (!_pd) return;
+    var cr = _pd.cRows, avd = _pd.avgDistDays, pr = _pd.planRows, dd = _pd.d, nd = _pd.need;
+
+    // Consumption table
+    if (document.getElementById('fprp-cons-wrap')) {
+      UI.table({
+        wrap: 'fprp-cons-wrap',
+        cols: [
+          { key: 'name',      label: 'Item',             fmt: function(v) { return '<strong>' + UI.esc(v) + '</strong>'; } },
+          { key: 'onHand',    label: 'On Hand',          fmt: function(v, r) { return v + ' ' + UI.esc(r.unit); } },
+          { key: '_perDist',  label: 'Per Distribution' },
+          { key: '_monthly',  label: 'Monthly Use' },
+          { key: 'trend',     label: 'Trend',            fmt: function(v) {
+              return v === 'up' ? '<span style="color:var(--danger)">▲</span>'
+                   : v === 'down' ? '<span style="color:var(--success)">▼</span>'
+                   : '<span style="color:var(--text-muted)">▬</span>';
+          }},
+          { key: '_depletion', label: 'Est. Stockout', hideOnMobile: true },
+        ],
+        rows: cr.map(function(m) {
+          var pd = m.monthly * (avd / 30);
+          return Object.assign({}, m, {
+            _perDist:   (pd >= 0.1 ? pd.toFixed(1) : '0') + ' / dist',
+            _monthly:   (m.monthly >= 0.1 ? m.monthly.toFixed(1) : '0') + ' / mo',
+            _depletion: _depletion(m.onHand, m.monthly),
+          });
+        }),
+        empty: { icon: 'package', title: 'No consumption history yet', text: 'Complete some box orders or builds.' },
+      });
+    }
+
+    // Replenishment table
+    if (document.getElementById('fprp-repl-wrap')) {
+      if (pr.length) {
+        UI.table({
+          wrap: 'fprp-repl-wrap',
+          cols: [
+            { key: 'item',    label: 'Item',            fmt: function(v) { return '<strong>' + UI.esc(v.name) + '</strong>'; } },
+            { key: '_onHand', label: 'On Hand' },
+            { key: 'days',    label: 'Supply',          fmt: function(v) { return _daysLabel(v); } },
+            { key: 'zone',    label: 'Status',          fmt: function(v) { return _zoneBadge(v); } },
+            { key: '_order',  label: 'Suggested Order', fmt: function(v) { return '<strong style="color:var(--accent)">' + v + '</strong>'; } },
+          ],
+          rows: pr.map(function(x) {
+            return Object.assign({}, x, {
+              _onHand: x.item.qty + ' ' + UI.esc(x.item.unit),
+              _order:  '+' + x.suggest + ' ' + UI.esc(x.item.unit),
+            });
+          }),
+          empty: { icon: 'check-circle', title: 'Everything stocked to 90-day target', text: '' },
+        });
+      } else {
+        document.getElementById('fprp-repl-wrap').innerHTML =
+          '<div class="card" style="margin-bottom:20px;"><div class="text-meta">Everything is stocked to a 90-day target. <i data-lucide="party-popper" class="icon-inline" aria-hidden="true"></i></div></div>';
+      }
+    }
+
+    // Substitution rules table
+    if (document.getElementById('fprp-subs-wrap')) {
+      UI.table({
+        wrap: 'fprp-subs-wrap',
+        cols: [
+          { key: '_from', label: 'If short' },
+          { key: '_arr',  label: '' },
+          { key: '_to',   label: 'Substitute' },
+          { key: 'note',  label: 'Note', tdClass: 'text-meta', fmt: function(v) { return UI.esc(v || ''); } },
+        ],
+        rows: dd.subs.map(function(s) {
+          return Object.assign({}, s, {
+            _from: (s.fromQty || 1) + ' × ' + UI.esc(s.fromItem),
+            _arr:  '→',
+            _to:   (s.toQty || 1) + ' × ' + UI.esc(s.toItem),
+          });
+        }),
+        empty: { icon: 'replace', title: 'No substitution rules', text: '' },
+        actions: function(r) {
+          return '<button class="btn btn-ghost btn-sm text-danger" aria-label="Remove rule" onclick="FPRP.removeSubstitution(\'' + r.id + '\')"><i data-lucide="x" class="icon-xs" aria-hidden="true"></i></button>';
+        },
+      });
+    }
+
+    // Donation table
+    if (document.getElementById('fprp-donation-wrap')) {
+      if (nd.length) {
+        UI.table({
+          wrap: 'fprp-donation-wrap',
+          cols: [
+            { key: '_rank',   label: '#',        fmt: function(v) { return '<strong style="color:var(--accent)">' + v + '</strong>'; } },
+            { key: 'item',    label: 'Item',      fmt: function(v) { return '<strong>' + UI.esc(v.name) + '</strong>'; } },
+            { key: 'zone',    label: 'Status',    fmt: function(v) { return _zoneBadge(v); } },
+            { key: 'days',    label: 'Supply',    fmt: function(v) { return _daysLabel(v); } },
+            { key: '_req',    label: 'Requested', fmt: function(v) { return '<strong>' + v + '</strong>'; } },
+          ],
+          rows: nd.map(function(x, i) {
+            return Object.assign({}, x, { _rank: i + 1, _req: '+' + x.suggest + ' ' + UI.esc(x.item.unit) });
+          }),
+          empty: { icon: 'heart', title: 'No urgent donation needs right now', text: '' },
+        });
+      } else {
+        document.getElementById('fprp-donation-wrap').innerHTML = '<div class="text-meta">No urgent donation needs right now.</div>';
+      }
+    }
+
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  }
+
+  var _accentMap = { red: 'danger', green: 'success', blue: 'brand', orange: 'warning', yellow: 'warning', purple: 'info' };
+  function _stat(color, value, label, meta) {
+    return UI.kpi({ value: value, label: label, meta: meta || '', accent: _accentMap[color] || 'brand', sm: true });
   }
 
   // ── Substitution rule CRUD ─────────────────────────────────
@@ -582,34 +664,25 @@ var FPRP = (function () {
       + '<tr><th>Items Consumed</th><td>' + _round(ex.consumed) + '</td></tr>'
       + '<tr><th>Items Donated In</th><td>' + _round(ex.donated) + '</td></tr>'
       + '<tr><th>Pantry Health Score</th><td>' + hs.score + ' / 100 (' + (hs.score >= 85 ? 'Healthy' : hs.score >= 70 ? 'Stable' : 'At Risk') + ')</td></tr>'
-      + '<tr><th>Projected Families Next Distribution</th><td>' + r.proj + '</td></tr>'
+      + '<tr><th>Readiness Score</th><td>' + r.score + '%</td></tr>'
       + '</tbody></table>';
-    html += '<h2>Most Needed Items</h2><table><thead><tr><th>Item</th><th>Suggested Donation</th></tr></thead><tbody>'
-      + (ex.need.length ? ex.need.map(function (n) { return '<tr><td>' + UI.esc(n.item.name) + '</td><td>' + n.suggest + ' ' + UI.esc(n.item.unit) + '</td></tr>'; }).join('') : '<tr><td colspan="2">None</td></tr>')
-      + '</tbody></table>';
-    html += '<h2>Forecasted Shortages</h2><table><thead><tr><th>Item</th><th>Supply Remaining</th></tr></thead><tbody>'
-      + (ex.shortages.length ? ex.shortages.map(function (sx) { return '<tr><td>' + UI.esc(sx.item.name) + '</td><td>' + (sx.days === Infinity ? 'Stable' : sx.days + ' days') + '</td></tr>'; }).join('') : '<tr><td colspan="2">None projected</td></tr>')
-      + '</tbody></table>';
-    _printWindow('Food Pantry Executive Report', html);
+    _printWindow('Pantry Executive Report', html);
   }
 
   return {
-    renderPlanning: renderPlanning,
-    addSubstitution: addSubstitution,
+    healthScore:        healthScore,
+    consumptionByItem:  consumptionByItem,
+    replenishment:      replenishment,
+    readiness:          readiness,
+    optimizer:          optimizer,
+    subSuggestions:     subSuggestions,
+    execSummary:        execSummary,
+    donations:          donations,
+    renderPlanning:     renderPlanning,
+    postRender:         postRender,
+    printDonationList:  printDonationList,
+    printExecReport:    printExecReport,
+    addSubstitution:    addSubstitution,
     removeSubstitution: removeSubstitution,
-    printDonationList: printDonationList,
-    printExecReport: printExecReport,
-    // exposed calculators (reusable elsewhere)
-    capacity: capacity, readiness: readiness, healthScore: healthScore,
-    consumptionByItem: consumptionByItem, replenishment: replenishment,
-    // Compact snapshot for the main Dashboard tile
-    pantrySnapshot: function () {
-      const d = data();
-      const r = readiness(d);
-      const hs = healthScore(d);
-      const top = r.perTemplate.reduce(function (a, b) { return b.maxBuild > a.maxBuild ? b : a; }, { maxBuild: 0, name: '—' });
-      return { score: hs.score, projFamilies: r.proj, topBox: top, hasData: d.inv.length > 0 };
-    },
   };
 })();
-window.FPRP = FPRP;

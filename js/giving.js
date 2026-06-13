@@ -377,7 +377,7 @@ const Giving = {
     };
   },
   add() {
-    Modal.open({ title:'💰 Record Gift', body:this._form(), width:'500px',
+    Modal.open({ title:'Record Gift', body:this._form(), width:'500px',
       footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
               <button class="btn btn-primary" id="save-g-btn">Save</button>` });
     document.getElementById('save-g-btn').onclick=()=>{
@@ -411,7 +411,7 @@ const Giving = {
   },
   addFund() {
     const colors=['blue','green','purple','orange','pink'];
-    Modal.open({ title:'🗂 New Fund', width:'440px', body:`
+    Modal.open({ title:'New Fund', width:'440px', body:`
       <div class="form-group"><label class="form-label">Fund Name *</label><input class="form-control" id="f-name"></div>
       <div class="form-group"><label class="form-label">Description</label><input class="form-control" id="f-desc"></div>
       <div class="form-row">
@@ -461,7 +461,7 @@ const Giving = {
     const gifts = Storage.getAll('giving_donations').filter(d=>d.memberName===name && d.date.startsWith(year)).sort((a,b)=>b.date.localeCompare(a.date));
     const fmt = n => '$' + Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
     const total = gifts.reduce((s,d)=>s+(Number(d.amount)||0),0);
-    Modal.open({ title:`📄 Giving Statement — ${name}`, width:'520px', body:`
+    Modal.open({ title:`Giving Statement — ${name}`, width:'520px', body:`
       <div style="font-size:.84rem;margin-bottom:12px;color:var(--text-muted)">Tax Year ${year} · ${gifts.length} gifts · <strong style="color:var(--green)">${fmt(total)} total</strong></div>
       <div class="table-wrap" style="max-height:300px;overflow-y:auto;"><table class="data-table"><thead><tr><th>Date</th><th>Fund</th><th>Amount</th><th>Method</th></tr></thead>
       <tbody>${gifts.map(d=>`<tr><td>${UI.fmtDate(d.date)}</td><td>${UI.esc(d.fund||'General')}</td><td style="font-weight:700;color:var(--green)">${fmt(d.amount)}</td><td>${UI.esc(d.method||'')}</td></tr>`).join('')}</tbody>

@@ -13,6 +13,7 @@ Navigation.register('dashboard', function render(page) {
   const s          = Storage.getSettings();
   const today      = Storage.today();
 
+  const requests        = Storage.getAll('ministry_requests') || [];
   const activeMembers   = members.filter(m => m.status === 'Active').length;
   const approvedVols    = volunteers.filter(v => v.bgCheck === 'Approved').length;
   const newVisitors     = visitors.filter(v => v.followUpStatus === 'New').length;
@@ -22,16 +23,47 @@ Navigation.register('dashboard', function render(page) {
   const openTasks       = tasks.filter(t => t.status !== 'Done').length;
   const doneTasks       = tasks.filter(t => t.status === 'Done').length;
 
-  // Attendance trend — up to 6 past services with recorded attendance
-  const pastServices = events
-    .filter(e => e.attendance > 0)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-6);
-  const attLabels = pastServices.map(e => {
-    const d = new Date(e.date + 'T00:00:00');
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  });
-  const attValues = pastServices.map(e => e.attendance);
+  // Alert strip data
+  const urgentUnassigned = requests.filter(r => r.urgency === 'Urgent' && !r.assignedTo && r.status !== 'Completed').length;
+  const pantryRedZone    = (() => { try { const inv = Storage.getAll('pantry_inventory'); return inv.filter(i => i.qty <= i.minStock).length; } catch(e) { return 0; } })();
+  const bgExpiring       = volunteers.filter(v => v.bgCheckExpiry && v.bgCheckExpiry <= Storage.today(30) && v.bgCheckExpiry >= today).length;
+
+  // Today panel data
+  const todayEvents   = events.filter(e => e.date === today).sort((a,b) => (a.time||'').localeCompare(b.time||''));
+  const newOvernight  = requests.filter(r => r.submittedAt?.slice(0,10) === today);
+  const visitsPending = requests.filter(r => r.type === 'pastoral' && r.status !== 'Completed').slice(0,5);
+  const bdays = members.filter(m => {
+    if (!m.birthday) return false;
+    const soon = Storage.today(7);
+    const bd = m.birthday.slice(5); // MM-DD
+    return bd >= today.slice(5) && bd <= soon.slice(5);
+  }).slice(0,4);
+
+  // 13-week attendance series from check-in records (reuses checkin.js logic)
+  const allCheckins = Storage.getAll('checkins') || [];
+  function _buildAttTrend(count, offset) {
+    const rows = [];
+    for (let i = count - 1; i >= 0; i--) {
+      const d = new Date(today + 'T00:00:00');
+      d.setDate(d.getDate() - (i + offset) * 7);
+      const ym   = d.toISOString().slice(0, 10);
+      const week = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const hc   = allCheckins.find(c => c.date === ym && c.type === 'headcount');
+      const mc   = allCheckins.filter(c => c.date === ym && c.type === 'member').length;
+      rows.push({ date: ym, week, count: hc ? Number(hc.count || 0) : mc });
+    }
+    return rows;
+  }
+  const trend13      = _buildAttTrend(13, 0);   // weeks 12→0 ago
+  const prior13      = _buildAttTrend(13, 13);  // weeks 25→13 ago
+  const nonZero13    = trend13.filter(r => r.count > 0);
+  const nonZeroPrior = prior13.filter(r => r.count > 0);
+  const avg13        = nonZero13.length    ? Math.round(nonZero13.reduce((a, b) => a + b.count, 0) / nonZero13.length)    : 0;
+  const avgPrior13   = nonZeroPrior.length ? Math.round(nonZeroPrior.reduce((a, b) => a + b.count, 0) / nonZeroPrior.length) : 0;
+  const attHasData   = nonZero13.length > 0;
+  const attLabels    = trend13.map(r => r.week);
+  const attValues    = trend13.map(r => r.count);
+  const priorValues  = prior13.map(r => r.count);
 
   // Ministry health (volunteer fill %)
   const teams = ['Worship Team', "Children's Ministry", 'Youth Ministry', 'Outreach', 'Hospitality', 'Security'];
@@ -73,124 +105,108 @@ Navigation.register('dashboard', function render(page) {
     });
   }
 
+  // Volunteer coverage %
+  const volCovPct = (() => {
+    const teams2 = ['Worship Team',"Children's Ministry",'Youth Ministry','Outreach','Hospitality','Security'];
+    const needed = {'Worship Team':6,"Children's Ministry":5,'Youth Ministry':4,'Outreach':4,'Hospitality':3,'Security':2};
+    const scores = teams2.map(t => Math.min(100, Math.round((volunteers.filter(v=>v.team===t&&v.bgCheck==='Approved').length / (needed[t]||4))*100)));
+    return Math.round(scores.reduce((a,b)=>a+b,0) / scores.length);
+  })();
+
+  // Giving MTD
+  const givingMTD = (() => {
+    const giving = Storage.getAll('giving') || [];
+    const mo = today.slice(0,7);
+    return giving.filter(g=>g.date?.startsWith(mo)).reduce((s,g)=>s+(parseFloat(g.amount)||0),0);
+  })();
+  const givingLastMTD = (() => {
+    const giving = Storage.getAll('giving') || [];
+    const d = new Date(today); d.setMonth(d.getMonth()-1);
+    const mo = d.toISOString().slice(0,7);
+    return giving.filter(g=>g.date?.startsWith(mo)).reduce((s,g)=>s+(parseFloat(g.amount)||0),0);
+  })();
+
+  // Open care items (inbox + prayer combined)
+  const openCare = requests.filter(r=>r.status!=='Completed').length + openPrayer;
+
   page.innerHTML = `
-    <div class="section-header">
-      <div>
-        <h2 class="section-title">${UI.esc(s.churchName)}</h2>
-        <div class="section-subtitle">Welcome back — here's what's happening today.</div>
-      </div>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+    <!-- Alert strip (only shown when nonzero) -->
+    ${(urgentUnassigned + pantryRedZone + bgExpiring) > 0 ? `
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:var(--space-4);">
+      ${urgentUnassigned > 0 ? `<div class="alert-banner alert-banner-red"><i data-lucide="alert-circle" class="icon-sm" aria-hidden="true"></i><span><strong>${urgentUnassigned} urgent request${urgentUnassigned>1?'s':''}</strong> unassigned</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="Navigation.navigate('requestinbox')">Review →</button></div>` : ''}
+      ${pantryRedZone > 0 ? `<div class="alert-banner alert-banner-yellow"><i data-lucide="package-open" class="icon-sm" aria-hidden="true"></i><span><strong>${pantryRedZone} pantry item${pantryRedZone>1?'s':''}</strong> at or below minimum stock</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="Navigation.navigate('foodpantry')">Review →</button></div>` : ''}
+      ${bgExpiring > 0 ? `<div class="alert-banner alert-banner-yellow"><i data-lucide="shield-alert" class="icon-sm" aria-hidden="true"></i><span><strong>${bgExpiring} background check${bgExpiring>1?'s':''}</strong> expiring within 30 days</span><button class="btn btn-ghost btn-sm" style="margin-left:auto" onclick="Navigation.navigate('volunteers')">Review →</button></div>` : ''}
+    </div>` : ''}
+
+    <!-- Header: subtitle only (topbar owns the H1) -->
+    <div class="section-header" style="margin-bottom:var(--space-4);">
+      <div class="section-subtitle">Welcome back — here's what's happening today.</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary btn-sm" onclick="Members.add?.()">
           <i data-lucide="user-plus" aria-hidden="true"></i> Add Member
         </button>
-        <button class="btn btn-outline btn-sm" onclick="window.print()">
-          <i data-lucide="printer" aria-hidden="true"></i> Print Report
+        <button class="btn btn-outline btn-sm" onclick="Navigation.navigate('boardreport')">
+          <i data-lucide="file-bar-chart" aria-hidden="true"></i> Board Report
         </button>
       </div>
     </div>
 
-    <!-- KPI Grid -->
+    <!-- KPI Grid — 4 action-oriented metrics -->
     <div class="kpi-grid">
       ${UI.kpi({
-        icon: 'users',
-        value: activeMembers,
-        label: 'Active Members',
-        meta: `${members.length} total on record`,
-        onClickPage: 'members',
-        accent: 'brand',
+        icon: 'trending-up',
+        value: avg13,
+        label: 'Avg Attendance',
+        meta: `13-wk avg · ${nonZero13.length} wk${nonZero13.length !== 1 ? 's' : ''} of data`,
+        delta: avgPrior13 > 0 ? (avg13 >= avgPrior13 ? '▲' : '▼') + Math.abs(avg13 - avgPrior13) + ' vs prior 13 wks' : null,
+        deltaDir: avg13 >= avgPrior13 ? 'up' : 'down',
+        onClickPage: 'checkin', accent: 'brand',
       })}
       ${UI.kpi({
-        icon: 'helping-hand',
-        value: volunteers.length,
-        label: 'Volunteers',
-        meta: `${approvedVols} background-checked`,
-        delta: approvedVols === volunteers.length ? 'All cleared' : `${volunteers.length - approvedVols} pending`,
-        deltaDir: approvedVols === volunteers.length ? 'up' : 'flat',
-        onClickPage: 'volunteers',
-        accent: 'success',
+        icon: 'dollar-sign',
+        value: '$' + (givingMTD >= 1000 ? (givingMTD/1000).toFixed(1)+'k' : givingMTD.toFixed(0)),
+        label: 'Giving MTD',
+        meta: 'This month to date',
+        delta: givingLastMTD > 0 ? (givingMTD >= givingLastMTD ? '▲' : '▼') + '$' + Math.abs(Math.round(givingMTD-givingLastMTD)) + ' vs last mo' : null,
+        deltaDir: givingMTD >= givingLastMTD ? 'up' : 'down',
+        onClickPage: 'giving', accent: 'success',
       })}
       ${UI.kpi({
-        icon: 'calendar-days',
-        value: upcomingEvents,
-        label: 'Upcoming Events',
-        meta: 'Next 60 days',
-        onClickPage: 'events',
-        accent: 'brand',
+        icon: 'heart-handshake',
+        value: openCare,
+        label: 'Open Care Items',
+        meta: `${openPrayer} prayer · ${requests.filter(r=>r.status!=='Completed').length} inbox`,
+        delta: urgentUnassigned > 0 ? urgentUnassigned + ' urgent' : 'All reviewed',
+        deltaDir: urgentUnassigned > 0 ? 'down' : 'up',
+        onClickPage: 'requestinbox', accent: urgentUnassigned > 0 ? 'danger' : 'brand',
       })}
       ${UI.kpi({
-        icon: 'hand-heart',
-        value: openPrayer,
-        label: 'Prayer Requests',
-        meta: `${answeredPrayer} answered`,
-        delta: answeredPrayer > 0 ? `${answeredPrayer} answered` : null,
-        deltaDir: 'up',
-        onClickPage: 'prayer',
-        accent: 'gold',
+        icon: 'users-round',
+        value: volCovPct + '%',
+        label: 'Volunteer Coverage',
+        meta: `${approvedVols} of ${volunteers.length} cleared`,
+        delta: volCovPct >= 80 ? 'Healthy' : volCovPct >= 50 ? 'Needs attention' : 'Short-staffed',
+        deltaDir: volCovPct >= 80 ? 'up' : volCovPct >= 50 ? 'flat' : 'down',
+        onClickPage: 'volunteers', accent: volCovPct >= 80 ? 'success' : volCovPct >= 50 ? 'warning' : 'danger',
       })}
-      ${UI.kpi({
-        icon: 'user-plus',
-        value: newVisitors,
-        label: 'New Visitors',
-        meta: 'Need follow-up',
-        delta: newVisitors > 0 ? 'Follow up' : 'All caught up',
-        deltaDir: newVisitors > 0 ? 'up' : 'flat',
-        onClickPage: 'visitors',
-        accent: newVisitors > 0 ? 'warning' : 'brand',
-      })}
-      ${UI.kpi({
-        icon: 'check-square',
-        value: openTasks,
-        label: 'Open Tasks',
-        meta: `${doneTasks} completed`,
-        delta: openTasks > 5 ? `${openTasks} open` : null,
-        deltaDir: 'down',
-        onClickPage: 'tasks',
-        accent: openTasks > 5 ? 'danger' : 'brand',
-      })}
-      ${pantryKpi}
     </div>
 
     <!-- Charts row -->
     <div class="dash-grid">
 
-      <!-- Attendance trend -->
-      <div class="card">
+      <!-- Attendance trend (full width) -->
+      <div class="card" style="grid-column:1/-1">
         <div class="card__header">
           <div>
             <div class="card__title">
               <i data-lucide="bar-chart-2" aria-hidden="true" style="display:inline-block;vertical-align:middle;margin-right:6px;"></i>Attendance Trend
             </div>
-            <div class="card__subtitle">Recent services</div>
+            <div class="card__subtitle">13-week rolling avg${nonZero13.length > 0 ? ` · ${nonZero13.length} wks of data` : ''}</div>
           </div>
+          <button class="btn btn-ghost btn-sm" onclick="Navigation.navigate('checkin')">Check-in →</button>
         </div>
         <div class="chart-canvas-wrap">
           <canvas id="chart-attendance" class="bar-chart"></canvas>
-        </div>
-      </div>
-
-      <!-- Ministry Health -->
-      <div class="card">
-        <div class="card__header">
-          <div>
-            <div class="card__title">
-              <i data-lucide="activity" aria-hidden="true" style="display:inline-block;vertical-align:middle;margin-right:6px;"></i>Ministry Health
-            </div>
-            <div class="card__subtitle">Volunteer coverage by team</div>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="Navigation.navigate('volunteers')">View →</button>
-        </div>
-        <div class="ministry-health-list">
-          ${teamHealth.map(({ team, pct, color, textColor }) => `
-            <div class="ministry-health-item">
-              <div class="ministry-health-label">
-                <span>${UI.esc(team)}</span>
-                <span style="color:${textColor};font-weight:600">${pct}%</span>
-              </div>
-              <div class="progress-bar-track">
-                <div class="progress-bar-fill" style="width:${pct}%;background:${color}"></div>
-              </div>
-            </div>
-          `).join('')}
         </div>
       </div>
     </div>
@@ -255,14 +271,71 @@ Navigation.register('dashboard', function render(page) {
 
   // Draw chart + run count-up after DOM settles
   requestAnimationFrame(() => {
-    if (attValues.length) {
-      UI.drawBarChart('chart-attendance', attLabels, attValues);
+    if (attHasData) {
+      UI._charts = UI._charts || {};
+      const prev = UI._charts['chart-attendance'];
+      if (prev && prev._inst) { try { prev._inst.destroy(); } catch(e) {} }
+      const canvas = document.getElementById('chart-attendance');
+      if (canvas) {
+        const isDark   = document.documentElement.getAttribute('data-theme') === 'dark';
+        const accent   = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#4f46e5';
+        const gridCol  = isDark ? 'rgba(255,255,255,.07)' : 'rgba(0,0,0,.06)';
+        const tickCol  = isDark ? '#8b90b8' : '#9ca3af';
+        const ghostCol = isDark ? 'rgba(255,255,255,.18)' : 'rgba(0,0,0,.15)';
+        const datasets = [
+          {
+            label: 'This 13 wks',
+            data: attValues,
+            borderColor: accent,
+            backgroundColor: accent + '22',
+            borderWidth: 2,
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            tension: 0.35,
+            fill: true,
+          },
+        ];
+        if (nonZeroPrior.length > 0) {
+          datasets.push({
+            label: 'Prior 13 wks',
+            data: priorValues,
+            borderColor: ghostCol,
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            borderDash: [4, 4],
+            pointRadius: 0,
+            tension: 0.35,
+            fill: false,
+          });
+        }
+        const inst = new Chart(canvas.getContext('2d'), {  // eslint-disable-line no-undef
+          type: 'line',
+          data: { labels: attLabels, datasets },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 300 },
+            plugins: {
+              legend: {
+                display: nonZeroPrior.length > 0,
+                labels: { color: tickCol, boxWidth: 12, font: { size: 11 } },
+              },
+              tooltip: { mode: 'index', intersect: false },
+            },
+            scales: {
+              x: { grid: { color: gridCol }, ticks: { color: tickCol, font: { size: 11 } } },
+              y: { grid: { color: gridCol }, ticks: { color: tickCol, font: { size: 11 } }, beginAtZero: true },
+            },
+          },
+        });
+        UI._charts['chart-attendance'] = { labels: attLabels, values: attValues, color: accent, _inst: inst };
+      }
     } else {
       const wrap = document.querySelector('.chart-canvas-wrap');
       if (wrap) wrap.innerHTML = UI.emptyState({
         icon: 'bar-chart-2',
         title: 'No attendance data yet',
-        body: 'Add past events with attendance numbers to see trends.',
+        body: 'Use the Check-in tab to record weekly headcounts.',
       });
     }
     UI.countUp(page);

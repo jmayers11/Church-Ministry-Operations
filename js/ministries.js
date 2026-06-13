@@ -5,11 +5,11 @@
 
 Navigation.register('ministries', function render(page) {
   const ministryDefs = [
-    { id: 'children',    label: "Children's",  icon: '🧒', color: '#f97316', teamName: "Children's Ministry" },
-    { id: 'youth',       label: 'Youth',        icon: '🎒', color: '#8b5cf6', teamName: 'Youth Ministry'       },
-    { id: 'smallgroups', label: 'Small Groups', icon: '🤝', color: '#3b82f6', teamName: 'Small Groups'         },
-    { id: 'worship',     label: 'Worship',      icon: '🎵', color: '#22c55e', teamName: 'Worship Team'         },
-    { id: 'outreach',    label: 'Outreach',     icon: '🌍', color: '#ef4444', teamName: 'Outreach'             },
+    { id: 'children',    label: "Children's",  icon: 'baby', color: '#f97316', teamName: "Children's Ministry" },
+    { id: 'youth',       label: 'Youth',        icon: 'backpack', color: '#8b5cf6', teamName: 'Youth Ministry'       },
+    { id: 'smallgroups', label: 'Small Groups', icon: 'handshake', color: '#3b82f6', teamName: 'Small Groups'         },
+    { id: 'worship',     label: 'Worship',      icon: 'music', color: '#22c55e', teamName: 'Worship Team'         },
+    { id: 'outreach',    label: 'Outreach',     icon: '<i data-lucide="globe" class="icon-inline" aria-hidden="true"></i>', color: '#ef4444', teamName: 'Outreach'             },
   ];
 
   const activeTab = Storage.get('_ministryTab') || 'children';
@@ -138,7 +138,7 @@ Navigation.register('ministries', function render(page) {
         <!-- Growth Trend -->
         <div class="chart-card">
           <div class="chart-card-header">
-            <span class="chart-card-title">📈 Participation Trend</span>
+            <span class="chart-card-title"><i data-lucide="trending-up" class="icon-inline" aria-hidden="true"></i> Participation Trend</span>
             <span style="font-size:.75rem;color:var(--text-muted)">Last 6 months</span>
           </div>
           <div class="chart-canvas-wrap">
@@ -149,7 +149,7 @@ Navigation.register('ministries', function render(page) {
         <!-- Volunteers -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">🙌 Volunteer Roster</span>
+            <span class="card-title">Volunteer Roster</span>
             <button class="btn btn-ghost btn-sm" onclick="Navigation.navigate('volunteers')">Manage →</button>
           </div>
           ${volunteers.length ? volunteers.map(v => `
@@ -169,14 +169,14 @@ Navigation.register('ministries', function render(page) {
         <!-- Upcoming Activities -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">📅 Upcoming Activities</span>
+            <span class="card-title">Upcoming Activities</span>
             <button class="btn btn-ghost btn-sm" onclick="Navigation.navigate('events')">All Events →</button>
           </div>
           ${upcomingEv.length ? upcomingEv.map(e => `
             <div style="padding:10px 0;border-bottom:1px solid var(--border);">
               <div style="font-weight:600;font-size:.88rem;">${UI.esc(e.name)}</div>
               <div style="font-size:.78rem;color:var(--text-muted);">${UI.fmtDate(e.date)} · ${UI.esc(e.time)} · ${UI.esc(e.location)}</div>
-              ${e.volunteersNeeded ? `<div style="font-size:.75rem;color:var(--orange);">🙋 ${e.volunteersNeeded} volunteers needed</div>` : ''}
+              ${e.volunteersNeeded ? `<div style="font-size:.75rem;color:var(--orange);"><i data-lucide="user-plus" class="icon-inline" aria-hidden="true"></i> ${e.volunteersNeeded} volunteers needed</div>` : ''}
             </div>
           `).join('') : `<div style="padding:20px;text-align:center;color:var(--text-muted)">No upcoming activities — <a href="#" onclick="Navigation.navigate('events')" style="color:var(--accent)">Add one</a></div>`}
         </div>
@@ -184,14 +184,14 @@ Navigation.register('ministries', function render(page) {
         <!-- Open Tasks -->
         <div class="card">
           <div class="card-header">
-            <span class="card-title">✅ Open Tasks</span>
+            <span class="card-title">Open Tasks</span>
             <button class="btn btn-ghost btn-sm" onclick="Navigation.navigate('tasks')">Kanban Board →</button>
           </div>
           ${openTasks.length ? openTasks.slice(0,5).map(t => `
             <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:.84rem;">
               <div>
                 <div style="font-weight:600;">${UI.esc(t.title)}</div>
-                <div style="font-size:.76rem;color:var(--text-muted);">${t.owner ? `👤 ${UI.esc(t.owner)}` : ''} ${t.dueDate ? `· Due ${UI.fmtDate(t.dueDate)}` : ''}</div>
+                <div style="font-size:.76rem;color:var(--text-muted);">${t.owner ? `<i data-lucide="user" class="icon-inline" aria-hidden="true"></i> ${UI.esc(t.owner)}` : ''} ${t.dueDate ? `· Due ${UI.fmtDate(t.dueDate)}` : ''}</div>
               </div>
               ${UI.badge(t.priority, {High:'red',Medium:'yellow',Low:'blue'}[t.priority]||'gray')}
             </div>

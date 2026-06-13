@@ -61,7 +61,7 @@ Navigation.register('care', function render(page) {
       });
     }
     if (!data.length) {
-      wrap.innerHTML = `<table><tbody><tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">❤️</div><div class="empty-state-title">No care records found</div></div></td></tr></tbody></table>`;
+      wrap.innerHTML = `<table><tbody><tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon"><i data-lucide="heart" class="icon-inline" aria-hidden="true"></i></div><div class="empty-state-title">No care records found</div></div></td></tr></tbody></table>`;
       return;
     }
     wrap.innerHTML = `<table><thead><tr>
@@ -95,7 +95,7 @@ Navigation.register('care', function render(page) {
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">❤️ Care Ministry</h2>
+        <h2 class="section-title">Care Ministry</h2>
         <div class="section-subtitle">Pastoral care · Visits · Counseling · Meal trains</div>
       </div>
       <button class="btn btn-primary" onclick="CareMin.add()">+ Add Care Record</button>
@@ -104,30 +104,30 @@ Navigation.register('care', function render(page) {
     <!-- Overdue Alert -->
     ${overdue.length ? `
       <div class="alert-banner alert-banner-red">
-        🚨 <strong>${overdue.length} overdue follow-up${overdue.length>1?'s':''}:</strong>
+        <i data-lucide="alert-circle" class="icon-inline" aria-hidden="true"></i> <strong>${overdue.length} overdue follow-up${overdue.length>1?'s':''}:</strong>
         ${overdue.map(r=>`<a href="#" onclick="CareMin.edit('${r.id}')" style="color:var(--red);font-weight:700">${UI.esc(r.name)}</a>`).join(', ')}
       </div>` : ''}
 
     <!-- Stat Cards -->
     <div class="stat-grid" style="margin-bottom:24px;">
-      <div class="stat-card" data-accent="blue"><div class="stat-icon">❤️</div><div class="stat-value">${active.length}</div><div class="stat-label">Active Care Cases</div></div>
-      <div class="stat-card" data-accent="red"><div class="stat-icon">🚨</div><div class="stat-value">${overdue.length}</div><div class="stat-label">Overdue Follow-Ups</div><div class="stat-delta ${overdue.length?'down':'up'}">${overdue.length?'Needs attention':'All current ✓'}</div></div>
-      <div class="stat-card" data-accent="purple"><div class="stat-icon">📅</div><div class="stat-value">${upcoming7.length}</div><div class="stat-label">Due This Week</div></div>
-      <div class="stat-card" data-accent="orange"><div class="stat-icon">🏥</div><div class="stat-value">${records.filter(r=>r.type==='Hospital Visit').length}</div><div class="stat-label">Hospital Visits</div></div>
-      <div class="stat-card" data-accent="green"><div class="stat-icon">✅</div><div class="stat-value">${records.filter(r=>r.status==='Completed').length}</div><div class="stat-label">Completed</div></div>
-      <div class="stat-card" data-accent="yellow"><div class="stat-icon">🍲</div><div class="stat-value">${records.filter(r=>r.type==='Meal Train').length}</div><div class="stat-label">Meal Trains</div></div>
+      <div class="stat-card" data-accent="blue"><div class="stat-icon"><i data-lucide="heart" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${active.length}</div><div class="stat-label">Active Care Cases</div></div>
+      <div class="stat-card" data-accent="red"><div class="stat-icon"><i data-lucide="alert-circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${overdue.length}</div><div class="stat-label">Overdue Follow-Ups</div><div class="stat-delta ${overdue.length?'down':'up'}">${overdue.length?'Needs attention':'All current ✓'}</div></div>
+      <div class="stat-card" data-accent="purple"><div class="stat-icon"><i data-lucide="calendar" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${upcoming7.length}</div><div class="stat-label">Due This Week</div></div>
+      <div class="stat-card" data-accent="orange"><div class="stat-icon"><i data-lucide="building-2" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${records.filter(r=>r.type==='Hospital Visit').length}</div><div class="stat-label">Hospital Visits</div></div>
+      <div class="stat-card" data-accent="green"><div class="stat-icon"><i data-lucide="check-circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${records.filter(r=>r.status==='Completed').length}</div><div class="stat-label">Completed</div></div>
+      <div class="stat-card" data-accent="yellow"><div class="stat-icon"><i data-lucide="utensils" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${records.filter(r=>r.type==='Meal Train').length}</div><div class="stat-label">Meal Trains</div></div>
     </div>
 
     <!-- Due This Week Quick Panel -->
     ${upcoming7.length ? `
       <div class="card" style="margin-bottom:24px;border-left:3px solid var(--accent)">
-        <div class="card-header"><span class="card-title">📅 Due This Week</span></div>
+        <div class="card-header"><span class="card-title">Due This Week</span></div>
         <div>
           ${upcoming7.map(r=>`
             <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
               <div>
                 <strong style="font-size:.88rem">${UI.esc(r.name)}</strong> — <span class="badge badge-gray">${UI.esc(r.type)}</span>
-                <div style="font-size:.76rem;color:var(--text-muted)">👤 ${UI.esc(r.assignedTo||'Unassigned')} · ${UI.fmtDate(r.nextDate)}</div>
+                <div style="font-size:.76rem;color:var(--text-muted)"><i data-lucide="user" class="icon-inline" aria-hidden="true"></i> ${UI.esc(r.assignedTo||'Unassigned')} · ${UI.fmtDate(r.nextDate)}</div>
               </div>
               <button class="btn btn-ghost btn-sm" onclick="CareMin.edit('${r.id}')">Update</button>
             </div>`).join('')}
@@ -137,7 +137,7 @@ Navigation.register('care', function render(page) {
     <!-- Full Table -->
     <div class="toolbar">
       <div class="search-input-wrap">
-        <span class="search-icon">🔍</span>
+        <i data-lucide="search" class="icon-inline search-icon-lucide" aria-hidden="true"></i>
         <input type="text" class="search-input" id="care-search" placeholder="Search by name, type, volunteer…">
       </div>
       <select class="filter-select" id="care-type-filter">
@@ -233,7 +233,7 @@ const CareMin = {
     };
   },
   add() {
-    Modal.open({ title:'❤️ Add Care Record', body:this._form(), width:'540px',
+    Modal.open({ title:'Add Care Record', body:this._form(), width:'540px',
       footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
               <button class="btn btn-primary" id="save-care-btn">Save</button>` });
     document.getElementById('save-care-btn').onclick = () => {

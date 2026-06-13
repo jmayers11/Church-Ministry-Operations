@@ -16,13 +16,43 @@ const Navigation = (() => {
   function navigate(pageId) {
     // Hide all pages
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    // Update nav links + bottom tab bar
+    // Update nav links + bottom tab bar + aria-current
     document.querySelectorAll('.nav-link').forEach(l => {
-      l.classList.toggle('active', l.dataset.page === pageId);
+      const isActive = l.dataset.page === pageId;
+      l.classList.toggle('active', isActive);
+      l.setAttribute('aria-current', isActive ? 'page' : 'false');
     });
     document.querySelectorAll('.bottom-tab[data-page]').forEach(t => {
       t.classList.toggle('active', t.dataset.page === pageId);
     });
+
+    // Auto-expand the sidebar section that owns the active link
+    const activeLink = document.querySelector(`.nav-link[data-page="${pageId}"]`);
+    if (activeLink) {
+      const parentSection = activeLink.closest('.nav-section-list');
+      if (parentSection) {
+        const toggle = document.querySelector(`.nav-section-toggle[aria-controls="${parentSection.id}"]`);
+        if (toggle && toggle.getAttribute('aria-expanded') === 'false') {
+          toggle.setAttribute('aria-expanded', 'true');
+          parentSection.classList.remove('collapsed');
+          Storage.set(`_navSection_${toggle.dataset.section}`, true);
+        }
+      }
+    }
+
+    // Update inbox unread badge
+    const newReqs = (Storage.getAll('ministry_requests') || []).filter(r => r.status === 'New' && !r.assignedTo).length;
+    const inboxLink = document.querySelector('.nav-link[data-page="requestinbox"]');
+    if (inboxLink) {
+      let badge = inboxLink.querySelector('.nav-badge');
+      if (newReqs > 0) {
+        if (!badge) { badge = document.createElement('span'); badge.className = 'nav-badge'; inboxLink.appendChild(badge); }
+        badge.textContent = newReqs > 99 ? '99+' : newReqs;
+        badge.setAttribute('aria-label', newReqs + ' unread requests');
+      } else if (badge) {
+        badge.remove();
+      }
+    }
 
     const page = document.getElementById(`page-${pageId}`);
     if (!page) return;
@@ -50,7 +80,7 @@ const Navigation = (() => {
     } else {
       page.innerHTML = `
         <div class="coming-soon">
-          <div class="coming-soon-icon">🔧</div>
+          <div class="coming-soon-icon"><i data-lucide="wrench" class="icon-inline" aria-hidden="true"></i></div>
           <h2>${label || pageId}</h2>
           <p>This module is coming soon. Build it by adding logic to <code>js/${pageId}.js</code>.</p>
         </div>`;
@@ -130,20 +160,11 @@ const Navigation = (() => {
       }
     }, { passive: true });
 
-    // Theme toggle
+    // Theme toggle — icon/aria handled by app.js syncThemeToggle; just dispatch event
     const themeBtn = document.getElementById('theme-toggle');
-    if (themeBtn) {
-      themeBtn.addEventListener('click', () => {
-        const current = document.documentElement.getAttribute('data-theme');
-        const next = current === 'dark' ? 'light' : 'dark';
-        document.documentElement.setAttribute('data-theme', next);
-        themeBtn.textContent = next === 'dark' ? '☀️' : '🌙';
-        Storage.saveSettings({ theme: next });
-        window.dispatchEvent(new CustomEvent('themechange'));
-      });
-      // Set correct icon on load
-      const theme = Storage.getSettings().theme;
-      themeBtn.textContent = theme === 'dark' ? '☀️' : '🌙';
+    if (themeBtn && !themeBtn._navWired) {
+      themeBtn._navWired = true;
+      // app.js DOMContentLoaded handler now owns the click; no duplicate needed here
     }
 
     // Apply saved church name to sidebar

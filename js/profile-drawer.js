@@ -182,10 +182,13 @@ const ProfileDrawer = (() => {
   }
 
   // ── Open / Close ──────────────────────────────────────────
+  let _openerEl = null;
+
   function open(memberId) {
     const m = Storage.findById('members', memberId);
     if (!m) { if (typeof Toast !== 'undefined') Toast.error('Member not found'); return; }
 
+    _openerEl = document.activeElement;
     drawer.innerHTML = buildHTML(m);
     drawer.setAttribute('aria-hidden', 'false');
     drawer.classList.add('open');
@@ -202,6 +205,10 @@ const ProfileDrawer = (() => {
     document.body.classList.remove('drawer-open');
     drawer.setAttribute('aria-hidden', 'true');
     drawer.innerHTML = '';  // free memory
+    if (_openerEl && typeof _openerEl.focus === 'function') {
+      requestAnimationFrame(() => _openerEl.focus());
+    }
+    _openerEl = null;
   }
 
   // ── Event wiring ─────────────────────────────────────────

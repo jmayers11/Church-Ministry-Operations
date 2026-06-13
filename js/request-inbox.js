@@ -104,7 +104,7 @@ Navigation.register('request-inbox', function render(page) {
   const unassigned      = requests.filter(r=>!r.assignedTo && r.status!=='Completed' && r.status!=='Closed').length;
   const overdueFollowUp = requests.filter(r=>r.followUpDate && r.followUpDate < today && r.status!=='Completed' && r.status!=='Closed').length;
 
-  const typeIcons    = { prayer:'🙏', help:'🤝', pantry:'🥫', pastoral:'❤️', volunteer:'🙌' };
+  const typeIcons    = { prayer:'<i data-lucide="hands" class="icon-inline" aria-hidden="true"></i>', help:'<i data-lucide="handshake" class="icon-inline" aria-hidden="true"></i>', pantry:'<i data-lucide="package" class="icon-inline" aria-hidden="true"></i>', pastoral:'<i data-lucide="heart" class="icon-inline" aria-hidden="true"></i>', volunteer:'<i data-lucide="users" class="icon-inline" aria-hidden="true"></i>' };
   const statusColors = { Received:'blue', Assigned:'purple', 'In Progress':'orange', 'Followed Up':'teal', Completed:'green', Closed:'gray' };
   const urgencyColors= { High:'red', Medium:'yellow', Low:'gray', Emergency:'red' };
 
@@ -129,48 +129,71 @@ Navigation.register('request-inbox', function render(page) {
     });
   }
 
-  function thIcon(key){const {col,dir}=RequestInbox._sort;if(col!==key)return`<span style="opacity:.25;font-size:.7rem;margin-left:3px">↕</span>`;return`<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">${dir==='asc'?'↑':'↓'}</span>`;}
-  function th(label,key){const {col,dir}=RequestInbox._sort;const active=col===key;const aSort=active?(dir==='asc'?'ascending':'descending'):'none';return`<th aria-sort="${aSort}" style="white-space:nowrap;${active?'color:var(--accent);':''}"><button type="button" class="sort-btn" onclick="RequestInbox.sortBy('${key}')">${label}${thIcon(key)}</button></th>`;}
-
   function renderTable(data) {
-    const wrap = document.getElementById('inbox-table-wrap');
-    if (!wrap) return;
-    const {col,dir}=RequestInbox._sort;
-    if(col){
-      data=[...data];
-      data.sort((a,b)=>{
-        let av,bv;
-        if(col==='name'){av=(a.data?.name||'');bv=(b.data?.name||'');}
-        else if(col==='submitted'){av=a.submittedAt||'';bv=b.submittedAt||'';}
-        else{av=a[col]||'';bv=b[col]||'';}
-        if(av==null||av==='')return 1;if(bv==null||bv==='')return -1;
-        const cmp=String(av).localeCompare(String(bv));return dir==='asc'?cmp:-cmp;
+    // Sort
+    const {col, dir} = RequestInbox._sort;
+    if (col) {
+      data = [...data].sort((a, b) => {
+        let av, bv;
+        if (col === 'name')           { av = a.data?.name || ''; bv = b.data?.name || ''; }
+        else if (col === 'submitted') { av = a.submittedAt || ''; bv = b.submittedAt || ''; }
+        else                          { av = a[col] || ''; bv = b[col] || ''; }
+        if (av == null || av === '') return 1;
+        if (bv == null || bv === '') return -1;
+        const cmp = String(av).localeCompare(String(bv));
+        return dir === 'asc' ? cmp : -cmp;
       });
     }
-    if (!data.length) {
-      wrap.innerHTML = `<table><tbody><tr><td colspan="8" style="text-align:center;padding:36px;color:var(--text-muted)">No requests found</td></tr></tbody></table>`;
-      return;
-    }
-    wrap.innerHTML = `<table class="data-table"><thead><tr>
-      ${th('Request ID','requestId')}${th('Type','typeName')}${th('Name / Contact','name')}
-      ${th('Submitted','submitted')}${th('Urgency','urgency')}${th('Status','status')}${th('Assigned To','assignedTo')}<th></th>
-    </tr></thead><tbody>${data.map(r => {
-      const d = r.data || {};
-      const isOverdue = r.followUpDate && r.followUpDate < today && r.status !== 'Completed' && r.status !== 'Closed';
-      const isNew = r.status === 'Received';
-      return `<tr class="${isNew?'tr--new':''}${isOverdue?' tr--overdue':''}">
-        <td style="font-family:monospace;font-size:var(--text-sm);font-weight:700;color:var(--accent)">${r.requestId}</td>
-        <td>${typeIcons[r.type]||'📋'} ${r.typeName}</td>
-        <td><div class="cell-primary">${UI.esc(d.name||'—')}</div><div class="cell-secondary">${UI.esc(d.phone||d.email||'')}</div></td>
-        <td class="text-meta">${UI.relDate(r.submittedAt?.slice(0,10)||'')}</td>
-        <td>${UI.badge(r.urgency||'—', urgencyColors[r.urgency]||'gray')}</td>
-        <td>${UI.badge(r.status, statusColors[r.status]||'gray')}${isOverdue?'<br><span class="text-danger" style="font-size:.68rem">⚠ Overdue</span>':''}</td>
-        <td>${r.assignedTo?UI.esc(r.assignedTo):`<span class="text-placeholder">Unassigned</span>`}</td>
-        <td>
-          <button class="btn btn-primary btn-sm" onclick="RequestInbox.view('${r.requestId}')">Review</button>
-        </td>
-      </tr>`;
-    }).join('')}</tbody></table>`;
+
+    // Bulk actions
+    UI.bulkRegister('inbox', [
+      { label: 'Assign to me', variant: 'primary', fn(ids) {
+          const me = (typeof SupabaseDB !== 'undefined' && SupabaseDB.getSession()?.user?.email) || 'Staff';
+          RequestInbox._bulkSave(ids, { assignedTo: me, status: 'Assigned' });
+      }},
+      { label: 'In Progress', variant: 'outline', fn(ids) { RequestInbox._bulkSave(ids, { status: 'In Progress' }); }},
+      { label: 'Completed',   variant: 'outline', fn(ids) { RequestInbox._bulkSave(ids, { status: 'Completed' }); }},
+      { label: 'Closed',      variant: 'outline', fn(ids) { RequestInbox._bulkSave(ids, { status: 'Closed' }); }},
+    ]);
+
+    const cols = [
+      { key: 'requestId',  label: 'ID', fmt: v =>
+          `<span style="font-family:monospace;font-weight:700;color:var(--accent)">${UI.esc(v || '')}</span>` },
+      { key: 'typeName',   label: 'Type', fmt: (v, r) =>
+          `${typeIcons[r.type] || '<i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i>'} ${UI.esc(v || '')}` },
+      { key: 'name', label: 'Name / Contact', mobileLabel: 'Name', fmt: (v, r) => {
+          const d = r.data || {};
+          return `<div class="cell-primary">${UI.esc(d.name || '—')}</div><div class="cell-secondary">${UI.esc(d.phone || d.email || '')}</div>`;
+      }},
+      { key: 'submitted',  label: 'Submitted', hideOnMobile: true, fmt: (v, r) =>
+          `<span class="text-meta">${UI.relDate((r.submittedAt || '').slice(0, 10))}</span>` },
+      { key: 'urgency',    label: 'Urgency', fmt: v => UI.badge(v || '—', urgencyColors[v] || 'gray') },
+      { key: 'status',     label: 'Status', fmt: (v, r) => {
+          const ov = r.followUpDate && r.followUpDate < today && v !== 'Completed' && v !== 'Closed';
+          return UI.badge(v, statusColors[v] || 'gray') +
+            (ov ? '<br><span class="text-danger" style="font-size:.68rem"><i data-lucide="alert-triangle" class="icon-xs" aria-hidden="true"></i> Overdue</span>' : '');
+      }},
+      { key: 'assignedTo', label: 'Assigned To', hideOnMobile: true, fmt: v =>
+          v ? UI.esc(v) : `<span class="text-placeholder">Unassigned</span>` },
+    ];
+
+    // Flatten sort keys so UI.table sort arrows reflect current state
+    const tableRows = data.map(r => Object.assign({}, r, {
+      name:      r.data?.name || '',
+      submitted: r.submittedAt || '',
+    }));
+
+    UI.table({
+      wrap:       'inbox-table-wrap',
+      cols,
+      rows:       tableRows,
+      sort:       RequestInbox._sort,
+      sortFn:     'RequestInbox.sortBy',
+      selectable: 'inbox',
+      pageSize:   25,
+      empty:      { icon: 'inbox', title: 'No requests found', text: 'Adjust filters or search terms.' },
+      actions:    r => `<button class="btn btn-primary btn-sm" onclick="RequestInbox.view('${r.requestId}')">Review</button>`,
+    });
   }
 
   // ── Build auth banner HTML ──────────────────────────────────────
@@ -181,7 +204,7 @@ Navigation.register('request-inbox', function render(page) {
       const userEmail = session?.user?.email || 'Staff';
       authBanner = `
         <div id="sb-auth-banner" style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:#dcfce7;border:1px solid #86efac;border-radius:8px;margin-bottom:16px;font-size:.82rem;">
-          <span style="color:#166534;font-weight:700;">🔒 Supabase Connected</span>
+          <span style="color:#166534;font-weight:700;"><i data-lucide="check-circle" class="icon-inline" aria-hidden="true"></i> Supabase Connected</span>
           <span style="color:#166534;">Signed in as ${UI.esc(userEmail)}</span>
           <span style="flex:1"></span>
           ${sbLoading
@@ -195,10 +218,10 @@ Navigation.register('request-inbox', function render(page) {
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">📬 Ministry Request Inbox</h2>
+        <h2 class="section-title">Ministry Request Inbox</h2>
         <div class="section-subtitle">Public portal submissions — review, assign, and follow up</div>
       </div>
-      <button class="btn btn-outline" onclick="window.open('portal.html','_blank')">🌐 Open Public Portal</button>
+      <button class="btn btn-outline" onclick="window.open('portal.html','_blank')"><i data-lucide="external-link" class="icon-inline" aria-hidden="true"></i> Open Public Portal</button>
     </div>
 
     ${authBanner}
@@ -206,22 +229,22 @@ Navigation.register('request-inbox', function render(page) {
     <!-- Alert cards -->
     <div class="stat-grid" style="margin-bottom:20px;">
       <div class="stat-card${newReqs>0?' pulse':''}" data-accent="blue" style="cursor:pointer" onclick="RequestInbox._filter('new')">
-        <div class="stat-icon">🆕</div>
+        <div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div>
         <div class="stat-value">${newReqs}</div>
         <div class="stat-label">New Requests</div>
       </div>
       <div class="stat-card" data-accent="red" style="cursor:pointer" onclick="RequestInbox._filter('urgent')">
-        <div class="stat-icon">🚨</div>
+        <div class="stat-icon"><i data-lucide="alert-circle" style="opacity:.7" aria-hidden="true"></i></div>
         <div class="stat-value">${urgent}</div>
         <div class="stat-label">Urgent / High Priority</div>
       </div>
       <div class="stat-card" data-accent="orange" style="cursor:pointer" onclick="RequestInbox._filter('unassigned')">
-        <div class="stat-icon">👤</div>
+        <div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div>
         <div class="stat-value">${unassigned}</div>
         <div class="stat-label">Awaiting Assignment</div>
       </div>
       <div class="stat-card" data-accent="yellow" style="cursor:pointer" onclick="RequestInbox._filter('overdue')">
-        <div class="stat-icon">⏰</div>
+        <div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div>
         <div class="stat-value">${overdueFollowUp}</div>
         <div class="stat-label">Overdue Follow-Ups</div>
       </div>
@@ -235,7 +258,7 @@ Navigation.register('request-inbox', function render(page) {
 
     <div class="toolbar" style="margin-bottom:16px;">
       <div class="search-input-wrap" style="flex:1">
-        <span class="search-icon">🔍</span>
+        <i data-lucide="search" class="icon-inline search-icon-lucide" aria-hidden="true"></i>
         <input class="search-input" id="inbox-search" placeholder="Search by name, ID, type…">
       </div>
       <button class="btn btn-outline btn-sm" id="inbox-refresh-btn" aria-label="Refresh requests" onclick="RequestInbox._refresh(this)" style="white-space:nowrap">↻ Refresh</button>
@@ -307,7 +330,7 @@ const RequestInbox = {
       Toast.error('Supabase is not configured.'); return;
     }
     Modal.open({
-      title: '🔒 Staff Sign In',
+      title: 'Staff Sign In',
       width: '400px',
       body: `
         <p class="text-meta" style="margin-bottom:var(--space-4)">
@@ -368,6 +391,26 @@ const RequestInbox = {
     // onAuthChange listener handles re-render
   },
 
+  async _bulkSave(ids, fields) {
+    if (!ids || !ids.length) return;
+    const source = (RequestInbox._sbCache !== null) ? RequestInbox._sbCache : Storage.getAll('ministry_requests');
+    let count = 0;
+    for (const id of ids) {
+      const r = source.find(x => String(x.id) === String(id) || x.requestId === String(id));
+      if (!r) continue;
+      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) {
+        const result = await SupabaseDB.updateRequest(r.requestId, fields);
+        if (!result.ok) console.warn('[RequestInbox] Bulk update failed for', r.requestId, result.error);
+        else RequestInbox._sbCache = null;
+      }
+      Storage.update('ministry_requests', r.id, { ...fields, lastUpdated: new Date().toISOString() });
+      count++;
+    }
+    Toast.success(`Updated ${count} request${count !== 1 ? 's' : ''}`);
+    UI._sel['inbox'] = new Set();
+    RequestInbox._rerender?.();
+  },
+
   sortBy(col) {
     if(this._sort.col===col) this._sort.dir=this._sort.dir==='asc'?'desc':'asc';
     else { this._sort.col=col; this._sort.dir='asc'; }
@@ -397,7 +440,7 @@ const RequestInbox = {
     if (!r) { Toast.error('Request not found'); return; }
 
     const d = r.data || {};
-    const typeIcons    = { prayer:'🙏', help:'🤝', pantry:'🥫', pastoral:'❤️', volunteer:'🙌' };
+    const typeIcons    = { prayer:'<i data-lucide="hands" class="icon-inline" aria-hidden="true"></i>', help:'<i data-lucide="handshake" class="icon-inline" aria-hidden="true"></i>', pantry:'<i data-lucide="package" class="icon-inline" aria-hidden="true"></i>', pastoral:'<i data-lucide="heart" class="icon-inline" aria-hidden="true"></i>', volunteer:'<i data-lucide="users" class="icon-inline" aria-hidden="true"></i>' };
     const statusColors = { Received:'blue', Assigned:'purple', 'In Progress':'orange', 'Followed Up':'teal', Completed:'green', Closed:'gray' };
     const statuses     = ['Received','Assigned','In Progress','Followed Up','Completed','Closed'];
     const volunteers   = Storage.getAll('volunteers');
@@ -442,7 +485,7 @@ const RequestInbox = {
       return rows.join('');
     }
 
-    Modal.open({ title:`${typeIcons[r.type]||'📋'} ${r.typeName} — ${r.requestId}`, width:'600px',
+    Modal.open({ title:`${typeIcons[r.type]||'<i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i>'} ${r.typeName} — ${r.requestId}`, width:'600px',
       body:`
         <div class="chip-row">
           ${UI.badge(r.status, statusColors[r.status]||'gray')}
@@ -500,7 +543,7 @@ const RequestInbox = {
         </div>
 
         <div class="alert-banner alert-banner-yellow" style="margin-top:4px;font-size:.78rem;">
-          🔒 Internal notes are never shown to the person who submitted this request.
+          Internal notes are never shown to the person who submitted this request.
         </div>
       `,
       footer:`
@@ -538,66 +581,51 @@ const RequestInbox = {
     };
 
     // ── AI Draft a Response ──────────────────────────────────────
-    const draftBtn  = document.getElementById('draft-btn');
-    const draftOut  = document.getElementById('draft-output');
-    const draftCopy = document.getElementById('draft-copy');
-
-    if (draftBtn) draftBtn.onclick = async () => {
-      draftBtn.disabled = true; draftBtn.textContent = '✨ Drafting…';
-      const res = await SupabaseDB.draftResponse({
-        type:      r.type,
-        typeName:  r.typeName,
-        helpType:  d.helpType,
-        urgency:   r.urgency,
-        visitType: d.visitType,
+    const draftBtn = document.getElementById('draft-response-btn');
+    if (draftBtn) {
+      draftBtn.addEventListener('click', async () => {
+        draftBtn.disabled = true;
+        draftBtn.innerHTML = '<i data-lucide="loader-2" class="icon-sm" style="animation:spin 1s linear infinite" aria-hidden="true"></i> Drafting…';
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+        const res = await SupabaseDB.draftResponse({
+          type: r.typeName,
+          name: (r.data || {}).name || 'the requester',
+          notes: r.internalNotes || '',
+          status: r.status,
+        });
+        draftBtn.disabled = false;
+        draftBtn.textContent = 'Draft Response';
+        if (res.ok) {
+          const el = document.getElementById('req-notes');
+          if (el) el.value = res.draft;
+          Toast.success('Draft inserted into notes');
+        } else {
+          Toast.error('Draft failed: ' + (res.error || 'unknown error'));
+        }
       });
-      draftBtn.disabled = false; draftBtn.textContent = '✨ Draft a Response';
-      if (res.ok) {
-        draftOut.value = res.draft;
-        draftOut.style.display = 'block';
-        draftCopy.style.display = 'inline-block';
-      } else {
-        Toast.error('Draft failed: ' + res.error);
-      }
-    };
-
-    if (draftCopy) draftCopy.onclick = () => {
-      navigator.clipboard?.writeText(draftOut.value);
-      Toast.success('Draft copied');
-    };
+    }
   },
 
-  _delete(requestId) {
-    UI.confirm('Permanently delete this request?', async () => {
-      // Try Supabase delete first
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) {
-        const result = await SupabaseDB.deleteRequest(requestId);
-        if (result.ok) {
+  async _delete(requestId) {
+    const source = (RequestInbox._sbCache !== null) ? RequestInbox._sbCache : Storage.getAll('ministry_requests');
+    const r = source.find(x => x.requestId === requestId);
+    if (!r) return;
+    Modal.confirm({
+      title: 'Delete Request',
+      body:  `Are you sure you want to permanently delete request <strong>${UI.esc(requestId)}</strong>? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      confirmClass: 'btn-danger',
+      onConfirm: async () => {
+        if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) {
+          await SupabaseDB.deleteRequest(requestId);
           RequestInbox._sbCache = null;
-        } else {
-          console.warn('[RequestInbox] Supabase delete failed:', result.error);
         }
-      }
-
-      // Always remove from localStorage
-      const all = Storage.getAll('ministry_requests');
-      const rec = all.find(r => r.requestId === requestId);
-      if (rec) Storage.removeItem('ministry_requests', rec.id);
-      Modal.close();
-      Toast.success('Deleted');
-      RequestInbox._rerender?.();
+        Storage.removeItem('ministry_requests', r.id);
+        Toast.success('Request deleted');
+        RequestInbox._rerender?.();
+      },
     });
   },
 };
-window.RequestInbox = RequestInbox;
 
-// Auth state listener — re-renders inbox when staff sign-in state changes
-(function() {
-  if (typeof SupabaseDB === 'undefined' || !SupabaseDB.isEnabled()) return;
-  SupabaseDB.onAuthChange(function(session) {
-    if (!session) RequestInbox._sbCache = null;
-    if (document.getElementById('sb-auth-banner')) {
-      Navigation.navigate('request-inbox');
-    }
-  });
-})();
+window.RequestInbox = RequestInbox;

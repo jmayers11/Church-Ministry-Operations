@@ -85,7 +85,7 @@ Navigation.register('sermons', function render(page) {
     const grid = document.getElementById('sermon-grid');
     if (!grid) return;
     if (!data.length) {
-      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">📖</div><div class="empty-state-title">No sermons found</div></div>`;
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon"><i data-lucide="book-open" class="icon-inline" aria-hidden="true"></i></div><div class="empty-state-title">No sermons found</div></div>`;
       return;
     }
     grid.innerHTML = data.map(s => `
@@ -100,8 +100,8 @@ Navigation.register('sermons', function render(page) {
             <div style="font-size:1.1rem;font-weight:800;line-height:1;">${new Date(s.date+'T00:00:00').getDate()}</div>
           </div>
         </div>
-        <div style="font-size:.82rem;color:var(--text-muted);">📖 ${UI.esc(s.scripture)}</div>
-        <div style="font-size:.82rem;color:var(--text-muted);">👤 ${UI.esc(s.speaker)}</div>
+        <div style="font-size:.82rem;color:var(--text-muted);"><i data-lucide="book-open" class="icon-inline" aria-hidden="true"></i> ${UI.esc(s.scripture)}</div>
+        <div style="font-size:.82rem;color:var(--text-muted);"><i data-lucide="user" class="icon-inline" aria-hidden="true"></i> ${UI.esc(s.speaker)}</div>
         ${s.notes ? `<div style="font-size:.8rem;color:var(--text-muted);line-height:1.5;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;">${UI.esc(s.notes)}</div>` : ''}
         <div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;">
           ${(s.tags||[]).map(tag=>`<span class="badge badge-blue">${UI.esc(tag)}</span>`).join('')}
@@ -130,7 +130,7 @@ Navigation.register('sermons', function render(page) {
         const latest = sermons.find(s => s.series === ser);
         return `
           <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;box-shadow:var(--shadow);min-width:160px;">
-            <div style="font-size:.78rem;font-weight:700;color:var(--accent);">📚 ${UI.esc(ser)}</div>
+            <div style="font-size:.78rem;font-weight:700;color:var(--accent);"><i data-lucide="book-open" class="icon-inline" aria-hidden="true"></i> ${UI.esc(ser)}</div>
             <div style="font-size:.82rem;color:var(--text-muted);margin-top:2px;">${count} message${count!==1?'s':''}</div>
           </div>`;
       }).join('')}
@@ -138,7 +138,7 @@ Navigation.register('sermons', function render(page) {
 
     <div class="toolbar">
       <div class="search-input-wrap">
-        <span class="search-icon">🔍</span>
+        <i data-lucide="search" class="icon-inline search-icon-lucide" aria-hidden="true"></i>
         <input type="text" class="search-input" id="sermon-search" placeholder="Search by title, scripture, speaker, tag…">
       </div>
       <select class="filter-select" id="sermon-series-filter">
@@ -234,7 +234,7 @@ const Sermons = {
     };
   },
   add() {
-    Modal.open({ title: '📖 Add Sermon', body: this._form(), width: '580px',
+    Modal.open({ title: '<i data-lucide="book-open" class="icon-inline" aria-hidden="true"></i> Add Sermon', body: this._form(), width: '580px',
       footer: `<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
                <button class="btn btn-primary" id="save-sermon-btn">Save Sermon</button>` });
     document.getElementById('save-sermon-btn').onclick = () => {

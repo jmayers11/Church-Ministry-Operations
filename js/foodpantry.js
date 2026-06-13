@@ -4,6 +4,7 @@
 
 (function seedPantryInventory() {
   if (Storage.get('_pantry_inv_seeded')) return;
+  if (!window.DEMO_MODE) { Storage.set('_pantry_inv_seeded', true); return; }
   const uid = Storage.uid, today = Storage.today;
   const items = [
     { id: uid(), name: 'Canned Green Beans',   category: 'Canned Vegetables', qty: 84, unit: 'cans',    minStock: 24, expDate: today(210), location: 'Shelf A1', donor: 'Community Food Drive', dateReceived: today(-14) },
@@ -97,6 +98,7 @@
 //  pantry_box_templates collection ended up empty — templates could never reappear.)
 (function seedTemplatesStandalone() {
   if ((Storage.getAll('pantry_box_templates') || []).length) return;
+  if (!window.DEMO_MODE) return;
   const uid = Storage.uid;
   const templates = [
     { id: uid(), name: 'Standard Distribution Box', description: 'Full monthly box for a family of 4', color: 'blue',
@@ -169,50 +171,68 @@ Navigation.register('foodpantry', function render(page) {
   let activeTab = Storage.get('_pantryTab') || 'inventory';
 
   // ---- renderInventoryTable ------------------------------------------
-  function renderInventoryTable(data) {
-    if (!data.length) return '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-title">No items found</div></div>';
-    const { col: sortCol, dir: sortDir } = PantryMgr._sort;
-    function thIcon(key) {
-      if (sortCol !== key) return '<span style="opacity:.25;font-size:.7rem;margin-left:3px;">&#8597;</span>';
-      return '<span style="font-size:.75rem;margin-left:3px;color:var(--accent)">' + (sortDir==='asc'?'&#8593;':'&#8595;') + '</span>';
+  // Returns a wrapper placeholder; _doInvTable() populates it via UI.table.
+  function renderInventoryTable() {
+    return '<div id="inv-table-wrap"></div>';
+  }
+
+  function _doInvTable(data) {
+    // Apply sort (matches filterAndRender logic)
+    const { col, dir } = PantryMgr._sort;
+    if (col) {
+      const numCols = new Set(['qty', 'minStock']);
+      data = [...data].sort(function(a, b) {
+        let av = a[col], bv = b[col];
+        if (av == null || av === '') return 1;
+        if (bv == null || bv === '') return -1;
+        const cmp = numCols.has(col) ? av - bv : String(av).localeCompare(String(bv));
+        return dir === 'asc' ? cmp : -cmp;
+      });
     }
-    function th(label, key) {
-      const active = sortCol===key;
-      return '<th aria-sort="' + (active?(sortDir==='asc'?'ascending':'descending'):'none') + '" style="white-space:nowrap;' + (active?'color:var(--accent);':'') + '">'
-        + '<button type="button" class="sort-btn" onclick="PantryMgr.sortBy(\'' + key + '\')">' + label + thIcon(key) + '</button></th>';
-    }
-    let rows = '';
-    data.forEach(function(item) {
-      const isLow      = item.qty <= item.minStock;
-      const isExpiring = item.expDate && item.expDate <= Storage.today(14);
-      const isExpired  = item.expDate && item.expDate < today;
-      rows += '<tr style="' + (isLow||isExpiring||isExpired ? 'background:var(--accent-light)' : '') + '">'
-        + '<td><strong>' + UI.esc(item.name) + '</strong>'
-        + (isLow     ? ' <span class="badge badge-red">Low</span>'      : '')
-        + (isExpired ? ' <span class="badge badge-red">Expired</span>'  : isExpiring ? ' <span class="badge badge-yellow">Expiring</span>' : '')
-        + '</td>'
-        + '<td><span class="badge badge-gray">' + UI.esc(item.category) + '</span></td>'
-        + '<td><strong style="color:' + (isLow?'var(--red)':'var(--text)') + '">' + item.qty + '</strong></td>'
-        + '<td>' + UI.esc(item.unit) + '</td>'
-        + '<td style="color:var(--text-muted)">' + item.minStock + '</td>'
-        + '<td style="color:' + (isExpired?'var(--red)':isExpiring?'var(--yellow)':'var(--text-muted)') + '">' + (item.expDate ? UI.fmtDate(item.expDate) : '&#8212;') + '</td>'
-        + '<td style="font-size:.8rem">' + UI.esc(item.location||'&#8212;') + '</td>'
-        + '<td style="font-size:.8rem;color:var(--text-muted)">' + UI.esc(item.donor||'&#8212;') + '</td>'
-        + '<td>'
-        + '<button class="btn btn-ghost btn-sm" onclick="PantryMgr.adjustQty(\'' + item.id + '\')">± Adjust</button> '
-        + '<button class="btn btn-ghost btn-sm" onclick="PantryMgr.edit(\'' + item.id + '\')">Edit</button> '
-        + '<button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Remove item" onclick="PantryMgr.remove(\'' + item.id + '\')">✕</button>'
-        + '</td></tr>';
+    UI.table({
+      wrap:     'inv-table-wrap',
+      cols: [
+        { key: 'name', label: 'Item', fmt: function(v, r) {
+            const isLow  = r.qty <= r.minStock;
+            const isExp  = r.expDate && r.expDate < today;
+            const isExpS = r.expDate && !isExp && r.expDate <= Storage.today(14);
+            return '<strong>' + UI.esc(v) + '</strong>'
+              + (isLow  ? ' <span class="badge badge-red">Low</span>'      : '')
+              + (isExp  ? ' <span class="badge badge-red">Expired</span>'  : isExpS ? ' <span class="badge badge-yellow">Expiring</span>' : '');
+        }},
+        { key: 'category', label: 'Category', fmt: function(v) {
+            return '<span class="badge badge-gray">' + UI.esc(v) + '</span>';
+        }},
+        { key: 'qty', label: 'Qty', fmt: function(v, r) {
+            return '<strong style="color:' + (r.qty <= r.minStock ? 'var(--danger)' : 'var(--text)') + '">' + v + '</strong>';
+        }},
+        { key: 'unit',     label: 'Unit' },
+        { key: 'minStock', label: 'Min', tdClass: 'text-meta' },
+        { key: 'expDate',  label: 'Expires', hideOnMobile: true, fmt: function(v) {
+            if (!v) return '—';
+            const isExp  = v < today;
+            const isExpS = !isExp && v <= Storage.today(14);
+            return '<span style="color:' + (isExp ? 'var(--danger)' : isExpS ? 'var(--warning)' : 'var(--text-muted)') + '">' + UI.fmtDate(v) + '</span>';
+        }},
+        { key: 'location', label: 'Location', hideOnMobile: true, fmt: function(v) { return v ? UI.esc(v) : '—'; }},
+        { key: 'donor',    label: 'Donor',    hideOnMobile: true, fmt: function(v) { return v ? UI.esc(v) : '—'; }},
+      ],
+      rows:     data,
+      sort:     PantryMgr._sort,
+      sortFn:   'PantryMgr.sortBy',
+      pageSize: 40,
+      empty:    { icon: 'package', title: 'No items found', text: 'Add items to the inventory to get started.' },
+      actions:  function(r) {
+        return '<button class="btn btn-ghost btn-sm" onclick="PantryMgr.adjustQty(\'' + r.id + '\')">± Adjust</button> '
+             + '<button class="btn btn-ghost btn-sm" onclick="PantryMgr.edit(\'' + r.id + '\')">Edit</button> '
+             + '<button class="btn btn-ghost btn-sm text-danger" aria-label="Remove item" onclick="PantryMgr.remove(\'' + r.id + '\')">✕</button>';
+      },
     });
-    return '<div class="table-wrap"><table class="data-table"><thead><tr>'
-      + th('Item','name') + th('Category','category') + th('Qty','qty') + th('Unit','unit')
-      + th('Min Stock','minStock') + th('Expires','expDate') + th('Location','location') + th('Donor','donor')
-      + '<th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
   }
 
   // ---- renderDistributions -------------------------------------------
   function renderDistributions() {
-    if (!distributions.length) return '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-title">No distributions recorded</div></div>';
+    if (!distributions.length) return '<div class="empty-state"><div class="empty-state-icon"><i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i></div><div class="empty-state-title">No distributions recorded</div></div>';
     let rows = '';
     distributions.slice(0,20).forEach(function(r) {
       rows += '<tr>'
@@ -243,7 +263,7 @@ Navigation.register('foodpantry', function render(page) {
     // Template cards
     let tmplHTML = '';
     if (!templates.length) {
-      tmplHTML = '<div class="empty-state"><div class="empty-state-icon">📦</div>'
+      tmplHTML = '<div class="empty-state"><div class="empty-state-icon"><i data-lucide="package" class="icon-inline" aria-hidden="true"></i></div>'
         + '<div class="empty-state-title">No box templates yet</div>'
         + '<div class="empty-state-sub">Click &ldquo;+ New Template&rdquo; to define your first box type.</div></div>';
     } else {
@@ -262,16 +282,16 @@ Navigation.register('foodpantry', function render(page) {
           + '<div class="text-meta">' + UI.esc(t.description||'') + '</div></div>'
           + '<div style="display:flex;gap:4px;">'
           + '<button class="btn btn-ghost btn-sm" aria-label="Edit template" onclick="PantryMgr.editTemplate(\'' + t.id + '\')">'
-          + '<i data-lucide="pencil" style="width:13px;height:13px" aria-hidden="true"></i></button>'
+          + '<i data-lucide="pencil" class="icon-xs" aria-hidden="true"></i></button>'
           + '<button class="btn btn-ghost btn-sm text-danger" aria-label="Delete template" onclick="PantryMgr.removeTemplate(\'' + t.id + '\')">'
-          + '<i data-lucide="trash-2" style="width:13px;height:13px" aria-hidden="true"></i></button>'
+          + '<i data-lucide="trash-2" class="icon-xs" aria-hidden="true"></i></button>'
           + '</div></div>'
           + '<div style="min-height:48px;margin-bottom:12px;">' + bom + '</div>'
           + '<div style="display:grid;grid-template-columns:1fr auto;gap:6px;margin-top:auto;">'
           + '<button class="btn btn-primary btn-sm" onclick="PantryMgr.buildBoxes(\'' + t.id + '\')">'
-          + '<i data-lucide="package-plus" style="width:13px;height:13px" aria-hidden="true"></i> Build Order</button>'
+          + '<i data-lucide="package-plus" class="icon-xs" aria-hidden="true"></i> Build Order</button>'
           + '<button class="btn btn-outline btn-sm" title="Auto-Issue 1 box immediately" onclick="PantryMgr.quickIssue(\'' + t.id + '\')">'
-          + '<i data-lucide="zap" style="width:13px;height:13px" aria-hidden="true"></i> Quick Issue</button>'
+          + '<i data-lucide="zap" class="icon-xs" aria-hidden="true"></i> Quick Issue</button>'
           + '</div>'
           + '</div>';
       });
@@ -293,7 +313,7 @@ Navigation.register('foodpantry', function render(page) {
         + '<div class="form-group"><label class="form-label">Target # of Boxes</label>'
         + '<input class="form-control" id="planner-qty" type="number" min="1" value="40" oninput="PantryMgr._runPlanner()"></div>'
         + '<div class="form-group"><button class="btn btn-outline" style="margin-top:22px;" onclick="PantryMgr._runPlanner()">'
-        + '<i data-lucide="calculator" style="width:14px;height:14px" aria-hidden="true"></i> Calculate</button></div>'
+        + '<i data-lucide="calculator" class="icon-sm" aria-hidden="true"></i> Calculate</button></div>'
         + '</div><div id="planner-output"></div></div>';
     }
 
@@ -358,13 +378,13 @@ Navigation.register('foodpantry', function render(page) {
       const accent = colorMap[o.color] || 'var(--accent)';
       let actions = '';
       if (o.status==='Open') {
-        actions = '<button class="btn btn-primary btn-sm" onclick="PantryMgr.startOrder(\''+o.id+'\')"><i data-lucide="play" style="width:13px;height:13px" aria-hidden="true"></i> Start Building</button>'
+        actions = '<button class="btn btn-primary btn-sm" onclick="PantryMgr.startOrder(\''+o.id+'\')"><i data-lucide="play" class="icon-xs" aria-hidden="true"></i> Start Building</button>'
                 + '<button class="btn btn-ghost btn-sm text-danger" onclick="PantryMgr.deleteOrder(\''+o.id+'\')">Cancel</button>';
       } else if (o.status==='In Progress') {
-        actions = '<button class="btn btn-primary btn-sm" onclick="PantryMgr.completeOrder(\''+o.id+'\')"><i data-lucide="check-circle" style="width:13px;height:13px" aria-hidden="true"></i> Mark Complete</button>';
+        actions = '<button class="btn btn-primary btn-sm" onclick="PantryMgr.completeOrder(\''+o.id+'\')"><i data-lucide="check-circle" class="icon-xs" aria-hidden="true"></i> Mark Complete</button>';
       } else if (o.status==='Completed') {
-        actions = '<button class="btn btn-primary btn-sm" onclick="PantryMgr.distributeOrder(\''+o.id+'\')"><i data-lucide="package-check" style="width:13px;height:13px" aria-hidden="true"></i> Distributed</button>'
-                + '<button class="btn btn-outline btn-sm" onclick="PantryMgr.returnOrder(\''+o.id+'\')"><i data-lucide="undo-2" style="width:13px;height:13px" aria-hidden="true"></i> Return to Inventory</button>';
+        actions = '<button class="btn btn-primary btn-sm" onclick="PantryMgr.distributeOrder(\''+o.id+'\')"><i data-lucide="package-check" class="icon-xs" aria-hidden="true"></i> Distributed</button>'
+                + '<button class="btn btn-outline btn-sm" onclick="PantryMgr.returnOrder(\''+o.id+'\')"><i data-lucide="undo-2" class="icon-xs" aria-hidden="true"></i> Return to Inventory</button>';
       }
       const who = o.status==='Open'        ? (o.createdBy ? 'Created by '+UI.esc(o.createdBy) : 'Created')
                 : o.status==='In Progress' ? ('Started '+UI.relDate((o.startedAt||'').slice(0,10)))
@@ -381,7 +401,7 @@ Navigation.register('foodpantry', function render(page) {
     let html = '<div class="flex-between" style="margin-bottom:16px;">'
       + '<div><div style="font-weight:700;font-size:.95rem;">Box Orders</div>'
       + '<div class="text-meta">Open an order, build it, then distribute or return to inventory. Inventory is deducted when an order is completed.</div></div>'
-      + '<button class="btn btn-primary" onclick="PantryMgr.createOrder()"><i data-lucide="plus" style="width:14px;height:14px" aria-hidden="true"></i> Create Box Order</button></div>';
+      + '<button class="btn btn-primary" onclick="PantryMgr.createOrder()"><i data-lucide="plus" class="icon-sm" aria-hidden="true"></i> Create Box Order</button></div>';
 
     html += '<div class="section-label-sm" style="margin-top:8px;">To Build ('+active.length+')</div>';
     if (active.length) {
@@ -443,26 +463,26 @@ Navigation.register('foodpantry', function render(page) {
   }
 
   const tabList = [
-    ['inventory','📦 Inventory'],['distributions','📋 Distributions'],
-    ['lowstock','⚠️ Alerts'],['boxbuilder','🔨 Box Builder'],['boxorders','🧾 Box Orders'],
-    ['planning','📊 Planning'],
+    ['inventory','<i data-lucide="package" class="icon-inline" aria-hidden="true"></i> Inventory'],['distributions','<i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i> Distributions'],
+    ['lowstock','<i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> Alerts'],['boxbuilder','<i data-lucide="hammer" class="icon-inline" aria-hidden="true"></i> Box Builder'],['boxorders','<i data-lucide="receipt" class="icon-inline" aria-hidden="true"></i> Box Orders'],
+    ['planning','<i data-lucide="bar-chart-2" class="icon-inline" aria-hidden="true"></i> Planning'],
   ];
 
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">🫙 Food Pantry Management</h2>
+        <h2 class="section-title">Food Pantry Management</h2>
         <div class="section-subtitle">Inventory · Donations · Distribution tracking</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button class="btn btn-primary" onclick="PantryMgr.addItem()">+ Add Item</button>
-        <button class="btn btn-outline" onclick="PantryMgr.addDistribution()">📋 Log Distribution</button>
+        <button class="btn btn-outline" onclick="PantryMgr.addDistribution()"><i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i> Log Distribution</button>
       </div>
     </div>
 
     ${(lowStock.length||expiringSoon.length) ? `
       <div style="background:var(--surface);border:1px solid var(--yellow);border-left:4px solid var(--yellow);border-radius:var(--radius);padding:12px 16px;margin-bottom:20px;display:flex;gap:16px;flex-wrap:wrap;align-items:center;">
-        <span style="font-size:1.2rem;">⚠️</span>
+        <span style="font-size:1.2rem;"><i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i></span>
         <div style="flex:1;font-size:.86rem;">
           ${lowStock.length ? `<strong>${lowStock.length} item${lowStock.length>1?'s':''} below minimum stock:</strong> ${lowStock.map(i=>i.name).join(', ')}. ` : ''}
           ${expiringSoon.length ? `<strong>${expiringSoon.length} item${expiringSoon.length>1?'s':''} expiring within 14 days:</strong> ${expiringSoon.map(i=>i.name).join(', ')}.` : ''}
@@ -471,31 +491,31 @@ Navigation.register('foodpantry', function render(page) {
 
     <div class="stat-grid" style="margin-bottom:24px;">
       <div class="stat-card" data-accent="blue">
-        <div class="stat-icon">📦</div>
+        <div class="stat-icon"><i data-lucide="package" style="opacity:.7" aria-hidden="true"></i></div>
         <div class="stat-value">${totalItems.toLocaleString()}</div>
         <div class="stat-label">Total Items in Stock</div>
         <div class="stat-delta flat">${inventory.length} unique items</div>
       </div>
       <div class="stat-card" data-accent="red">
-        <div class="stat-icon">⚠️</div>
+        <div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div>
         <div class="stat-value">${lowStock.length}</div>
         <div class="stat-label">Low Stock Items</div>
         <div class="stat-delta ${lowStock.length>0?'down':'up'}">${lowStock.length>0?'Needs restocking':'All stocked ✓'}</div>
       </div>
       <div class="stat-card" data-accent="yellow">
-        <div class="stat-icon">⏰</div>
+        <div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div>
         <div class="stat-value">${expiringSoon.length}</div>
         <div class="stat-label">Expiring Soon</div>
         <div class="stat-delta flat">Within 14 days</div>
       </div>
       <div class="stat-card" data-accent="green">
-        <div class="stat-icon">👨‍👩‍👧</div>
+        <div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div>
         <div class="stat-value">${distributions.reduce((s,r)=>s+(r.familiesServed||0),0)}</div>
         <div class="stat-label">Families Served Total</div>
         <div class="stat-delta flat">${distributions.length} distributions</div>
       </div>
       <div class="stat-card" data-accent="orange">
-        <div class="stat-icon">⏱</div>
+        <div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div>
         <div class="stat-value">${distributions.reduce((s,r)=>s+(r.volunteerHours||0),0)}</div>
         <div class="stat-label">Volunteer Hours</div>
       </div>
@@ -513,7 +533,7 @@ Navigation.register('foodpantry', function render(page) {
 
     <div class="toolbar" id="pantry-toolbar" style="${activeTab!=='inventory'?'display:none':''}">
       <div class="search-input-wrap">
-        <span class="search-icon">🔍</span>
+        <i data-lucide="search" class="icon-inline search-icon-lucide" aria-hidden="true"></i>
         <input type="text" class="search-input" id="pantry-search" placeholder="Search items…">
       </div>
       <select class="filter-select" id="pantry-cat-filter">
@@ -544,6 +564,8 @@ Navigation.register('foodpantry', function render(page) {
       if (toolbar) toolbar.style.display = activeTab==='inventory' ? '' : 'none';
       wireInventorySearch();
       if (typeof lucide !== 'undefined') lucide.createIcons();
+      if (activeTab === 'inventory') _doInvTable(inventory);
+      if (activeTab === 'planning' && typeof FPRP !== 'undefined') FPRP.postRender();
     });
   });
 
@@ -563,23 +585,21 @@ Navigation.register('foodpantry', function render(page) {
     if (st==='low')      data = data.filter(i => i.qty <= i.minStock);
     if (st==='expiring') data = data.filter(i => i.expDate && i.expDate <= Storage.today(14));
     if (st==='ok')       data = data.filter(i => i.qty > i.minStock);
-    const { col, dir } = PantryMgr._sort;
-    if (col) {
-      const numCols = new Set(['qty','minStock']);
-      data.sort((a, b) => {
-        let av = a[col], bv = b[col];
-        if (av==null||av==='') return 1;
-        if (bv==null||bv==='') return -1;
-        const cmp = numCols.has(col) ? av-bv : String(av).localeCompare(String(bv));
-        return dir==='asc' ? cmp : -cmp;
-      });
+    // ensure wrapper exists (in case tab content was just rendered)
+    const wrap = document.getElementById('inv-table-wrap');
+    if (!wrap) {
+      const tc = document.getElementById('pantry-tab-content');
+      if (tc) tc.innerHTML = renderInventoryTable();
     }
-    document.getElementById('pantry-tab-content').innerHTML = renderInventoryTable(data);
+    _doInvTable(data);
   }
 
   PantryMgr._rerender = () => Navigation.navigate('foodpantry');
   wireInventorySearch();
   if (typeof lucide !== 'undefined') lucide.createIcons();
+  // Populate inventory table after initial render
+  if (activeTab === 'inventory') _doInvTable(inventory);
+  if (activeTab === 'planning' && typeof FPRP !== 'undefined') FPRP.postRender();
 });
 
 // ================================================================
@@ -718,7 +738,7 @@ const PantryMgr = {
       + '<div class="form-group"><label class="form-label">Volunteer Hours</label><input class="form-control" id="pt-hrs" type="number" min="0" value="0"></div></div>'
       + '<div class="form-group"><label class="form-label">Items Distributed (comma-separated)</label><input class="form-control" id="pt-items"></div>'
       + '<div class="form-group"><label class="form-label">Notes</label><textarea class="form-control" id="pt-notes"></textarea></div>';
-    Modal.open({ title:'📋 Log Distribution', body, width:'480px',
+    Modal.open({ title:'Log Distribution', body, width:'480px',
       footer:'<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>'
             +'<button class="btn btn-primary" id="save-dist-btn">Save</button>' });
     document.getElementById('save-dist-btn').onclick = () => {
@@ -853,7 +873,7 @@ const PantryMgr = {
         + '<input class="form-control bb-item-qty" type="number" min="0.5" step="0.5" placeholder="Qty" value="'+(it.qty||1)+'">'
         + '<input class="form-control bb-item-unit" placeholder="unit" value="'+UI.esc(it.unit||'')+'">'
         + '<button type="button" class="btn btn-ghost btn-sm text-danger" title="Remove row" onclick="this.closest(\'.bb-item-row\').remove()">'
-        + '<i data-lucide="x" style="width:13px;height:13px" aria-hidden="true"></i></button></div>';
+        + '<i data-lucide="x" class="icon-xs" aria-hidden="true"></i></button></div>';
     });
     return datalist
       + '<div class="form-row">'
@@ -880,7 +900,7 @@ const PantryMgr = {
       + '<input class="form-control bb-item-qty" type="number" min="0.5" step="0.5" value="1">'
       + '<input class="form-control bb-item-unit" placeholder="unit">'
       + '<button type="button" class="btn btn-ghost btn-sm text-danger" onclick="this.closest(\'.bb-item-row\').remove()">'
-      + '<i data-lucide="x" style="width:13px;height:13px" aria-hidden="true"></i></button>';
+      + '<i data-lucide="x" class="icon-xs" aria-hidden="true"></i></button>';
     const c = document.getElementById('bom-rows');
     if (c) { c.appendChild(row); if (typeof lucide !== 'undefined') lucide.createIcons(); }
   },
@@ -944,7 +964,7 @@ const PantryMgr = {
     Modal.open({ title:'&#128296; Build: '+UI.esc(template.name), body, width:'640px',
       footer:'<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>'
             +'<button class="btn btn-primary" onclick="PantryMgr._executeBuild(\''+templateId+'\')">'
-            +'<i data-lucide="check-circle" style="width:14px;height:14px" aria-hidden="true"></i> Confirm &amp; Deduct Inventory</button>' });
+            +'<i data-lucide="check-circle" class="icon-sm" aria-hidden="true"></i> Confirm &amp; Deduct Inventory</button>' });
     if (typeof lucide !== 'undefined') lucide.createIcons();
   },
 
@@ -981,304 +1001,71 @@ const PantryMgr = {
     const inventory = Storage.getAll('pantry_inventory') || [];
     const picks = (template.items || []).map(function(bomLine) {
       const best = PantryMgr._matchInv(inventory, bomLine.itemName);
-      return { bomLine: bomLine, best: best };
+      return { bomLine: bomLine, best: best, found: !!best };
     });
-    const missing = picks.filter(function(p) { return !p.best; });
-    let pickList = '<div style="margin:10px 0 14px;border:1px solid var(--border);border-radius:6px;overflow:hidden;">';
-    picks.forEach(function(p) {
-      const found = !!p.best;
-      pickList += '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 12px;'
-        + 'border-bottom:1px solid var(--border);background:' + (found ? 'transparent' : 'var(--accent-light)') + '">'
-        + '<span style="font-size:.83rem;">' + UI.esc(p.bomLine.itemName)
-        + (found ? '' : ' <span style="color:var(--red);font-size:.75rem;">⚠ not found</span>') + '</span>'
-        + '<span style="font-size:.83rem;font-weight:700;color:var(--accent)">'
-        + p.bomLine.qty + ' ' + UI.esc(p.bomLine.unit) + '</span></div>';
+    const allFound  = picks.every(p => p.found);
+    const someFound = picks.some(p => p.found);
+    const today     = Storage.today();
+    Modal.open({
+      title: '⚡ Quick Issue — ' + template.name,
+      body: '<div style="margin-bottom:12px;">' +
+        '<p style="font-size:.86rem;color:var(--text-muted);margin-bottom:12px;">Items will be deducted from inventory immediately.</p>' +
+        '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">' +
+        picks.map(function(p) {
+          const avail = p.best ? (p.best.qty || 0) : 0;
+          const color = p.found ? 'var(--success)' : 'var(--danger)';
+          return '<div class="bom-row" style="border-left:3px solid ' + color + ';padding-left:8px;">' +
+            '<span>' + UI.esc(p.bomLine.itemName) + ' <span style="font-size:.78rem;color:var(--text-muted)">×' + p.bomLine.qty + '</span></span>' +
+            '<span style="font-size:.8rem;color:' + color + ';">' + (p.found ? 'In stock (' + avail + ')' : 'Not found') + '</span>' +
+            '</div>';
+        }).join('') +
+        '</div>' +
+        '<div class="form-row">' +
+          '<div class="form-group"><label class="form-label">Qty to Build</label>' +
+            '<input type="number" class="form-control" id="qi-qty" value="1" min="1"></div>' +
+          '<div class="form-group"><label class="form-label">Issued By</label>' +
+            '<input type="text" class="form-control" id="qi-by" placeholder="Staff name"></div>' +
+        '</div>' +
+        '<div class="form-group"><label class="form-label">Date</label>' +
+          '<input type="date" class="form-control" id="qi-date" value="' + today + '"></div>' +
+        (!someFound ? '<p style="color:var(--danger);font-size:.82rem;margin-top:8px;"><i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> No matching inventory — order will be recorded but nothing deducted.</p>' : '') +
+        '</div>',
+      footer: '<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>' +
+              '<button class="btn btn-primary" onclick="PantryMgr._executeQuickIssue(\'' + templateId + '\')">' +
+                '<i data-lucide="zap" class="icon-sm" aria-hidden="true"></i> Issue Now</button>',
     });
-    pickList += '</div>';
-    const banner = missing.length
-      ? '<div style="background:var(--accent-light);border:1px solid var(--orange);border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:.82rem;color:var(--orange)">'
-        + '⚠ ' + missing.length + ' item(s) not in inventory — they will be skipped.</div>'
-      : '<div style="background:#22c55e22;border:1px solid #16a34a;border-radius:6px;padding:8px 12px;margin-bottom:10px;font-size:.82rem;color:#15803d">'
-        + '✓ All items found — ready to issue.</div>';
-    const body = '<div style="font-size:.88rem;color:var(--text-muted);margin-bottom:4px;">Items pulled per box:</div>'
-      + pickList + banner
-      + '<div class="form-row">'
-      + '<div class="form-group"><label class="form-label">Qty to Issue</label>'
-      + '<input class="form-control" id="qi-qty" type="number" min="1" value="1"></div>'
-      + '<div class="form-group"><label class="form-label">Issued By</label>'
-      + '<input class="form-control" id="qi-by" placeholder="Staff name..."></div></div>'
-      + '<div class="form-group"><label class="form-label">Date</label>'
-      + '<input class="form-control" id="qi-date" type="date" value="' + Storage.today() + '"></div>';
-    Modal.open({ title: '⚡ Quick Issue: ' + UI.esc(template.name), body: body, width: '420px',
-      footer: '<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>'
-            + '<button class="btn btn-primary" onclick="PantryMgr._executeQuickIssue(\'' + templateId + '\')">'
-            + '<i data-lucide="zap" style="width:13px;height:13px" aria-hidden="true"></i> Issue &amp; Deduct</button>' });
     if (typeof lucide !== 'undefined') lucide.createIcons();
   },
 
   _executeQuickIssue(templateId) {
-    const template = Storage.findById('pantry_box_templates', templateId); if (!template) return;
-    const qty     = parseInt(document.getElementById('qi-qty')?.value) || 1;
-    const builtBy = (document.getElementById('qi-by')?.value || '').trim();
-    const date    = document.getElementById('qi-date')?.value || Storage.today();
-    const inventory = Storage.getAll('pantry_inventory') || [];
-    const consumed  = [];
-    (template.items || []).forEach(function(bomLine) {
-      const toConsume = bomLine.qty * qty;
-      const best = PantryMgr._matchInv(inventory, bomLine.itemName);
-      if (best) {
-        Storage.update('pantry_inventory', best.id, { qty: Math.max(0, best.qty - toConsume) });
-        consumed.push({ itemName: best.name, qty: toConsume, unit: bomLine.unit });
-      }
-    });
-    Storage.insert('pantry_build_orders', {
-      templateId: templateId, templateName: template.name,
-      quantity: qty, date: date, builtBy: builtBy,
-      notes: 'Quick Issue', itemsConsumed: consumed,
-    });
-    Modal.close();
-    Toast.success('Issued ' + qty + ' \xd7 ' + template.name + ' — inventory updated');
-    Storage.set('_pantryTab', 'boxbuilder'); Navigation.navigate('foodpantry');
-  },
-
-  // ----------------------------------------------------------------
-  //  Box Orders — stateful lifecycle
-  //  Open → In Progress → Completed → (Distributed | Returned)
-  //  Inventory is deducted at Complete; restored on Return.
-  // ----------------------------------------------------------------
-  _orderWriteThrough(order) {
-    if (order && typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) {
-      SupabaseDB.tableUpsert('pantry_box_orders', order)
-        .then(function(r){ if (r && !r.ok) Toast.error('Saved locally — cloud sync failed.'); })
-        .catch(function(){ Toast.error('Saved locally — cloud sync failed.'); });
-    }
-  },
-  _invWriteThrough(item) {
-    if (item && typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) {
-      SupabaseDB.tableUpsert('pantry_inventory', item).catch(function(){});
-    }
-  },
-  _gotoOrders() { Storage.set('_pantryTab','boxorders'); Navigation.navigate('foodpantry'); },
-
-  createOrder() {
-    const templates = Storage.getAll('pantry_box_templates') || [];
-    if (!templates.length) { Toast.error('Create a box template first'); return; }
-    let cards = '';
-    templates.forEach(function(t, idx) {
-      const count = (t.items||[]).length;
-      cards += '<label style="display:block;border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;margin-bottom:8px;cursor:pointer;">'
-        + '<div style="display:flex;align-items:center;gap:10px;">'
-        + '<input type="radio" name="bo-tmpl" value="'+t.id+'"'+(idx===0?' checked':'')+'>'
-        + '<div style="flex:1;"><div style="font-weight:700;font-size:.9rem;">'+UI.esc(t.name)+'</div>'
-        + '<div class="text-meta">'+UI.esc(t.description||'')+' &middot; '+count+' item'+(count!==1?'s':'')+'/box</div></div></div></label>';
-    });
-    const body = '<div class="form-group"><label class="form-label">Choose a box template</label>'+cards+'</div>'
-      + '<div class="form-row">'
-      + '<div class="form-group"><label class="form-label">How many boxes?</label><input class="form-control" id="bo-qty" type="number" min="1" value="1"></div>'
-      + '<div class="form-group"><label class="form-label">Created by</label><input class="form-control" id="bo-by" placeholder="Your name..."></div></div>'
-      + '<div class="form-group"><label class="form-label">Notes (optional)</label><input class="form-control" id="bo-notes" placeholder="e.g. Johnson family, Thursday pickup..."></div>';
-    Modal.open({ title:'Create Box Order', body:body, width:'520px',
-      footer:'<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>'
-            +'<button class="btn btn-primary" id="bo-create-btn">Create Order</button>' });
-    document.getElementById('bo-create-btn').onclick = function() {
-      const sel = document.querySelector('input[name="bo-tmpl"]:checked');
-      const t = sel ? Storage.findById('pantry_box_templates', sel.value) : null;
-      if (!t) { Toast.error('Pick a template'); return; }
-      const qty = parseInt(document.getElementById('bo-qty').value)||1;
-      const order = {
-        templateId: t.id, templateName: t.name, color: t.color||'blue',
-        quantity: qty, status: 'Open',
-        bom: (t.items||[]).map(function(it){ return { itemName:it.itemName, qty:it.qty, unit:it.unit }; }),
-        extras: [], itemsConsumed: [],
-        createdBy: (document.getElementById('bo-by').value||'').trim(),
-        notes: (document.getElementById('bo-notes').value||'').trim(),
-        createdAt: new Date().toISOString(),
-      };
-      const saved = Storage.insert('pantry_box_orders', order);
-      PantryMgr._orderWriteThrough(saved);
-      Modal.close(); Toast.success('Box order created'); PantryMgr._gotoOrders();
-    };
-  },
-
-  startOrder(id) {
-    const o = Storage.findById('pantry_box_orders', id); if (!o) return;
-    const upd = Storage.update('pantry_box_orders', id, { status:'In Progress', startedAt:new Date().toISOString() });
-    PantryMgr._orderWriteThrough(upd);
-    Toast.success('Build started'); PantryMgr._gotoOrders();
-  },
-
-  deleteOrder(id) {
-    UI.confirm('Cancel and delete this box order?', function() {
-      Storage.removeItem('pantry_box_orders', id);
-      if (typeof SupabaseDB !== 'undefined' && SupabaseDB.isAuthenticated()) SupabaseDB.tableDelete('pantry_box_orders', id).catch(function(){});
-      Toast.success('Order removed'); PantryMgr._gotoOrders();
-    });
-  },
-
-  completeOrder(id) {
-    const o = Storage.findById('pantry_box_orders', id); if (!o) return;
-    const inventory = Storage.getAll('pantry_inventory') || [];
-    let bomRows = '';
-    (o.bom||[]).forEach(function(b){
-      const total = b.qty*(o.quantity||1);
-      const best  = PantryMgr._matchInv(inventory, b.itemName);
-      const short = !best || best.qty < total;
-      bomRows += '<tr><td>'+UI.esc(b.itemName)+'</td><td style="text-align:center">'+total+' '+UI.esc(b.unit)+'</td>'
-        + '<td style="text-align:center;color:'+(short?'var(--red)':'var(--text)')+'">'+(best?best.qty:0)+'</td></tr>';
-    });
-    const body = '<div style="font-size:.86rem;color:var(--text-muted);margin-bottom:10px;">Completing deducts these items from inventory.</div>'
-      + '<div class="table-wrap" style="margin-bottom:14px;"><table class="data-table" style="font-size:.82rem;"><thead><tr><th>Item</th><th>Needed</th><th>In Stock</th></tr></thead><tbody>'+bomRows+'</tbody></table></div>'
-      + '<div class="flex-between" style="margin-bottom:8px;"><label class="form-label" style="margin:0;font-weight:700;">Extras added (optional)</label>'
-      + '<button type="button" class="btn btn-outline btn-sm" onclick="PantryMgr._addExtraRow()">+ Add Extra</button></div>'
-      + '<div style="display:grid;grid-template-columns:1fr 70px 80px 32px;gap:6px;margin-bottom:4px;font-size:.74rem;color:var(--text-muted);"><span>Item</span><span>Qty</span><span>Unit</span><span></span></div>'
-      + '<div id="extra-rows"></div>'
-      + '<div class="form-group" style="margin-top:12px;"><label class="form-label">Completed by</label><input class="form-control" id="bo-completedby" value="'+UI.esc(o.createdBy||'')+'" placeholder="Your name..."></div>';
-    Modal.open({ title:'Complete: '+UI.esc(o.templateName)+' \xd7'+(o.quantity||1), body:body, width:'560px',
-      footer:'<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>'
-            +'<button class="btn btn-primary" onclick="PantryMgr._executeComplete(\''+id+'\')"><i data-lucide="check-circle" style="width:14px;height:14px" aria-hidden="true"></i> Complete &amp; Deduct</button>' });
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  },
-
-  _addExtraRow() {
-    if (!document.getElementById('bb-extra-list')) {
-      const inventory = Storage.getAll('pantry_inventory')||[];
-      const names = Array.from(new Set(inventory.map(function(i){return i.name;}))).sort();
-      const dl = document.createElement('datalist'); dl.id='bb-extra-list';
-      dl.innerHTML = names.map(function(n){ return '<option value="'+UI.esc(n)+'">'; }).join('');
-      document.body.appendChild(dl);
-    }
-    const row = document.createElement('div');
-    row.className = 'bb-extra-row';
-    row.style.cssText = 'display:grid;grid-template-columns:1fr 70px 80px 32px;gap:6px;margin-bottom:6px;';
-    row.innerHTML = '<input class="form-control bb-extra-name" list="bb-extra-list" placeholder="Item name...">'
-      + '<input class="form-control bb-extra-qty" type="number" min="0.5" step="0.5" value="1">'
-      + '<input class="form-control bb-extra-unit" placeholder="unit">'
-      + '<button type="button" class="btn btn-ghost btn-sm text-danger" onclick="this.closest(\'.bb-extra-row\').remove()"><i data-lucide="x" style="width:13px;height:13px" aria-hidden="true"></i></button>';
-    document.getElementById('extra-rows').appendChild(row);
-    if (typeof lucide !== 'undefined') lucide.createIcons();
-  },
-
-  _collectExtras() {
-    const extras = [];
-    document.querySelectorAll('#extra-rows .bb-extra-row').forEach(function(row){
-      const name = (row.querySelector('.bb-extra-name') && row.querySelector('.bb-extra-name').value || '').trim();
-      const qty  = parseFloat(row.querySelector('.bb-extra-qty') && row.querySelector('.bb-extra-qty').value) || 0;
-      const unit = (row.querySelector('.bb-extra-unit') && row.querySelector('.bb-extra-unit').value || '').trim() || 'pcs';
-      if (name && qty>0) extras.push({ itemName:name, qty:qty, unit:unit });
-    });
-    return extras;
-  },
-
-  _executeComplete(id) {
-    const o = Storage.findById('pantry_box_orders', id); if (!o) return;
-    const extras      = PantryMgr._collectExtras();
-    const completedBy = (document.getElementById('bo-completedby') && document.getElementById('bo-completedby').value || '').trim();
-    const inventory   = Storage.getAll('pantry_inventory') || [];
-    const consumed    = [];
-    // Deduct BOM (per box x quantity)
-    (o.bom||[]).forEach(function(b){
-      const total = b.qty*(o.quantity||1);
-      const best  = PantryMgr._matchInv(inventory, b.itemName);
-      if (best) {
-        const newQty = Math.max(0, best.qty - total);
-        const upd = Storage.update('pantry_inventory', best.id, { qty:newQty });
-        PantryMgr._invWriteThrough(upd);
-        consumed.push({ itemName:best.name, invId:best.id, qty:total, unit:b.unit });
-        best.qty = newQty; // keep local copy current for repeated matches
-      }
-    });
-    // Deduct extras (absolute totals for the order)
-    extras.forEach(function(e){
-      const best = PantryMgr._matchInv(inventory, e.itemName);
-      if (best) {
-        const newQty = Math.max(0, best.qty - e.qty);
-        const upd = Storage.update('pantry_inventory', best.id, { qty:newQty });
-        PantryMgr._invWriteThrough(upd);
-        consumed.push({ itemName:best.name, invId:best.id, qty:e.qty, unit:e.unit, extra:true });
-        best.qty = newQty;
-      } else {
-        consumed.push({ itemName:e.itemName, invId:null, qty:e.qty, unit:e.unit, extra:true });
-      }
-    });
-    const upd = Storage.update('pantry_box_orders', id, {
-      status:'Completed', extras:extras, itemsConsumed:consumed,
-      completedBy:completedBy, completedAt:new Date().toISOString(),
-    });
-    PantryMgr._orderWriteThrough(upd);
-    Modal.close(); Toast.success('Completed — inventory deducted'); PantryMgr._gotoOrders();
-  },
-
-  distributeOrder(id) {
-    const o = Storage.findById('pantry_box_orders', id); if (!o) return;
-    const upd = Storage.update('pantry_box_orders', id, { status:'Distributed', distributedAt:new Date().toISOString() });
-    PantryMgr._orderWriteThrough(upd);
-    Toast.success('Marked distributed'); PantryMgr._gotoOrders();
-  },
-
-  returnOrder(id) {
-    const o = Storage.findById('pantry_box_orders', id); if (!o) return;
-    UI.confirm('Return this box’s items to active inventory?', function() {
-      const inventory = Storage.getAll('pantry_inventory') || [];
-      (o.itemsConsumed||[]).forEach(function(c){
-        let item = c.invId
-          ? inventory.find(function(i){ return i.id===c.invId; })
-          : PantryMgr._matchInv(inventory, c.itemName);
-        if (item) {
-          const upd = Storage.update('pantry_inventory', item.id, { qty:(item.qty||0)+c.qty });
-          PantryMgr._invWriteThrough(upd);
-          item.qty = (item.qty||0)+c.qty;
-        }
-      });
-      const upd = Storage.update('pantry_box_orders', id, { status:'Returned', returnedAt:new Date().toISOString() });
-      PantryMgr._orderWriteThrough(upd);
-      Toast.success('Items returned to inventory'); PantryMgr._gotoOrders();
-    });
-  },
-
-  // ----------------------------------------------------------------
-  //  Monthly planner — gap analysis, in-place DOM update
-  // ----------------------------------------------------------------
-  _runPlanner() {
-    const tmplEl = document.getElementById('planner-tmpl');
-    const qtyEl  = document.getElementById('planner-qty');
-    const output = document.getElementById('planner-output');
-    if (!tmplEl || !qtyEl || !output) return;
-    const templateId = tmplEl.value;
-    const targetQty  = parseInt(qtyEl.value) || 0;
-    if (!templateId || targetQty <= 0) { output.innerHTML = ''; return; }
     const template  = Storage.findById('pantry_box_templates', templateId); if (!template) return;
+    const qty       = parseInt(document.getElementById('qi-qty')?.value) || 1;
+    const issuedBy  = (document.getElementById('qi-by')?.value || '').trim();
+    const issueDate = document.getElementById('qi-date')?.value || Storage.today();
     const inventory = Storage.getAll('pantry_inventory') || [];
-    const rows = (template.items || []).map(function(bomLine) {
-      const needed = bomLine.qty * targetQty;
-      const best   = PantryMgr._matchInv(inventory, bomLine.itemName);
-      const onHand = best ? best.qty : 0;
-      const gap    = needed - onHand;
-      return { bomLine: bomLine, needed: needed, onHand: onHand, gap: gap };
+
+    (template.items || []).forEach(function(bomLine) {
+      const best = PantryMgr._matchInv(inventory, bomLine.itemName);
+      if (!best) return;
+      const deduct = bomLine.qty * qty;
+      const newQty = Math.max(0, (best.qty || 0) - deduct);
+      Storage.update('pantry_inventory', best.id, { qty: newQty });
     });
-    const allOk = rows.every(function(r) { return r.gap <= 0; });
-    const gaps  = rows.filter(function(r) { return r.gap > 0; });
-    let tableRows = '';
-    rows.forEach(function(r) {
-      const ok = r.gap <= 0;
-      tableRows += '<tr>'
-        + '<td>' + UI.esc(r.bomLine.itemName) + '</td>'
-        + '<td style="text-align:center">' + r.bomLine.qty + ' ' + UI.esc(r.bomLine.unit) + '/box</td>'
-        + '<td style="text-align:center;font-weight:700">' + r.needed + '</td>'
-        + '<td style="text-align:center">' + r.onHand + '</td>'
-        + '<td style="text-align:center;font-weight:700;color:' + (ok ? '#15803d' : 'var(--red)') + '">'
-        + (ok ? '✓ OK' : ('−' + r.gap + ' needed')) + '</td></tr>';
+
+    Storage.insert('pantry_build_orders', {
+      templateId:   templateId,
+      templateName: template.name,
+      qty:          qty,
+      builtBy:      issuedBy,
+      builtDate:    issueDate,
+      notes:        'Quick Issue',
+      status:       'Issued',
     });
-    const banner = allOk
-      ? '<div style="background:#22c55e22;border:1px solid #16a34a;border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:.84rem;color:#15803d">'
-        + '✓ You have enough stock to build all <strong>' + targetQty + '</strong> boxes!</div>'
-      : '<div style="background:var(--accent-light);border:1px solid var(--orange);border-radius:6px;padding:10px 14px;margin-bottom:12px;font-size:.84rem;">'
-        + '<strong>Donation Gap:</strong> '
-        + gaps.map(function(r) { return '<strong>' + r.gap + ' ' + r.bomLine.unit + '</strong> of ' + UI.esc(r.bomLine.itemName); }).join(', ')
-        + '</div>';
-    output.innerHTML = banner
-      + '<div class="table-wrap"><table class="data-table" style="font-size:.83rem;">'
-      + '<thead><tr><th>Item</th><th>Per Box</th><th>Total Needed (' + targetQty + ' boxes)</th><th>On Hand</th><th>Status</th></tr></thead>'
-      + '<tbody>' + tableRows + '</tbody></table></div>';
+
+    Modal.close();
+    Toast.success('Issued ' + qty + ' \xD7 ' + template.name);
+    this._rerender?.();
   },
+
 };
 window.PantryMgr = PantryMgr;

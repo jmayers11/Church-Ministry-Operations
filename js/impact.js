@@ -129,7 +129,7 @@ Navigation.register('impact', function render(page) {
           ).join('')}
         </select>
         <button class="btn btn-outline btn-sm" onclick="BoardReport.generate(-1)" aria-label="Generate board report for last month">
-          <i data-lucide="file-text" style="width:14px;height:14px" aria-hidden="true"></i> Board Report
+          <i data-lucide="file-text" class="icon-sm" aria-hidden="true"></i> Board Report
         </button>
       </div>
     </div>
@@ -200,7 +200,7 @@ Navigation.register('impact', function render(page) {
           <div><div style="font-size:2rem;font-weight:900;color:${lowStockCount>0?'var(--red)':'var(--green)'}">${lowStockCount}</div><div style="font-size:.76rem;color:var(--text-muted)">Low/Out of Stock</div></div>
           <div><div style="font-size:2rem;font-weight:900;color:var(--green)">${allDists.length}</div><div style="font-size:.76rem;color:var(--text-muted)">Total Distributions</div></div>
         </div>
-        ${lowStockCount > 0 ? `<div style="font-size:.82rem;color:var(--red);text-align:center;padding-bottom:8px;">⚠ ${lowStockCount} item${lowStockCount>1?'s':''} need restocking</div>` : ''}
+        ${lowStockCount > 0 ? `<div style="font-size:.82rem;color:var(--red);text-align:center;padding-bottom:8px;"><i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> ${lowStockCount} item${lowStockCount>1?'s':''} need restocking</div>` : ''}
       </div>
 
       <div class="card">
@@ -256,7 +256,7 @@ Navigation.register('impact', function render(page) {
             </tbody>
           </table>
         </div>` :
-        `<div class="empty-state"><div class="empty-state-icon">🌍</div><div class="empty-state-title">No completed outreach events yet</div></div>`
+        `<div class="empty-state"><div class="empty-state-icon"><i data-lucide="globe" class="icon-inline" aria-hidden="true"></i></div><div class="empty-state-title">No completed outreach events yet</div></div>`
       }
     </div>
   `;

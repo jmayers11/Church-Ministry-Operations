@@ -1,275 +1,401 @@
 /* =============================================================
    checkin.js  —  Check-In & Attendance
-   Headcount quick-entry, per-member check-in, 13-week trend
+   Tabs: Today | 13-Week Trend | History | Absentees
    ============================================================= */
 
-const CheckIn = {};
-window.CheckIn = CheckIn;
+/* ── Demo seed: 13 weeks of attendance data ─────────────── */
+(function seedCheckIns() {
+  if (Storage.get('_checkins_seeded')) return;
+  if (!window.DEMO_MODE) { Storage.set('_checkins_seeded', true); return; }
+  const members = Storage.getAll('members') || [];
+  const active  = members.filter(function(m){ return m.status === 'Active'; });
+  const today   = new Date(Storage.today());
+  // 13 weeks of Sunday headcounts + realistic member check-ins
+  for (let w = 12; w >= 0; w--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - w * 7);
+    const dt     = d.toISOString().slice(0,10);
+    const base   = 110 + Math.floor(Math.random() * 60);
+    const hcRec  = Storage.getAll('checkins').find(function(c){ return c.date === dt && c.type === 'headcount'; });
+    if (!hcRec) Storage.insert('checkins', { date: dt, type: 'headcount', count: base, service: '10:30am' });
+    // Check in 60-85% of active members on each Sunday
+    const sample = [...active].sort(function(){ return Math.random()-0.5; }).slice(0, Math.floor(active.length * (0.6 + Math.random() * 0.25)));
+    sample.forEach(function(m){
+      const already = Storage.getAll('checkins').some(function(c){ return c.date === dt && c.memberId === m.id && c.type === 'member'; });
+      if (!already) Storage.insert('checkins', { date: dt, type: 'member', memberId: m.id, memberType: 'member', service: '10:30am' });
+    });
+  }
+  Storage.set('_checkins_seeded', true);
+}());
 
+/* ═══════════════════════════════════════════════════════════ */
 Navigation.register('checkin', function render(page) {
-  const today    = Storage.today();
-  const allMembers  = Storage.getAll('members') || [];
-  const allVisitors = Storage.getAll('visitors') || [];
-  const allCheckins = Storage.getAll('checkins') || [];
+  const today      = Storage.today();
+  const allMembers = Storage.getAll('members')  || [];
+  const allVisitors= Storage.getAll('visitors') || [];
+  const allCheckins= Storage.getAll('checkins') || [];
+  const _tab       = Storage.get('_checkin_tab') || 'today';
+  const SERVICES   = ['8:00am','10:30am','6:00pm'];
 
-  // ── Active tab state ─────────────────────────────────────────
-  const _tab = Storage.get('_checkin_tab') || 'today';
+  /* ── Helpers ─────────────────────────────────────────────── */
+  function memberName(m) { return ((m.firstName||'') + ' ' + (m.lastName||'')).trim() || m.name || ''; }
+  function todayRecs()   { return allCheckins.filter(function(c){ return c.date === today; }); }
+  function todayHC()     { return todayRecs().find(function(c){ return c.type === 'headcount'; }); }
+  function checkedInIds(){ return new Set(todayRecs().filter(function(c){ return c.type==='member'; }).map(function(c){ return c.memberId; })); }
 
-  // ── Helpers ──────────────────────────────────────────────────
-  function todayCheckins() {
-    return allCheckins.filter(c => c.date === today);
-  }
-  function isCheckedIn(memberId) {
-    return todayCheckins().some(c => c.memberId === memberId && c.date === today);
-  }
-  function memberName(m) { return `${m.firstName || ''} ${m.lastName || ''}`.trim(); }
+  /* All attendee cards (active members + regular visitors) */
+  const attendees = [
+    ...allMembers.filter(function(m){ return m.status==='Active'; }).map(function(m){ return Object.assign({},m,{_type:'member'}); }),
+    ...allVisitors.filter(function(v){ return v.status==='Regular'; }).map(function(v){ return { id:v.id, firstName:v.firstName||v.name?.split(' ')[0]||'', lastName:v.lastName||v.name?.split(' ').slice(1).join(' ')||'', _type:'visitor', family:v.family||'' }; }),
+  ].sort(function(a,b){ return memberName(a).localeCompare(memberName(b)); });
 
-  // Quick-entry headcount for today
-  const todayHC = allCheckins.find(c => c.date === today && c.type === 'headcount');
-  const todayHCValue = todayHC ? (todayHC.count || 0) : '';
+  const _search = Storage.get('_checkin_search') || '';
+  const filtered = _search
+    ? attendees.filter(function(m){ return memberName(m).toLowerCase().includes(_search.toLowerCase()) || (m.family||'').toLowerCase().includes(_search.toLowerCase()); })
+    : attendees;
 
-  // Per-member count today
-  const memberCount = todayCheckins().filter(c => c.type === 'member').length;
-
-  // ── 13-week trend ────────────────────────────────────────────
+  /* ── 13-week trend ─────────────────────────────────────── */
   function buildTrend13() {
     const rows = [];
     for (let i = 12; i >= 0; i--) {
-      const d = new Date(today);
-      // Step back by Sunday-aligned weeks
-      d.setDate(d.getDate() - i * 7);
-      const ym = d.toISOString().slice(0, 10);
-      const week = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      // Headcount takes priority; fallback to member check-in count
-      const hc = allCheckins.find(c => c.date === ym && c.type === 'headcount');
-      const mc = allCheckins.filter(c => c.date === ym && c.type === 'member').length;
-      rows.push({ date: ym, week, count: hc ? Number(hc.count || 0) : mc });
+      const d = new Date(today); d.setDate(d.getDate() - i * 7);
+      const ym   = d.toISOString().slice(0,10);
+      const week = d.toLocaleDateString('en-US', { month:'short', day:'numeric' });
+      const hc   = allCheckins.find(function(c){ return c.date===ym && c.type==='headcount'; });
+      const mc   = allCheckins.filter(function(c){ return c.date===ym && c.type==='member'; }).length;
+      rows.push({ date:ym, week, count: hc ? Number(hc.count||0) : mc });
     }
     return rows;
   }
-  const trend = buildTrend13();
-  const trendMax = Math.max(...trend.map(r => r.count), 1);
+  const trend      = buildTrend13();
+  const trendLabels= trend.map(function(r){ return r.week; });
+  const trendVals  = trend.map(function(r){ return r.count; });
+  const avgAttend  = Math.round(trendVals.filter(function(v){ return v>0; }).reduce(function(a,b){ return a+b; }, 0) / (trendVals.filter(function(v){ return v>0; }).length || 1));
 
-  // ── Attendance trend for chart ────────────────────────────────
-  const trendLabels = trend.map(r => r.week);
-  const trendVals   = trend.map(r => r.count);
-
-  // ── Member search state ───────────────────────────────────────
-  const _search = Storage.get('_checkin_search') || '';
-
-  // All attendees (members + active visitors who are "regular")
-  const attendees = [
-    ...allMembers.filter(m => m.status === 'Active').map(m => ({ ...m, _type: 'member' })),
-    ...allVisitors.filter(v => v.status === 'Regular').map(v => ({
-      id: v.id,
-      firstName: v.firstName || v.name?.split(' ')[0] || '',
-      lastName: v.lastName || v.name?.split(' ').slice(1).join(' ') || '',
-      _type: 'visitor',
-      family: v.family || '',
-    })),
-  ].sort((a, b) => memberName(a).localeCompare(memberName(b)));
-
-  const filtered = _search
-    ? attendees.filter(m => memberName(m).toLowerCase().includes(_search.toLowerCase()) ||
-        (m.family || '').toLowerCase().includes(_search.toLowerCase()))
-    : attendees;
-
-  // Tab HTML builders
+  /* ═══════════════════════════════════════════════
+     TAB: TODAY
+  ═══════════════════════════════════════════════ */
   function tabToday() {
-    const tciRows = todayCheckins().filter(c => c.type === 'member');
-    const checkedIds = new Set(tciRows.map(c => c.memberId));
+    const checkedIds = checkedInIds();
+    const hcRec      = todayHC();
+    const hcVal      = hcRec ? (hcRec.count || 0) : '';
+    const curSvc     = Storage.get('_checkin_service') || '10:30am';
 
-    return `
-      <!-- Quick headcount -->
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-header">
-          <h3 class="card-title"><i data-lucide="users" class="icon-inline" aria-hidden="true"></i>Headcount — ${new Date(today + 'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})}</h3>
-        </div>
-        <div style="display:flex;align-items:center;gap:16px;padding:8px 0 4px;">
-          <div>
-            <label class="form-label" for="ci-headcount">Total Attendance</label>
-            <div style="display:flex;gap:8px;align-items:center">
-              <input type="number" id="ci-headcount" class="form-input" style="width:120px"
-                     min="0" value="${UI.esc(String(todayHCValue))}" placeholder="0"
-                     aria-label="Total headcount">
-              <button class="btn btn-primary" onclick="CheckIn._saveHeadcount()">
-                <i data-lucide="save" style="width:14px;height:14px" aria-hidden="true"></i> Save
-              </button>
-            </div>
-          </div>
-          <div class="stat-box" style="min-width:120px">
-            <div style="font-size:1.6rem;font-weight:900;color:var(--accent)">${memberCount}</div>
-            <div style="font-size:.74rem;color:var(--text-muted)">Checked In</div>
-          </div>
-          <div class="stat-box" style="min-width:120px">
-            <div style="font-size:1.6rem;font-weight:900;color:var(--green)">${attendees.length}</div>
-            <div style="font-size:.74rem;color:var(--text-muted)">Active Members &amp; Regulars</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Per-member check-in -->
-      <div class="card">
-        <div class="card-header">
-          <h3 class="card-title"><i data-lucide="scan-line" class="icon-inline" aria-hidden="true"></i>Member Check-In</h3>
-          <div class="search-bar" style="min-width:220px">
-            <i data-lucide="search" class="search-icon" aria-hidden="true"></i>
-            <input type="search" class="search-input" id="ci-search" placeholder="Search by name…"
-                   value="${UI.esc(_search)}" oninput="CheckIn._onSearch(this.value)"
-                   aria-label="Search members">
-          </div>
-        </div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;padding-top:4px;" id="ci-grid">
-          ${filtered.length === 0
-            ? `<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--text-muted)">No members match "${UI.esc(_search)}"</div>`
-            : filtered.map(m => {
-                const checked = checkedIds.has(m.id);
-                return `<button class="ci-member-card${checked ? ' ci-member-card--checked' : ''}"
-                          onclick="CheckIn._toggle('${m.id}','${m._type}',this)"
-                          aria-pressed="${checked}"
-                          aria-label="${checked ? 'Check out' : 'Check in'} ${UI.esc(memberName(m))}">
-                  <span class="ci-check-icon"><i data-lucide="${checked ? 'check-circle-2' : 'circle'}" aria-hidden="true"></i></span>
-                  <span class="ci-name">${UI.esc(memberName(m))}</span>
-                  ${m.family ? `<span class="ci-family">${UI.esc(m.family)}</span>` : ''}
-                  ${m._type === 'visitor' ? `<span class="badge badge-orange" style="font-size:.65rem;margin-top:2px">Visitor</span>` : ''}
-                </button>`;
-              }).join('')}
-        </div>
-      </div>`;
+    return '<div class="card" style="margin-bottom:16px">'
+      +'<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">'
+      +'<div>'
+      +'<label class="form-label" for="ci-headcount">Headcount — '
+      +new Date(today+'T00:00:00').toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric'})
+      +'</label>'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+      +'<input type="number" id="ci-headcount" class="form-control" style="width:110px" min="0" value="'+UI.esc(String(hcVal))+'" placeholder="0" aria-label="Total headcount">'
+      +'<select class="form-control" id="ci-service" style="width:110px" onchange="CheckIn._setService(this.value)">'
+      +SERVICES.map(function(s){ return '<option'+(s===curSvc?' selected':'')+'>'+s+'</option>'; }).join('')
+      +'</select>'
+      +'<button class="btn btn-primary" onclick="CheckIn._saveHeadcount()"><i data-lucide="save" class="icon-xs" aria-hidden="true"></i> Save</button>'
+      +'</div></div>'
+      +'<div class="stat-box" style="text-align:center">'
+      +'<div id="ci-count-display" style="font-size:1.8rem;font-weight:900;color:var(--accent)">'+checkedIds.size+'</div>'
+      +'<div style="font-size:.72rem;color:var(--text-muted)">Checked In</div></div>'
+      +'<div class="stat-box" style="text-align:center">'
+      +'<div style="font-size:1.8rem;font-weight:900;color:var(--success)">'+attendees.length+'</div>'
+      +'<div style="font-size:.72rem;color:var(--text-muted)">On Roster</div></div>'
+      +(attendees.length > 0 ? '<div class="stat-box" style="text-align:center"><div style="font-size:1.8rem;font-weight:900">'+Math.round(checkedIds.size/attendees.length*100)+'%</div><div style="font-size:.72rem;color:var(--text-muted)">Attendance Rate</div></div>' : '')
+      +'</div></div>'
+      // Search + walk-in
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px;margin-top:16px;">'
+      +'<div class="search-input-wrap" style="flex:1;min-width:200px"><i data-lucide="search" class="search-icon" aria-hidden="true"></i>'
+      +'<input type="search" class="search-input" id="ci-search" placeholder="Search by name or family…" value="'+UI.esc(_search)+'" oninput="CheckIn._onSearch(this.value)" aria-label="Search members"></div>'
+      +'<button class="btn btn-outline" onclick="CheckIn._walkIn()"><i data-lucide="user-plus" class="icon-xs" aria-hidden="true"></i> Walk-In</button>'
+      +'<button class="btn btn-outline" onclick="CheckIn._printRoster()" title="Print today\'s check-in list"><i data-lucide="printer" class="icon-xs" aria-hidden="true"></i> Print</button>'
+      +'</div>'
+      // Member grid
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;" id="ci-grid">'
+      +(filtered.length === 0
+        ? '<div style="grid-column:1/-1;text-align:center;padding:32px;color:var(--text-muted)">No matches for &ldquo;'+UI.esc(_search)+'&rdquo;</div>'
+        : filtered.map(function(m) {
+            const checked = checkedIds.has(m.id);
+            return '<button class="ci-member-card'+(checked?' ci-member-card--checked':'')+'" onclick="CheckIn._toggle(\''+m.id+'\',\''+m._type+'\',this)" aria-pressed="'+(checked?'true':'false')+'" aria-label="'+(checked?'Check out ':'Check in ')+UI.esc(memberName(m))+'">'
+              +'<span class="ci-check-icon"><i data-lucide="'+(checked?'check-circle-2':'circle')+'" aria-hidden="true"></i></span>'
+              +'<span class="ci-name">'+UI.esc(memberName(m))+'</span>'
+              +(m.family ? '<span class="ci-family">'+UI.esc(m.family)+'</span>' : '')
+              +(m._type==='visitor' ? '<span class="badge badge-orange" style="font-size:.62rem;margin-top:2px">Visitor</span>' : '')
+              +'</button>';
+          }).join('')
+      )+'</div>';
   }
 
+  /* ═══════════════════════════════════════════════
+     TAB: TREND
+  ═══════════════════════════════════════════════ */
+  function tabTrend() {
+    const avg13 = avgAttend;
+    const last  = trendVals[trendVals.length-1];
+    const prev  = trendVals[trendVals.length-2] || 0;
+    const delta = last - prev;
+    return '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px;">'
+      +UI.kpi({ icon:'users', value:last||0, label:'This Week', delta:delta!==0?Math.abs(delta):null, deltaDir:delta>=0?'up':'down', accent:'brand' })
+      +UI.kpi({ icon:'bar-chart-3', value:avg13, label:'13-Week Avg', accent:'info' })
+      +UI.kpi({ icon:'trending-up', value:Math.max(...trendVals), label:'Peak (13 wk)', accent:'success' })
+      +'</div>'
+      +'<div class="card" style="margin-bottom:16px">'
+      +'<div class="card-header"><h3 class="card-title"><i data-lucide="trending-up" class="icon-inline" aria-hidden="true"></i>13-Week Attendance Trend</h3></div>'
+      +'<div class="chart-canvas-wrap" style="height:220px"><canvas id="ci-trend-chart"></canvas></div></div>'
+      +'<div class="table-wrap"><table class="data-table">'
+      +'<thead><tr><th>Week of</th><th class="text-right">Attendance</th><th>vs Avg</th><th>vs Prior Week</th></tr></thead>'
+      +'<tbody>'+trend.map(function(r,i){
+        const prev2 = i > 0 ? trend[i-1].count : null;
+        const diff  = prev2 !== null ? r.count - prev2 : null;
+        const vAvg  = r.count > 0 ? r.count - avg13 : null;
+        const clsDiff = diff === null || r.count===0 ? '' : diff > 0 ? 'color:var(--success)' : diff < 0 ? 'color:var(--danger)' : '';
+        const clsAvg  = vAvg === null ? '' : vAvg > 0 ? 'color:var(--success)' : vAvg < 0 ? 'color:var(--danger)' : '';
+        return '<tr'+(r.date===today?' style="font-weight:700"':'')+'>'
+          +'<td>'+r.week+(r.date===today?' <span class="badge badge-blue" style="font-size:.62rem">Today</span>':'')+'</td>'
+          +'<td class="text-right">'+(r.count||'—')+'</td>'
+          +'<td style="'+clsAvg+'">'+(vAvg!==null&&r.count>0?(vAvg>0?'+':'')+vAvg:'—')+'</td>'
+          +'<td style="'+clsDiff+'">'+(diff!==null&&r.count>0?(diff>0?'+':'')+diff:'—')+'</td>'
+          +'</tr>';
+      }).join('')+'</tbody></table></div>';
+  }
+
+  /* ═══════════════════════════════════════════════
+     TAB: HISTORY
+  ═══════════════════════════════════════════════ */
   function tabHistory() {
-    // Group by date, show last 20 dates
     const byDate = {};
-    allCheckins.forEach(c => {
-      if (!byDate[c.date]) byDate[c.date] = { headcount: null, members: [] };
-      if (c.type === 'headcount') byDate[c.date].headcount = c;
+    allCheckins.forEach(function(c){
+      if (!byDate[c.date]) byDate[c.date] = { headcount:null, members:[] };
+      if (c.type==='headcount') byDate[c.date].headcount = c;
       else byDate[c.date].members.push(c);
     });
-    const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a)).slice(0, 20);
+    const dates = Object.keys(byDate).sort(function(a,b){ return b.localeCompare(a); }).slice(0,26);
+    if (!dates.length) return UI.emptyState({ icon:'calendar-x', title:'No attendance history yet', body:'Check in members on the Today tab to start tracking.' });
 
-    if (!dates.length) return UI.emptyState({ icon: 'calendar-x', title: 'No attendance history yet', sub: 'Check in members on the Today tab to start tracking.' });
+    const drillDate = Storage.get('_checkin_drill');
+    if (drillDate && byDate[drillDate]) {
+      const d       = byDate[drillDate];
+      const hc      = d.headcount ? d.headcount.count : d.members.length;
+      const service = d.headcount?.service || '';
+      const memberLookup = {};
+      allMembers.forEach(function(m){ memberLookup[m.id]=m; });
+      return '<div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">'
+        +'<button class="btn btn-ghost btn-sm" onclick="CheckIn._drillBack()"><i data-lucide="arrow-left" class="icon-xs" aria-hidden="true"></i> Back</button>'
+        +'<h3 style="font-size:var(--text-base);font-weight:800;margin:0">'+UI.fmtDate(drillDate)+(service?' &middot; '+UI.esc(service):'')+'</h3>'
+        +'<span class="badge badge-blue">'+hc+' attendance</span></div>'
+        +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">'
+        +d.members.map(function(c){
+          const m = memberLookup[c.memberId];
+          const name = m ? memberName(m) : 'Unknown';
+          return '<div class="ci-member-card ci-member-card--checked" style="pointer-events:none">'
+            +'<span class="ci-check-icon"><i data-lucide="check-circle-2" aria-hidden="true"></i></span>'
+            +'<span class="ci-name">'+UI.esc(name)+'</span>'
+            +(m?.family ? '<span class="ci-family">'+UI.esc(m.family)+'</span>' : '')
+            +'</div>';
+        }).join('')
+        +(d.members.length===0 ? '<div class="text-meta" style="padding:20px 0">No individual check-ins recorded for this date.</div>' : '')
+        +'</div>';
+    }
 
-    return `<div class="table-wrap"><table class="data-table">
-      <thead><tr><th>Date</th><th>Headcount</th><th>Members Checked In</th></tr></thead>
-      <tbody>${dates.map(dt => {
-        const d = byDate[dt];
+    return '<div class="table-wrap"><table class="data-table">'
+      +'<thead><tr><th>Date</th><th>Service</th><th class="text-right">Headcount</th><th class="text-right">Members</th><th></th></tr></thead>'
+      +'<tbody>'+dates.map(function(dt){
+        const d  = byDate[dt];
         const hc = d.headcount ? d.headcount.count : (d.members.length || '—');
-        return `<tr>
-          <td>${UI.fmtDate(dt)}</td>
-          <td>${hc}</td>
-          <td>${d.members.length}</td>
-        </tr>`;
-      }).join('')}</tbody>
-    </table></div>`;
+        return '<tr>'
+          +'<td>'+UI.fmtDate(dt)+(dt===today?' <span class="badge badge-blue" style="font-size:.62rem">Today</span>':'')+'</td>'
+          +'<td class="text-meta">'+(d.headcount?.service||'—')+'</td>'
+          +'<td class="text-right">'+hc+'</td>'
+          +'<td class="text-right">'+d.members.length+'</td>'
+          +'<td><button class="btn btn-ghost btn-sm" onclick="CheckIn._drill(\''+dt+'\')">Details</button></td>'
+          +'</tr>';
+      }).join('')+'</tbody></table></div>';
   }
 
-  function tabTrend() {
-    return `
-      <div class="card" style="margin-bottom:16px">
-        <div class="card-header"><h3 class="card-title"><i data-lucide="trending-up" class="icon-inline" aria-hidden="true"></i>13-Week Attendance Trend</h3></div>
-        <div class="chart-canvas-wrap" style="height:220px"><canvas id="ci-trend-chart"></canvas></div>
-      </div>
-      <div class="table-wrap"><table class="data-table">
-        <thead><tr><th>Week of</th><th class="text-right">Attendance</th><th>vs Prior Week</th></tr></thead>
-        <tbody>${trend.map((r, i) => {
-          const prev = i > 0 ? trend[i - 1].count : null;
-          const diff = prev !== null ? r.count - prev : null;
-          const cls = diff === null ? '' : diff > 0 ? 'color:var(--green)' : diff < 0 ? 'color:var(--red)' : '';
-          const sign = diff > 0 ? '+' : '';
-          return `<tr${r.date === today ? ' style="font-weight:700"' : ''}>
-            <td>${r.week}${r.date === today ? ' <span class="badge badge-blue" style="font-size:.65rem">Today</span>' : ''}</td>
-            <td class="text-right">${r.count || '—'}</td>
-            <td style="${cls}">${diff !== null && r.count > 0 ? `${sign}${diff}` : '—'}</td>
-          </tr>`;
-        }).join('')}</tbody>
-      </table></div>`;
+  /* ═══════════════════════════════════════════════
+     TAB: ABSENTEES
+  ═══════════════════════════════════════════════ */
+  function tabAbsentees() {
+    const WEEKS = Number(Storage.get('_ci_absent_weeks') || 3);
+    // Compute last check-in date per member
+    const lastSeen = {};
+    allCheckins.filter(function(c){ return c.type==='member'; }).forEach(function(c){
+      if (!lastSeen[c.memberId] || c.date > lastSeen[c.memberId]) lastSeen[c.memberId] = c.date;
+    });
+    const cutoff = new Date(today); cutoff.setDate(cutoff.getDate() - WEEKS * 7);
+    const cutoffStr = cutoff.toISOString().slice(0,10);
+
+    const active = allMembers.filter(function(m){ return m.status==='Active'; });
+    const absent = active.filter(function(m){
+      const ls = lastSeen[m.id];
+      return !ls || ls < cutoffStr;
+    }).sort(function(a,b){
+      const la = lastSeen[a.id]||'', lb = lastSeen[b.id]||'';
+      return la.localeCompare(lb); // oldest first
+    });
+
+    const checkedToday = checkedInIds();
+    const absentToday  = active.filter(function(m){ return !checkedToday.has(m.id); });
+
+    return '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;">'
+      +UI.kpi({ icon:'user-x', value:absent.length, label:'Absent '+WEEKS+'+ Weeks', accent:'danger', sm:true })
+      +UI.kpi({ icon:'user-minus', value:absentToday.length, label:'Not Here Today', accent:'warning', sm:true })
+      +UI.kpi({ icon:'users', value:active.length, label:'Active Members', accent:'brand', sm:true })
+      +'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">'
+      +'<span class="text-meta" style="font-size:.8rem">Show absent ≥</span>'
+      +'<select class="form-control" style="width:80px" aria-label="Minimum weeks absent" onchange="CheckIn._setAbsentWeeks(this.value)">'
+      +[2,3,4,6,8].map(function(w){ return '<option'+(w===WEEKS?' selected':'')+'>'+w+'</option>'; }).join('')
+      +'</select><span class="text-meta" style="font-size:.8rem">weeks</span>'
+      +'</div>'
+      +(absent.length === 0
+        ? '<div class="empty-state"><div class="empty-state-icon"><i data-lucide="check-circle" aria-hidden="true"></i></div><div class="empty-state-title">Everyone is attending regularly!</div></div>'
+        : '<div class="table-wrap"><table class="data-table">'
+          +'<thead><tr><th>Member</th><th>Team</th><th>Last Seen</th><th>Weeks Absent</th><th>Actions</th></tr></thead>'
+          +'<tbody>'+absent.map(function(m){
+            const ls   = lastSeen[m.id];
+            const daysAgo = ls ? Math.floor((new Date(today) - new Date(ls)) / 86400000) : null;
+            const weeksAgo = daysAgo !== null ? Math.floor(daysAgo / 7) : null;
+            const urgClass = weeksAgo === null || weeksAgo > 8 ? 'color:var(--danger)' : weeksAgo > 5 ? 'color:var(--warning)' : '';
+            return '<tr>'
+              +'<td><strong>'+UI.esc(memberName(m))+'</strong>'+(m.family?'<div class="text-meta" style="font-size:.72rem">'+UI.esc(m.family)+'</div>':'')+'</td>'
+              +'<td><span class="badge badge-blue">'+UI.esc(m.team||m.memberType||'—')+'</span></td>'
+              +'<td class="text-meta">'+(ls ? UI.fmtDate(ls) : '<span style="color:var(--danger)">Never</span>')+'</td>'
+              +'<td style="'+urgClass+';font-weight:700">'+(weeksAgo!==null ? weeksAgo+'w' : '—')+'</td>'
+              +'<td>'
+              +'<button class="btn btn-ghost btn-sm" onclick="CheckIn._toggleAbsent(\''+m.id+'\')">Check In Now</button> '
+              +'<button class="btn btn-ghost btn-sm" onclick="Navigation.navigate(\'care\')" title="Log a care visit">Care</button>'
+              +'</td></tr>';
+          }).join('')+'</tbody></table></div>');
   }
 
+  /* ── Page shell ──────────────────────────────────────────── */
+  const hcRec2     = todayHC();
+  const todayCount = checkedInIds().size;
   const tabs = [
-    { id: 'today',   label: 'Today',   icon: 'scan-line' },
-    { id: 'trend',   label: '13-Week Trend', icon: 'trending-up' },
-    { id: 'history', label: 'History', icon: 'history' },
+    { id:'today',     label:'Today',        icon:'scan-line'  },
+    { id:'trend',     label:'13-Week Trend', icon:'trending-up' },
+    { id:'history',   label:'History',       icon:'history'    },
+    { id:'absentees', label:'Absentees',     icon:'user-x'     },
   ];
 
-  page.innerHTML = `
-    <div class="section-header">
-      <h2 class="section-title"><i data-lucide="scan-line" class="icon-inline" aria-hidden="true"></i>Check-In &amp; Attendance</h2>
-    </div>
-    ${UI.tabs(tabs, _tab, 'CheckIn._setTab')}
-    <div id="ci-content"></div>
-  `;
+  page.innerHTML =
+    '<div class="section-header"><div>'
+    +'<h2 class="section-title"><i data-lucide="scan-line" class="icon-inline" aria-hidden="true"></i>Check-In &amp; Attendance</h2>'
+    +'<div class="section-subtitle">'+attendees.length+' on roster &nbsp;&middot;&nbsp; '+avgAttend+' avg weekly attendance</div>'
+    +'</div></div>'
+    +UI.tabs(tabs, _tab, 'CheckIn._setTab')
+    +'<div id="ci-content"></div>';
 
   function renderContent() {
     const content = document.getElementById('ci-content');
     if (!content) return;
-    if (_tab === 'today')   content.innerHTML = tabToday();
-    else if (_tab === 'trend')   content.innerHTML = tabTrend();
-    else if (_tab === 'history') content.innerHTML = tabHistory();
-    lucide.createIcons();
-    if (_tab === 'trend') {
-      setTimeout(() => {
-        UI.drawBarChart('ci-trend-chart', trendLabels, trendVals, 'var(--accent)');
-      }, 50);
+    if      (_tab==='today')     content.innerHTML = tabToday();
+    else if (_tab==='trend')     content.innerHTML = tabTrend();
+    else if (_tab==='history')   content.innerHTML = tabHistory();
+    else if (_tab==='absentees') content.innerHTML = tabAbsentees();
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+    if (_tab==='trend') {
+      setTimeout(function(){ UI.drawBarChart('ci-trend-chart', trendLabels, trendVals, 'var(--accent)'); }, 50);
     }
   }
 
   renderContent();
-  lucide.createIcons();
 
-  // ── Actions ──────────────────────────────────────────────────
+  /* ── Actions ─────────────────────────────────────────────── */
   CheckIn._saveHeadcount = function() {
     const val = Number(document.getElementById('ci-headcount')?.value || 0);
     if (isNaN(val) || val < 0) { Toast.error('Enter a valid headcount'); return; }
-    const existing = allCheckins.find(c => c.date === today && c.type === 'headcount');
-    if (existing) {
-      Storage.update('checkins', existing.id, { count: val });
-    } else {
-      Storage.insert('checkins', { date: today, type: 'headcount', count: val });
-    }
+    const svc = document.getElementById('ci-service')?.value || '10:30am';
+    const existing = Storage.getAll('checkins').find(function(c){ return c.date===today && c.type==='headcount'; });
+    if (existing) Storage.update('checkins', existing.id, { count:val, service:svc });
+    else          Storage.insert('checkins', { date:today, type:'headcount', count:val, service:svc });
     Toast.success('Headcount saved');
   };
 
+  CheckIn._setService = function(val) { Storage.set('_checkin_service', val); };
+
   CheckIn._toggle = function(memberId, memberType, btn) {
-    // Always read fresh from storage — the closure snapshot is stale after mutations
-    const freshCheckins = Storage.getAll('checkins') || [];
-    const rec = freshCheckins.find(c => c.memberId === memberId && c.date === today && c.type === 'member');
-    const alreadyIn = !!rec;
-
-    // Counter badge (first .stat-box = "Checked In" box)
-    const statBox = document.querySelector('.stat-box');
-    const statVal = statBox ? statBox.querySelector('div') : null;
-
-    if (alreadyIn) {
+    const fresh  = Storage.getAll('checkins') || [];
+    const rec    = fresh.find(function(c){ return c.memberId===memberId && c.date===today && c.type==='member'; });
+    const in_now = !!rec;
+    if (in_now) {
       Storage.removeItem('checkins', rec.id);
       btn.classList.remove('ci-member-card--checked');
-      btn.setAttribute('aria-pressed', 'false');
-      btn.setAttribute('aria-label', 'Check in ' + btn.getAttribute('aria-label').replace(/^Check (in|out) /, ''));
+      btn.setAttribute('aria-pressed','false');
       const icon = btn.querySelector('[data-lucide]');
-      if (icon) { icon.setAttribute('data-lucide', 'circle'); lucide.createIcons(); }
-      // Decrement counter
-      if (statVal) statVal.textContent = String(Math.max(0, Number(statVal.textContent) - 1));
+      if (icon) { icon.setAttribute('data-lucide','circle'); if(typeof lucide!=='undefined') lucide.createIcons(); }
+      const disp = document.getElementById('ci-count-display');
+      if (disp) disp.textContent = String(Math.max(0, Number(disp.textContent)-1));
     } else {
-      Storage.insert('checkins', { date: today, type: 'member', memberId, memberType });
+      Storage.insert('checkins', { date:today, type:'member', memberId, memberType, service: Storage.get('_checkin_service')||'10:30am' });
       btn.classList.add('ci-member-card--checked');
-      btn.setAttribute('aria-pressed', 'true');
-      btn.setAttribute('aria-label', 'Check out ' + btn.getAttribute('aria-label').replace(/^Check (in|out) /, ''));
+      btn.setAttribute('aria-pressed','true');
       const icon = btn.querySelector('[data-lucide]');
-      if (icon) { icon.setAttribute('data-lucide', 'check-circle-2'); lucide.createIcons(); }
-      // Increment counter
-      if (statVal) statVal.textContent = String(Number(statVal.textContent) + 1);
+      if (icon) { icon.setAttribute('data-lucide','check-circle-2'); if(typeof lucide!=='undefined') lucide.createIcons(); }
+      const disp = document.getElementById('ci-count-display');
+      if (disp) disp.textContent = String(Number(disp.textContent)+1);
     }
   };
 
-  CheckIn._setTab = function(tab) {
-    Storage.set('_checkin_tab', tab);
-    Navigation.navigate('checkin');
+  CheckIn._toggleAbsent = function(memberId) {
+    const fresh = Storage.getAll('checkins') || [];
+    const rec   = fresh.find(function(c){ return c.memberId===memberId && c.date===today && c.type==='member'; });
+    if (!rec) Storage.insert('checkins', { date:today, type:'member', memberId, memberType:'member', service: Storage.get('_checkin_service')||'10:30am' });
+    Toast.success('Checked in — reloading…');
+    setTimeout(function(){ Navigation.navigate('checkin'); }, 300);
   };
 
+  CheckIn._walkIn = function() {
+    Modal.open({ title:'Walk-In Check-In', width:'420px', body:
+      '<div class="form-row">'
+      +'<div class="form-group"><label class="form-label">First Name *</label><input class="form-control" id="wi-first"></div>'
+      +'<div class="form-group"><label class="form-label">Last Name *</label><input class="form-control" id="wi-last"></div>'
+      +'</div>'
+      +'<div class="form-row">'
+      +'<div class="form-group"><label class="form-label">Family / Household</label><input class="form-control" id="wi-family"></div>'
+      +'<div class="form-group"><label class="form-label">First Visit?</label>'
+      +'<select class="form-control" id="wi-firstvisit"><option>Yes</option><option>No</option></select></div>'
+      +'</div>',
+      footer:'<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>'
+             +'<button class="btn btn-primary" id="wi-save-btn">Check In</button>' });
+    document.getElementById('wi-save-btn').onclick = function() {
+      const first = document.getElementById('wi-first')?.value.trim();
+      const last  = document.getElementById('wi-last')?.value.trim();
+      if (!first || !last) { Toast.error('Name is required'); return; }
+      const fv  = document.getElementById('wi-firstvisit')?.value === 'Yes';
+      const fam = document.getElementById('wi-family')?.value.trim();
+      // Create visitor record
+      const vis = Storage.insert('visitors', {
+        firstName:first, lastName:last, name:first+' '+last,
+        family:fam, status:'Visitor', firstVisit:today, notes: fv ? 'Walk-in first-time visitor' : 'Walk-in',
+      });
+      // Check them in
+      Storage.insert('checkins', { date:today, type:'member', memberId:vis.id, memberType:'visitor', service:Storage.get('_checkin_service')||'10:30am' });
+      Modal.close();
+      Toast.success((fv ? '🎉 First-time visitor ' : '') + first + ' ' + last + ' checked in!');
+      Navigation.navigate('checkin');
+    };
+  };
+
+  CheckIn._printRoster = function() {
+    const checked = checkedInIds();
+    const names   = attendees.filter(function(m){ return checked.has(m.id); }).map(function(m){ return memberName(m); });
+    const win     = window.open('','_blank','width=700,height=900');
+    win.document.write('<html><head><title>Check-In Roster — '+today+'</title>'
+      +'<style>body{font-family:sans-serif;padding:24px}h2{margin-bottom:16px}li{margin:6px 0;font-size:14px}</style>'
+      +'</head><body><h2>Check-In Roster — '+today+'</h2>'
+      +'<p><strong>'+names.length+'</strong> checked in of '+attendees.length+' on roster</p>'
+      +'<ul>'+names.map(function(n){ return '<li>'+n+'</li>'; }).join('')+'</ul></body></html>');
+    win.document.close(); win.print();
+  };
+
+  CheckIn._setTab = function(tab) { Storage.set('_checkin_tab',''); Storage.set('_checkin_tab',tab); Storage.removeItem ? Storage.set('_checkin_drill','') : null; Navigation.navigate('checkin'); };
   CheckIn._onSearch = function(val) {
     Storage.set('_checkin_search', val);
-    // Debounce re-render
     clearTimeout(CheckIn._searchTimer);
-    CheckIn._searchTimer = setTimeout(() => Navigation.navigate('checkin'), 200);
+    CheckIn._searchTimer = setTimeout(function(){ Navigation.navigate('checkin'); }, 200);
   };
+  CheckIn._drill = function(dt)  { Storage.set('_checkin_drill', dt);  Navigation.navigate('checkin'); };
+  CheckIn._drillBack = function(){ Storage.set('_checkin_drill', ''); Navigation.navigate('checkin'); };
+  CheckIn._setAbsentWeeks = function(w){ Storage.set('_ci_absent_weeks', w); Navigation.navigate('checkin'); };
 });

@@ -9,8 +9,8 @@ Navigation.register('prayer', function render(page) {
   const categories = ['Health','Family','Ministry','Church','Praise','Evangelism','Financial','Grief','Other'];
   let activeTab = Storage.get('_prayer_tab') || 'active';
 
-  /* ── seed praise reports if empty ─────────────────────── */
-  if (!Storage.get('_praise_seeded')) {
+  /* ── seed praise reports if empty (DEMO_MODE only) ────── */
+  if (!Storage.get('_praise_seeded') && window.DEMO_MODE) {
     const praiseReports = [
       { title:'Healing Miracle', text:'After months of prayer, Sister Martha received a clear bill of health. God is faithful!', submittedBy:'Martha Johnson', date: Storage.today().slice(0,7)+'-03', category:'Health' },
       { title:'Job Restored', text:'Brother David landed a new job after 6 months of unemployment. The congregation rejoiced!', submittedBy:'David Williams', date: Storage.today().slice(0,7)+'-08', category:'Financial' },
@@ -40,12 +40,12 @@ Navigation.register('prayer', function render(page) {
           <div class="chip-row" style="margin-bottom:0">
             ${UI.badge(r.status, statusColors[r.status] || 'gray')}
             <span class="badge badge-gray">${UI.esc(r.category)}</span>
-            ${isPrivate ? `<span class="badge badge-purple" style="display:inline-flex;align-items:center;gap:3px"><i data-lucide="lock" style="width:10px;height:10px" aria-hidden="true"></i>Private</span>` : ''}
+            ${isPrivate ? `<span class="badge badge-purple" style="display:inline-flex;align-items:center;gap:3px"><i data-lucide="lock" class="icon-xs" aria-hidden="true"></i>Private</span>` : ''}
           </div>
           <div class="flex-row" style="gap:2px">
             ${r.status !== 'Answered' ? `<button class="btn btn-ghost btn-sm" style="font-size:.72rem" aria-label="Mark as answered" onclick="Prayer._markAnswered('${r.id}')"><i data-lucide="check-circle" class="icon-inline" aria-hidden="true"></i>Answered</button>` : ''}
-            <button class="btn btn-ghost btn-sm" aria-label="Edit prayer request" onclick="Prayer.edit('${r.id}')"><i data-lucide="pencil" style="width:13px;height:13px" aria-hidden="true"></i></button>
-            <button class="btn btn-ghost btn-sm text-danger" aria-label="Remove prayer request" onclick="Prayer.remove('${r.id}')"><i data-lucide="x" style="width:13px;height:13px" aria-hidden="true"></i></button>
+            <button class="btn btn-ghost btn-sm" aria-label="Edit prayer request" onclick="Prayer.edit('${r.id}')"><i data-lucide="pencil" class="icon-xs" aria-hidden="true"></i></button>
+            <button class="btn btn-ghost btn-sm text-danger" aria-label="Remove prayer request" onclick="Prayer.remove('${r.id}')"><i data-lucide="x" class="icon-xs" aria-hidden="true"></i></button>
           </div>
         </div>
 
@@ -60,14 +60,14 @@ Navigation.register('prayer', function render(page) {
         <div class="flex-between" style="align-items:center;flex-wrap:wrap;gap:var(--space-2)">
           <div class="text-meta flex-row flex-wrap" style="gap:var(--space-3)">
             <span style="display:inline-flex;align-items:center;gap:4px">
-              <i data-lucide="calendar" style="width:12px;height:12px" aria-hidden="true"></i>${UI.fmtDate(r.date)}
+              <i data-lucide="calendar" class="icon-xs" aria-hidden="true"></i>${UI.fmtDate(r.date)}
             </span>
-            ${r.submittedBy ? `<span style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="user" style="width:12px;height:12px" aria-hidden="true"></i>${UI.esc(r.submittedBy)}</span>` : ''}
-            ${r.assignedTeam ? `<span style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="users" style="width:12px;height:12px" aria-hidden="true"></i>${UI.esc(r.assignedTeam)}</span>` : ''}
+            ${r.submittedBy ? `<span style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="user" class="icon-xs" aria-hidden="true"></i>${UI.esc(r.submittedBy)}</span>` : ''}
+            ${r.assignedTeam ? `<span style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="users" class="icon-xs" aria-hidden="true"></i>${UI.esc(r.assignedTeam)}</span>` : ''}
           </div>
           <button class="btn btn-sm prayer-praying-btn" onclick="Prayer._togglePraying('${r.id}',this)"
                   aria-label="I am praying for this request" aria-pressed="${prayCount > 0 ? 'true' : 'false'}">
-            <i data-lucide="hand-heart" style="width:14px;height:14px" aria-hidden="true"></i>
+            <i data-lucide="hand-heart" class="icon-sm" aria-hidden="true"></i>
             Praying${prayCount > 0 ? ` <span class="prayer-praying-count">${prayCount}</span>` : ''}
           </button>
         </div>
@@ -130,7 +130,7 @@ Navigation.register('prayer', function render(page) {
       body.innerHTML = `
         <div class="success-banner" style="margin-bottom:var(--space-5)">
           <div class="success-banner__title" style="display:flex;align-items:center;gap:8px">
-            <i data-lucide="check-circle" style="width:18px;height:18px" aria-hidden="true"></i>
+            <i data-lucide="check-circle" class="icon-inline" aria-hidden="true"></i>
             Answered Prayer Wall
           </div>
           <div class="success-banner__body">"Whatever you ask in prayer, believe that you have received it, and it will be yours." — Mark 11:24</div>
@@ -143,7 +143,7 @@ Navigation.register('prayer', function render(page) {
               <div class="flex-between" style="align-items:flex-start;margin-bottom:var(--space-3)">
                 <div style="display:flex;align-items:center;gap:8px">
                   <div style="width:30px;height:30px;border-radius:50%;background:var(--success-bg);color:var(--success-text);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-                    <i data-lucide="check-circle" style="width:16px;height:16px" aria-hidden="true"></i>
+                    <i data-lucide="check-circle" class="icon-inline" aria-hidden="true"></i>
                   </div>
                   <div>
                     <div style="font-size:var(--text-xs);font-weight:800;color:var(--success-text);text-transform:uppercase;letter-spacing:.05em">Prayer Answered</div>
@@ -151,8 +151,8 @@ Navigation.register('prayer', function render(page) {
                   </div>
                 </div>
                 <div class="flex-row" style="gap:2px">
-                  <button class="btn btn-ghost btn-sm" aria-label="Edit" onclick="Prayer.edit('${r.id}')"><i data-lucide="pencil" style="width:13px;height:13px" aria-hidden="true"></i></button>
-                  <button class="btn btn-ghost btn-sm text-danger" aria-label="Remove" onclick="Prayer.remove('${r.id}')"><i data-lucide="x" style="width:13px;height:13px" aria-hidden="true"></i></button>
+                  <button class="btn btn-ghost btn-sm" aria-label="Edit" onclick="Prayer.edit('${r.id}')"><i data-lucide="pencil" class="icon-xs" aria-hidden="true"></i></button>
+                  <button class="btn btn-ghost btn-sm text-danger" aria-label="Remove" onclick="Prayer.remove('${r.id}')"><i data-lucide="x" class="icon-xs" aria-hidden="true"></i></button>
                 </div>
               </div>
               <p style="font-size:.9rem;line-height:1.6;margin-bottom:var(--space-2)">
@@ -160,7 +160,7 @@ Navigation.register('prayer', function render(page) {
               </p>
               <div class="text-meta flex-row flex-wrap" style="gap:var(--space-3)">
                 <span class="badge badge-gray">${UI.esc(r.category)}</span>
-                ${r.submittedBy ? `<span style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="user" style="width:11px;height:11px" aria-hidden="true"></i>${UI.esc(r.submittedBy)}</span>` : ''}
+                ${r.submittedBy ? `<span style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="user" class="icon-xs" aria-hidden="true"></i>${UI.esc(r.submittedBy)}</span>` : ''}
               </div>
             </div>`).join('')}
         </div>`}
@@ -183,17 +183,17 @@ Navigation.register('prayer', function render(page) {
             <div class="card" style="border-left:4px solid var(--warning)">
               <div class="flex-between" style="align-items:flex-start;margin-bottom:var(--space-2)">
                 <div class="cell-primary" style="display:flex;align-items:center;gap:6px">
-                  <i data-lucide="star" style="width:14px;height:14px;color:var(--warning)" aria-hidden="true"></i>
+                  <i data-lucide="star" class="icon-sm" style="color:var(--warning)" aria-hidden="true"></i>
                   ${UI.esc(r.title)}
                 </div>
                 <button class="btn btn-ghost btn-sm text-danger" style="flex-shrink:0" aria-label="Remove praise report" onclick="Prayer.removePraise('${r.id}')">
-                  <i data-lucide="x" style="width:13px;height:13px" aria-hidden="true"></i>
+                  <i data-lucide="x" class="icon-xs" aria-hidden="true"></i>
                 </button>
               </div>
               <p class="text-meta" style="line-height:1.6;margin-bottom:var(--space-2)">${UI.esc(r.text)}</p>
               <div class="text-meta flex-row flex-wrap" style="gap:var(--space-3)">
-                ${r.submittedBy?`<span style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="user" style="width:11px;height:11px" aria-hidden="true"></i>${UI.esc(r.submittedBy)}</span>`:''}
-                <span style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="calendar" style="width:11px;height:11px" aria-hidden="true"></i>${UI.fmtDate(r.date)}</span>
+                ${r.submittedBy?`<span style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="user" class="icon-xs" aria-hidden="true"></i>${UI.esc(r.submittedBy)}</span>`:''}
+                <span style="display:inline-flex;align-items:center;gap:4px"><i data-lucide="calendar" class="icon-xs" aria-hidden="true"></i>${UI.fmtDate(r.date)}</span>
                 <span class="badge badge-gray">${UI.esc(r.category)}</span>
               </div>
             </div>`).join('')}
@@ -209,7 +209,7 @@ Navigation.register('prayer', function render(page) {
       body.innerHTML = `
         <div class="flex-between" style="margin-bottom:var(--space-4)">
           <div class="text-meta">${active.length} non-private active requests</div>
-          <button class="btn btn-primary" onclick="window.print()">🖨 Print</button>
+          <button class="btn btn-primary" onclick="window.print()"><i data-lucide="printer" class="icon-inline" aria-hidden="true"></i> Print</button>
         </div>
         <div style="font-family:serif;line-height:2;font-size:.95rem;">
           ${active.map((r,i)=>`<div class="detail-row" style="display:block">
@@ -300,7 +300,7 @@ const Prayer = {
   },
 
   add() {
-    Modal.open({ title:'🙏 Add Prayer Request', body:this._form(), width:'520px',
+    Modal.open({ title:'Add Prayer Request', body:this._form(), width:'520px',
       footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
               <button class="btn btn-primary" id="save-pr-btn">Submit Request</button>` });
     document.getElementById('save-pr-btn').onclick = () => {

@@ -66,7 +66,7 @@ Navigation.register('facilities', function render(page) {
     if(activeTab==='schedule') {
       body.innerHTML = `
         <div class="toolbar" style="margin-bottom:16px;">
-          <div class="search-input-wrap"><span class="search-icon">🔍</span><input class="search-input" id="bk-search" placeholder="Search bookings…"></div>
+          <div class="search-input-wrap"><i data-lucide="search" class="icon-inline search-icon-lucide" aria-hidden="true"></i><input class="search-input" id="bk-search" placeholder="Search bookings…"></div>
           <select class="filter-select" id="bk-room">
             <option value="">All Rooms</option>
             ${rooms.map(r=>`<option value="${r.id}">${r.name}</option>`).join('')}
@@ -81,7 +81,7 @@ Navigation.register('facilities', function render(page) {
 
       function renderBookings(data) {
         const el=document.getElementById('bk-cards'); if(!el) return;
-        if(!data.length){el.innerHTML=`<div class="empty-state"><div class="empty-state-icon">🏛</div><div class="empty-state-title">No bookings found</div></div>`;return;}
+        if(!data.length){el.innerHTML=`<div class="empty-state"><div class="empty-state-icon"><i data-lucide="landmark" class="icon-inline" aria-hidden="true"></i></div><div class="empty-state-title">No bookings found</div></div>`;return;}
         const now=Storage.today();
         el.innerHTML=data.map(b=>{
           const isPast=b.date<now;
@@ -95,9 +95,9 @@ Navigation.register('facilities', function render(page) {
                 </div>
                 <div style="font-weight:800;margin-bottom:3px;">${UI.esc(b.title)}</div>
                 <div style="font-size:.8rem;color:var(--text-muted);">
-                  🏛 ${UI.esc(b.roomName)} &nbsp;·&nbsp; 📅 ${UI.fmtDate(b.date)} &nbsp;·&nbsp; 🕐 ${UI.esc(b.startTime)} – ${UI.esc(b.endTime)}
-                  <br>👥 ${b.attendees||0} expected &nbsp;·&nbsp; 👤 ${UI.esc(b.requestedBy)}
-                  ${b.recurrence?`<br>🔁 ${UI.esc(b.recurrence)}`:''}
+                  <i data-lucide="landmark" class="icon-inline" aria-hidden="true"></i> ${UI.esc(b.roomName)} &nbsp;·&nbsp; <i data-lucide="calendar" class="icon-inline" aria-hidden="true"></i> ${UI.fmtDate(b.date)} &nbsp;·&nbsp; <i data-lucide="clock" class="icon-inline" aria-hidden="true"></i> ${UI.esc(b.startTime)} – ${UI.esc(b.endTime)}
+                  <br><i data-lucide="users" class="icon-inline" aria-hidden="true"></i> ${b.attendees||0} expected &nbsp;·&nbsp; <i data-lucide="user" class="icon-inline" aria-hidden="true"></i> ${UI.esc(b.requestedBy)}
+                  ${b.recurrence?`<br><i data-lucide="repeat" class="icon-inline" aria-hidden="true"></i> ${UI.esc(b.recurrence)}`:''}
                 </div>
                 ${b.setupNeeded?`<div style="font-size:.76rem;background:var(--surface-2);border-radius:var(--radius);padding:5px 10px;margin-top:6px;">Setup: ${UI.esc(b.setupNeeded)}</div>`:''}
               </div>
@@ -143,7 +143,7 @@ Navigation.register('facilities', function render(page) {
                 <div style="font-weight:800;font-size:.96rem;">${UI.esc(r.name)}</div>
                 ${UI.badge(r.available?'Available':'Unavailable', r.available?'green':'red')}
               </div>
-              <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px;">📍 ${UI.esc(r.location)} &nbsp;·&nbsp; 👥 Capacity: ${r.capacity}</div>
+              <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:8px;"><i data-lucide="map-pin" class="icon-inline" aria-hidden="true"></i> ${UI.esc(r.location)} &nbsp;·&nbsp; <i data-lucide="users" class="icon-inline" aria-hidden="true"></i> Capacity: ${r.capacity}</div>
               ${r.features?.length?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;">${r.features.map(f=>`<span style="background:var(--surface-2);border-radius:4px;padding:2px 7px;font-size:.71rem;">${f}</span>`).join('')}</div>`:''}
               ${r.notes?`<div style="font-size:.76rem;color:var(--text-muted);margin-bottom:10px;">${UI.esc(r.notes)}</div>`:''}
               <div style="display:flex;gap:6px;">
@@ -199,22 +199,22 @@ Navigation.register('facilities', function render(page) {
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">🏛 Facilities & Room Booking</h2>
+        <h2 class="section-title">Facilities & Room Booking</h2>
         <div class="section-subtitle">Room scheduling · Setup tracking · Maintenance log</div>
       </div>
       <button class="btn btn-primary" onclick="Fac.addBooking()">+ Book Room</button>
     </div>
 
     <div class="stat-grid" style="margin-bottom:20px;">
-      <div class="stat-card" data-accent="blue"><div class="stat-icon">🏛</div><div class="stat-value">${rooms.length}</div><div class="stat-label">Rooms on File</div></div>
-      <div class="stat-card" data-accent="green"><div class="stat-icon">📅</div><div class="stat-value">${upcoming.length}</div><div class="stat-label">Upcoming Bookings</div></div>
-      <div class="stat-card" data-accent="purple"><div class="stat-icon">🌅</div><div class="stat-value">${todaysBookings.length}</div><div class="stat-label">Bookings Today</div></div>
-      <div class="stat-card" data-accent="${highPri>0?'red':'orange'}"><div class="stat-icon">🔧</div><div class="stat-value">${openMaint}</div><div class="stat-label">Open Maintenance</div><div class="stat-delta ${highPri>0?'down':'flat'}">${highPri>0?`${highPri} high priority`:'All low priority'}</div></div>
+      <div class="stat-card" data-accent="blue"><div class="stat-icon"><i data-lucide="landmark" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${rooms.length}</div><div class="stat-label">Rooms on File</div></div>
+      <div class="stat-card" data-accent="green"><div class="stat-icon"><i data-lucide="calendar" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${upcoming.length}</div><div class="stat-label">Upcoming Bookings</div></div>
+      <div class="stat-card" data-accent="purple"><div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${todaysBookings.length}</div><div class="stat-label">Bookings Today</div></div>
+      <div class="stat-card" data-accent="${highPri>0?'red':'orange'}"><div class="stat-icon"><i data-lucide="wrench" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${openMaint}</div><div class="stat-label">Open Maintenance</div><div class="stat-delta ${highPri>0?'down':'flat'}">${highPri>0?`${highPri} high priority`:'All low priority'}</div></div>
     </div>
 
     ${todaysBookings.length ? `
     <div style="background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--radius);padding:14px 16px;margin-bottom:20px;">
-      <div style="font-weight:800;font-size:.88rem;color:var(--accent);margin-bottom:8px;">📅 Today's Schedule</div>
+      <div style="font-weight:800;font-size:.88rem;color:var(--accent);margin-bottom:8px;"><i data-lucide="calendar" class="icon-inline" aria-hidden="true"></i> Today's Schedule</div>
       <div style="display:flex;flex-wrap:wrap;gap:10px;">
         ${todaysBookings.map(b=>`
           <div style="background:var(--surface);border-radius:6px;padding:8px 12px;font-size:.82rem;">
@@ -225,7 +225,7 @@ Navigation.register('facilities', function render(page) {
     </div>` : ''}
 
     <div id="fac-tabs" style="display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap;">
-      ${[['schedule','📅 Room Schedule'],['rooms','🏛 Rooms'],['maintenance','🔧 Maintenance']].map(([t,l])=>`
+      ${[['schedule','<i data-lucide="calendar" class="icon-inline" aria-hidden="true"></i> Room Schedule'],['rooms','<i data-lucide="landmark" class="icon-inline" aria-hidden="true"></i> Rooms'],['maintenance','<i data-lucide="wrench" class="icon-inline" aria-hidden="true"></i> Maintenance']].map(([t,l])=>`
         <button class="tab-btn${activeTab===t?' active':''}" data-tab="${t}" onclick="Fac._setTab('${t}')">${l}</button>`).join('')}
     </div>
     <div id="fac-body"></div>
@@ -297,7 +297,7 @@ const Fac = {
       recurring:!!rec, recurrence:rec, notes:v('bk-notes') };
   },
   addBooking(preRoomId='') {
-    Modal.open({ title:'📅 Book a Room', body:this._bookingForm({},preRoomId), width:'560px',
+    Modal.open({ title:'Book a Room', body:this._bookingForm({},preRoomId), width:'560px',
       footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
               <button class="btn btn-primary" id="save-bk-btn">Confirm Booking</button>` });
     document.getElementById('save-bk-btn').onclick=()=>{
@@ -323,7 +323,7 @@ const Fac = {
   },
   addRoom() {
     const features=['Sound System','Projector','Piano','Kitchen Access','Tables & Chairs','Whiteboard','TV','Restrooms Nearby'];
-    Modal.open({ title:'🏛 Add Room', width:'500px', body:`
+    Modal.open({ title:'Add Room', width:'500px', body:`
       <div class="form-group"><label class="form-label">Room Name *</label><input class="form-control" id="rm-name"></div>
       <div class="form-row">
         <div class="form-group"><label class="form-label">Location / Building</label><input class="form-control" id="rm-loc"></div>
@@ -375,7 +375,7 @@ const Fac = {
   },
   addMaint() {
     const rooms=Storage.getAll('rooms');
-    Modal.open({ title:'🔧 Report Maintenance Issue', width:'480px', body:`
+    Modal.open({ title:'Report Maintenance Issue', width:'480px', body:`
       <div class="form-group"><label class="form-label">Issue / Description *</label><input class="form-control" id="mt-issue"></div>
       <div class="form-row">
         <div class="form-group" style="flex:2"><label class="form-label">Room / Area</label>

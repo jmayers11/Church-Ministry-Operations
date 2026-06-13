@@ -83,7 +83,7 @@ Navigation.register('community-events', function render(page) {
   function renderCards(data) {
     const container = document.getElementById('ce-container');
     if (!container) return;
-    if (!data.length) { container.innerHTML=`<div class="empty-state"><div class="empty-state-icon">🌍</div><div class="empty-state-title">No events found</div></div>`; return; }
+    if (!data.length) { container.innerHTML=`<div class="empty-state"><div class="empty-state-icon"><i data-lucide="globe" class="icon-inline" aria-hidden="true"></i></div><div class="empty-state-title">No events found</div></div>`; return; }
     container.innerHTML = data.map(e => {
       const volPct = e.volunteersNeeded ? Math.min(100,Math.round((e.volunteersSignedUp/e.volunteersNeeded)*100)) : 100;
       const volShort = e.volunteersNeeded - e.volunteersSignedUp;
@@ -104,8 +104,8 @@ Navigation.register('community-events', function render(page) {
             ${UI.badge(e.type, typeColors[e.type]||'gray')}
           </div>
           <div style="font-size:.82rem;color:var(--text-muted);margin-bottom:10px;line-height:1.5;">
-            🕐 ${UI.esc(e.time)} &nbsp;·&nbsp; 📍 ${UI.esc(e.location)}
-            ${e.coordinator?`<br>👤 Coordinator: ${UI.esc(e.coordinator)}`:''}
+            <i data-lucide="clock" class="icon-inline" aria-hidden="true"></i> ${UI.esc(e.time)} &nbsp;·&nbsp; <i data-lucide="map-pin" class="icon-inline" aria-hidden="true"></i> ${UI.esc(e.location)}
+            ${e.coordinator?`<br><i data-lucide="user" class="icon-inline" aria-hidden="true"></i> Coordinator: ${UI.esc(e.coordinator)}`:''}
           </div>
           ${e.status !== 'Completed' ? `
             <div style="margin-bottom:10px;">
@@ -120,9 +120,9 @@ Navigation.register('community-events', function render(page) {
               </div>
             </div>` : `
             <div style="display:flex;gap:16px;font-size:.82rem;margin-bottom:10px;">
-              ${e.actualAttendance?`<span>👥 ${e.actualAttendance} attended</span>`:''}
-              ${e.familiesImpacted?`<span>🏠 ${e.familiesImpacted} families</span>`:''}
-              ${e.itemsCollected?`<span>📦 ${e.itemsCollected} items</span>`:''}
+              ${e.actualAttendance?`<span><i data-lucide="users" class="icon-inline" aria-hidden="true"></i> ${e.actualAttendance} attended</span>`:''}
+              ${e.familiesImpacted?`<span><i data-lucide="home" class="icon-inline" aria-hidden="true"></i> ${e.familiesImpacted} families</span>`:''}
+              ${e.itemsCollected?`<span><i data-lucide="package" class="icon-inline" aria-hidden="true"></i> ${e.itemsCollected} items</span>`:''}
             </div>`}
           ${e.suppliesNeeded && e.status!=='Completed' ? `<div style="font-size:.76rem;background:var(--surface-2);border-radius:var(--radius);padding:6px 10px;margin-bottom:10px;"><strong>Supplies needed:</strong> ${UI.esc(e.suppliesNeeded)}</div>` : ''}
           <div style="display:flex;gap:6px;padding-top:10px;border-top:1px solid var(--border);">
@@ -137,22 +137,22 @@ Navigation.register('community-events', function render(page) {
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">🌍 Community Events Hub</h2>
+        <h2 class="section-title">Community Events Hub</h2>
         <div class="section-subtitle">Outreach events · Community meals · Service projects</div>
       </div>
       <button class="btn btn-primary" onclick="CommEvents.add()">+ New Event</button>
     </div>
 
     <div class="stat-grid" style="margin-bottom:24px;">
-      <div class="stat-card" data-accent="blue"><div class="stat-icon">📅</div><div class="stat-value">${upcoming.length}</div><div class="stat-label">Upcoming Events</div></div>
-      <div class="stat-card" data-accent="green"><div class="stat-icon">🙌</div><div class="stat-value">${totalVols}</div><div class="stat-label">Volunteers Signed Up</div><div class="stat-delta flat">${volsNeeded-totalVols > 0 ? `${volsNeeded-totalVols} still needed` : 'All filled ✓'}</div></div>
-      <div class="stat-card" data-accent="orange"><div class="stat-icon">🏠</div><div class="stat-value">${totalFamilies}</div><div class="stat-label">Families Impacted</div></div>
-      <div class="stat-card" data-accent="purple"><div class="stat-icon">✅</div><div class="stat-value">${completed.length}</div><div class="stat-label">Events Completed</div></div>
+      <div class="stat-card" data-accent="blue"><div class="stat-icon"><i data-lucide="calendar" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${upcoming.length}</div><div class="stat-label">Upcoming Events</div></div>
+      <div class="stat-card" data-accent="green"><div class="stat-icon"><i data-lucide="users" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${totalVols}</div><div class="stat-label">Volunteers Signed Up</div><div class="stat-delta flat">${volsNeeded-totalVols > 0 ? `${volsNeeded-totalVols} still needed` : 'All filled ✓'}</div></div>
+      <div class="stat-card" data-accent="orange"><div class="stat-icon"><i data-lucide="home" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${totalFamilies}</div><div class="stat-label">Families Impacted</div></div>
+      <div class="stat-card" data-accent="purple"><div class="stat-icon"><i data-lucide="check-circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${completed.length}</div><div class="stat-label">Events Completed</div></div>
     </div>
 
     <div class="toolbar">
       <div class="search-input-wrap">
-        <span class="search-icon">🔍</span>
+        <i data-lucide="search" class="icon-inline search-icon-lucide" aria-hidden="true"></i>
         <input type="text" class="search-input" id="ce-search" placeholder="Search events…">
       </div>
       <select class="filter-select" id="ce-type-filter">
@@ -243,7 +243,7 @@ const CommEvents = {
     };
   },
   add() {
-    Modal.open({ title:'🌍 New Community Event', body:this._form(), width:'580px',
+    Modal.open({ title:'New Community Event', body:this._form(), width:'580px',
       footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
               <button class="btn btn-primary" id="save-ce-btn">Save Event</button>` });
     document.getElementById('save-ce-btn').onclick = () => {
@@ -269,15 +269,15 @@ const CommEvents = {
     Modal.open({ title:e.name, width:'520px', body:`
       <div style="font-size:.88rem;display:flex;flex-direction:column;gap:10px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;">${UI.badge(e.status,'blue')} ${UI.badge(e.type,'purple')}</div>
-        <div>📅 <strong>${UI.fmtDate(e.date)}</strong> &nbsp;·&nbsp; 🕐 ${UI.esc(e.time)}</div>
-        <div>📍 ${UI.esc(e.location)}</div>
-        ${e.coordinator?`<div>👤 Coordinator: ${UI.esc(e.coordinator)}</div>`:''}
+        <div><i data-lucide="calendar" class="icon-inline" aria-hidden="true"></i> <strong>${UI.fmtDate(e.date)}</strong> &nbsp;·&nbsp; <i data-lucide="clock" class="icon-inline" aria-hidden="true"></i> ${UI.esc(e.time)}</div>
+        <div><i data-lucide="map-pin" class="icon-inline" aria-hidden="true"></i> ${UI.esc(e.location)}</div>
+        ${e.coordinator?`<div><i data-lucide="user" class="icon-inline" aria-hidden="true"></i> Coordinator: ${UI.esc(e.coordinator)}</div>`:''}
         <div style="background:var(--surface-2);border-radius:var(--radius);padding:10px;line-height:1.6;">${UI.esc(e.description||'')}</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-          <div>🙌 Volunteers: ${e.volunteersSignedUp}/${e.volunteersNeeded}</div>
-          <div>👥 Attendance: ${e.actualAttendance||e.estimatedAttendance||'—'}</div>
-          <div>🏠 Families: ${e.familiesImpacted||'—'}</div>
-          <div>📦 Items: ${e.itemsCollected||'—'}</div>
+          <div><i data-lucide="users" class="icon-inline" aria-hidden="true"></i> Volunteers: ${e.volunteersSignedUp}/${e.volunteersNeeded}</div>
+          <div><i data-lucide="users" class="icon-inline" aria-hidden="true"></i> Attendance: ${e.actualAttendance||e.estimatedAttendance||'—'}</div>
+          <div><i data-lucide="home" class="icon-inline" aria-hidden="true"></i> Families: ${e.familiesImpacted||'—'}</div>
+          <div><i data-lucide="package" class="icon-inline" aria-hidden="true"></i> Items: ${e.itemsCollected||'—'}</div>
         </div>
         ${e.suppliesNeeded?`<div><strong>Supplies:</strong> ${UI.esc(e.suppliesNeeded)}</div>`:''}
         ${e.notes?`<div><strong>Notes:</strong> ${UI.esc(e.notes)}</div>`:''}

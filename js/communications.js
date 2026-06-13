@@ -57,7 +57,7 @@ Navigation.register('communications', function render(page) {
     if(activeTab==='announcements') {
       body.innerHTML = `
         <div class="toolbar" style="margin-bottom:16px;">
-          <div class="search-input-wrap"><span class="search-icon">🔍</span><input class="search-input" id="ann-search" placeholder="Search announcements…"></div>
+          <div class="search-input-wrap"><i data-lucide="search" class="icon-inline search-icon-lucide" aria-hidden="true"></i><input class="search-input" id="ann-search" placeholder="Search announcements…"></div>
           <select class="filter-select" id="ann-status">
             <option value="">All Statuses</option>
             <option>Active</option><option>Scheduled</option><option>Archived</option>
@@ -68,7 +68,7 @@ Navigation.register('communications', function render(page) {
 
       function renderAnns(data) {
         const el=document.getElementById('ann-cards'); if(!el) return;
-        if(!data.length){el.innerHTML=`<div class="empty-state"><div class="empty-state-icon">📢</div><div class="empty-state-title">No announcements</div></div>`;return;}
+        if(!data.length){el.innerHTML=`<div class="empty-state"><div class="empty-state-icon"><i data-lucide="megaphone" class="icon-inline" aria-hidden="true"></i></div><div class="empty-state-title">No announcements</div></div>`;return;}
         el.innerHTML=data.map(a=>{
           const isExpiring = a.status==='Active' && a.endDate && a.endDate<=Storage.today(3);
           return `
@@ -84,9 +84,9 @@ Navigation.register('communications', function render(page) {
                   <div style="font-weight:800;font-size:.96rem;margin-bottom:4px;">${UI.esc(a.title)}</div>
                   <div style="font-size:.83rem;color:var(--text-muted);line-height:1.5;margin-bottom:8px;">${UI.esc(a.body)}</div>
                   <div style="font-size:.74rem;color:var(--text-muted);">
-                    📅 ${UI.fmtDate(a.startDate)} – ${UI.fmtDate(a.endDate)}
-                    &nbsp;·&nbsp; 👥 ${a.audience}
-                    &nbsp;·&nbsp; 📡 ${(a.channels||[]).join(', ')}
+                    <i data-lucide="calendar" class="icon-inline" aria-hidden="true"></i> ${UI.fmtDate(a.startDate)} – ${UI.fmtDate(a.endDate)}
+                    &nbsp;·&nbsp; <i data-lucide="users" class="icon-inline" aria-hidden="true"></i> ${a.audience}
+                    &nbsp;·&nbsp; <i data-lucide="radio" class="icon-inline" aria-hidden="true"></i> ${(a.channels||[]).join(', ')}
                   </div>
                 </div>
                 <div style="display:flex;gap:6px;flex-shrink:0;">
@@ -124,10 +124,10 @@ Navigation.register('communications', function render(page) {
           ${bulletins.map(b=>`
             <div class="card">
               <div style="font-weight:800;margin-bottom:6px;">${UI.esc(b.title)}</div>
-              <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:10px;">📅 ${UI.fmtDate(b.date)}</div>
+              <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:10px;"><i data-lucide="calendar" class="icon-inline" aria-hidden="true"></i> ${UI.fmtDate(b.date)}</div>
               <div style="font-size:.82rem;margin-bottom:10px;line-height:1.5;">
-                ${b.sermonTitle?`<div>📖 <strong>${UI.esc(b.sermonTitle)}</strong></div>`:''}
-                ${b.speaker?`<div>🎤 ${UI.esc(b.speaker)}</div>`:''}
+                ${b.sermonTitle?`<div><i data-lucide="book-open" class="icon-inline" aria-hidden="true"></i> <strong>${UI.esc(b.sermonTitle)}</strong></div>`:''}
+                ${b.speaker?`<div><i data-lucide="mic" class="icon-inline" aria-hidden="true"></i> ${UI.esc(b.speaker)}</div>`:''}
                 ${b.sermonSeries?`<div style="color:var(--text-muted)">Series: ${UI.esc(b.sermonSeries)}</div>`:''}
               </div>
               <div style="display:flex;gap:6px;">
@@ -135,7 +135,7 @@ Navigation.register('communications', function render(page) {
                 <button class="btn btn-ghost btn-sm" onclick="Comms.editBulletin('${b.id}')">Edit</button>
                 <button class="btn btn-ghost btn-sm" style="color:var(--red)" aria-label="Remove bulletin" onclick="Comms.removeBulletin('${b.id}')">×</button>
               </div>
-            </div>`).join('') || '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-title">No bulletins yet</div></div>'}
+            </div>`).join('') || '<div class="empty-state"><div class="empty-state-icon"><i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i></div><div class="empty-state-title">No bulletins yet</div></div>'}
         </div>`;
 
     } else if(activeTab==='segments') {
@@ -201,7 +201,7 @@ Navigation.register('communications', function render(page) {
                 ${allFamilies.map(f => `<option>${UI.esc(f)}</option>`).join('')}
               </select>
             </div>
-            <div style="display:flex;gap:16px;margin-bottom:12px;">
+            <div style="display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap;">
               <label style="display:flex;align-items:center;gap:6px;font-size:.86rem;cursor:pointer;">
                 <input type="checkbox" id="seg-hasemail" onchange="Comms._previewSegment()"> Has email
               </label>
@@ -209,15 +209,38 @@ Navigation.register('communications', function render(page) {
                 <input type="checkbox" id="seg-hasphone" onchange="Comms._previewSegment()"> Has phone
               </label>
             </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Joined after</label>
+                <input class="form-control" id="seg-joinedfrom" type="date" onchange="Comms._previewSegment()">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Joined before</label>
+                <input class="form-control" id="seg-joinedto" type="date" onchange="Comms._previewSegment()">
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">Attended in last N weeks</label>
+                <input class="form-control" id="seg-attended" type="number" min="0" placeholder="e.g. 4" onchange="Comms._previewSegment()">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Given ≥ $</label>
+                <input class="form-control" id="seg-givenmin" type="number" min="0" placeholder="0" onchange="Comms._previewSegment()">
+              </div>
+            </div>
             <div id="seg-preview" style="background:var(--surface-2);border-radius:6px;padding:10px;margin-bottom:12px;font-size:.84rem;">
               <span style="color:var(--text-muted)">Adjust filters to see audience size</span>
             </div>
-            <div style="display:flex;gap:8px;">
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button class="btn btn-primary" onclick="Comms._saveSegment()">
-                <i data-lucide="save" style="width:14px;height:14px" aria-hidden="true"></i> Save Segment
+                <i data-lucide="save" class="icon-sm" aria-hidden="true"></i> Save Segment
               </button>
               <button class="btn btn-outline" onclick="Comms._previewSegment()">
-                <i data-lucide="eye" style="width:14px;height:14px" aria-hidden="true"></i> Preview
+                <i data-lucide="eye" class="icon-sm" aria-hidden="true"></i> Preview
+              </button>
+              <button class="btn btn-outline" onclick="Comms._exportSegmentCSV()">
+                <i data-lucide="download" class="icon-sm" aria-hidden="true"></i> Export CSV
               </button>
             </div>
           </div>
@@ -261,16 +284,16 @@ Navigation.register('communications', function render(page) {
 
     } else if(activeTab==='templates') {
       const templates = [
-        { icon:'👋', name:'Welcome New Visitor', desc:'Warm follow-up message for first-time visitors', category:'Pastoral' },
-        { icon:'🎂', name:'Birthday Greeting', desc:'Personal birthday message for members', category:'Pastoral' },
-        { icon:'🏥', name:'Hospital Visit Notice', desc:'Notify care team of a member hospitalization', category:'Care' },
-        { icon:'💒', name:'Membership Congratulations', desc:'Welcome message for new members', category:'Membership' },
-        { icon:'🙏', name:'Prayer Request Acknowledgment', desc:'Confirm receipt of a prayer request', category:'Prayer' },
-        { icon:'💰', name:'Pledge Reminder', desc:'Gentle giving/pledge reminder message', category:'Giving' },
-        { icon:'📣', name:'Event Reminder', desc:'Upcoming event reminder with details', category:'Events' },
-        { icon:'❤️', name:'Bereavement Note', desc:'Compassionate message for grieving families', category:'Care' },
-        { icon:'🌍', name:'Volunteer Thank You', desc:'Appreciation message for volunteers', category:'Outreach' },
-        { icon:'📱', name:'Absentee Follow-Up', desc:'Check in with members who haven\'t attended recently', category:'Pastoral' },
+        { icon:'hand', name:'Welcome New Visitor', desc:'Warm follow-up message for first-time visitors', category:'Pastoral' },
+        { icon:'cake', name:'Birthday Greeting', desc:'Personal birthday message for members', category:'Pastoral' },
+        { icon:'<i data-lucide="building-2" class="icon-inline" aria-hidden="true"></i>', name:'Hospital Visit Notice', desc:'Notify care team of a member hospitalization', category:'Care' },
+        { icon:'church', name:'Membership Congratulations', desc:'Welcome message for new members', category:'Membership' },
+        { icon:'<i data-lucide="hands" class="icon-inline" aria-hidden="true"></i>', name:'Prayer Request Acknowledgment', desc:'Confirm receipt of a prayer request', category:'Prayer' },
+        { icon:'<i data-lucide="dollar-sign" class="icon-inline" aria-hidden="true"></i>', name:'Pledge Reminder', desc:'Gentle giving/pledge reminder message', category:'Giving' },
+        { icon:'<i data-lucide="megaphone" class="icon-inline" aria-hidden="true"></i>', name:'Event Reminder', desc:'Upcoming event reminder with details', category:'Events' },
+        { icon:'<i data-lucide="heart" class="icon-inline" aria-hidden="true"></i>', name:'Bereavement Note', desc:'Compassionate message for grieving families', category:'Care' },
+        { icon:'<i data-lucide="globe" class="icon-inline" aria-hidden="true"></i>', name:'Volunteer Thank You', desc:'Appreciation message for volunteers', category:'Outreach' },
+        { icon:'<i data-lucide="smartphone" class="icon-inline" aria-hidden="true"></i>', name:'Absentee Follow-Up', desc:'Check in with members who haven\'t attended recently', category:'Pastoral' },
       ];
       body.innerHTML = `
         <div style="font-size:.84rem;color:var(--text-muted);margin-bottom:16px;">Click any template to open it pre-filled with your church's data.</div>
@@ -289,20 +312,20 @@ Navigation.register('communications', function render(page) {
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">📢 Communications Hub</h2>
+        <h2 class="section-title">Communications Hub</h2>
         <div class="section-subtitle">Announcements · Weekly bulletin · Message templates</div>
       </div>
     </div>
 
     <div class="stat-grid" style="margin-bottom:20px;">
-      <div class="stat-card" data-accent="green"><div class="stat-icon">📣</div><div class="stat-value">${active}</div><div class="stat-label">Active Announcements</div></div>
-      <div class="stat-card" data-accent="blue"><div class="stat-icon">📅</div><div class="stat-value">${scheduled}</div><div class="stat-label">Scheduled</div></div>
-      <div class="stat-card" data-accent="yellow"><div class="stat-icon">⏰</div><div class="stat-value">${expiring}</div><div class="stat-label">Expiring in 3 Days</div></div>
-      <div class="stat-card" data-accent="purple"><div class="stat-icon">📋</div><div class="stat-value">${bulletins.length}</div><div class="stat-label">Bulletins on File</div></div>
+      <div class="stat-card" data-accent="green"><div class="stat-icon"><i data-lucide="megaphone" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${active}</div><div class="stat-label">Active Announcements</div></div>
+      <div class="stat-card" data-accent="blue"><div class="stat-icon"><i data-lucide="calendar" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${scheduled}</div><div class="stat-label">Scheduled</div></div>
+      <div class="stat-card" data-accent="yellow"><div class="stat-icon"><i data-lucide="circle" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${expiring}</div><div class="stat-label">Expiring in 3 Days</div></div>
+      <div class="stat-card" data-accent="purple"><div class="stat-icon"><i data-lucide="clipboard-list" style="opacity:.7" aria-hidden="true"></i></div><div class="stat-value">${bulletins.length}</div><div class="stat-label">Bulletins on File</div></div>
     </div>
 
     <div id="comms-tabs" style="display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap;">
-      ${[['announcements','📣 Announcements'],['bulletin','📋 Bulletin Builder'],['templates','✉️ Message Templates'],['segments','🎯 Segments']].map(([t,l])=>`
+      ${[['announcements','<i data-lucide="megaphone" class="icon-inline" aria-hidden="true"></i> Announcements'],['bulletin','<i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i> Bulletin Builder'],['templates','<i data-lucide="mail" class="icon-inline" aria-hidden="true"></i> Message Templates'],['segments','<i data-lucide="target" class="icon-inline" aria-hidden="true"></i> Segments']].map(([t,l])=>`
         <button class="tab-btn${activeTab===t?' active':''}" data-tab="${t}" onclick="Comms._setTab('${t}')">${l}</button>`).join('')}
     </div>
     <div id="comms-body"></div>
@@ -312,13 +335,7 @@ Navigation.register('communications', function render(page) {
 
 const Comms = {
   _state: { search: '' },
-  _rerender() {
-    const _s = document.getElementById('ann-search');
-    if (_s) Comms._state.search = _s.value;
-    Comms._rerender();
-    const _ns = document.getElementById('ann-search');
-    if (_ns && Comms._state.search) { _ns.value = Comms._state.search; _ns.dispatchEvent(new Event('input')); }
-  },
+  _rerender() { Navigation.navigate('communications'); },
   _setTab(t) { Storage.set('_comms_tab',t); Comms._state.search = ''; Navigation.navigate('communications'); },
   _annForm(a={}) {
     const cats=['Service','Outreach','Children','Youth','Membership','Missions','General'];
@@ -365,7 +382,7 @@ const Comms = {
     return { title:v('an-title'),body:v('an-body'),category:v('an-cat'),audience:v('an-aud'),priority:v('an-pri'),status:v('an-status'),startDate:v('an-start'),endDate:v('an-end'),channels };
   },
   addAnnouncement() {
-    Modal.open({ title:'📣 New Announcement', body:this._annForm(), width:'540px',
+    Modal.open({ title:'New Announcement', body:this._annForm(), width:'540px',
       footer:`<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
               <button class="btn btn-primary" id="save-an-btn">Save</button>` });
     document.getElementById('save-an-btn').onclick=()=>{
@@ -391,7 +408,7 @@ const Comms = {
   },
   newBulletin() {
     const settings = Storage.getSettings();
-    Modal.open({ title:'📋 New Bulletin', width:'560px', body:`
+    Modal.open({ title:'New Bulletin', width:'560px', body:`
       <div class="form-group"><label class="form-label">Bulletin Title *</label><input class="form-control" id="bl-title" value="Sunday Bulletin — ${Storage.today()}"></div>
       <div class="form-group"><label class="form-label">Date</label><input class="form-control" id="bl-date" type="date" value="${Storage.today()}"></div>
       <div class="form-group"><label class="form-label">Welcome Message</label><textarea class="form-control" id="bl-welcome" rows="2">${UI.esc(settings.welcomeMessage||'Welcome! We are so glad you are here.')}</textarea></div>
@@ -476,13 +493,13 @@ const Comms = {
       'Membership Congratulations': { subject:`Welcome to the ${church} Family!`, body:`Dear [Name],\n\nCongratulations on becoming an official member of ${church}! We are so excited to have you as part of our family.\n\nYour membership means you are committed to growing together in faith, serving the community, and glorifying God alongside us.\n\nWelcome home!\n\nIn Christ,\n${pastor} and the Leadership Team` },
       'Prayer Request Acknowledgment': { subject:`Your Prayer Request — ${church}`, body:`Dear [Name],\n\nThank you for trusting us with your prayer request. Our prayer team has received it and will be lifting you up before the Lord.\n\n"Do not be anxious about anything, but in every situation, by prayer and petition, with thanksgiving, present your requests to God." — Philippians 4:6\n\nWe are standing with you.\n\n${pastor}` },
       'Pledge Reminder': { subject:`Stewardship Reminder — ${church}`, body:`Dear [Name],\n\nThank you for your faithful generosity to ${church}. This is a gentle reminder about your giving pledge for this year.\n\nYour contributions make a real difference in the lives of people in our congregation and community.\n\nYou can give online, by check, or in the offering. Thank you for your partnership in this ministry.\n\nBlessings,\n${pastor}` },
-      'Event Reminder': { subject:`Reminder: [Event Name] at ${church}`, body:`Dear [Name],\n\nJust a friendly reminder that [Event Name] is coming up on [Date] at [Time].\n\n📍 Location: [Location]\n\n[Brief description of the event and what to expect]\n\nWe hope to see you there! Please contact us at [Contact] with any questions.\n\nBlessings,\n${church}` },
+      'Event Reminder': { subject:`Reminder: [Event Name] at ${church}`, body:`Dear [Name],\n\nJust a friendly reminder that [Event Name] is coming up on [Date] at [Time].\n\n<i data-lucide="map-pin" class="icon-inline" aria-hidden="true"></i> Location: [Location]\n\n[Brief description of the event and what to expect]\n\nWe hope to see you there! Please contact us at [Contact] with any questions.\n\nBlessings,\n${church}` },
       'Bereavement Note': { subject:`Our Deepest Condolences`, body:`Dear [Name] and Family,\n\nOn behalf of ${church}, we want to express our deepest condolences on the loss of [Loved One's Name]. We are so sorry for your pain.\n\n"Blessed are those who mourn, for they will be comforted." — Matthew 5:4\n\nOur congregation is praying for you and is here to support you in any way you need. Please do not hesitate to reach out.\n\nWith love and prayers,\n${pastor} and the ${church} Family` },
       'Volunteer Thank You': { subject:`Thank You for Your Service!`, body:`Dear [Name],\n\nWe want to take a moment to sincerely thank you for your dedication and service to ${church}.\n\nYour willingness to give your time and talents makes a lasting impact — more than you may ever know. You are truly a blessing to this ministry and to everyone you serve.\n\nThank you for being the hands and feet of Christ.\n\nWith deep appreciation,\n${pastor}` },
       'Absentee Follow-Up': { subject:`We Miss You at ${church}!`, body:`Dear [Name],\n\nWe've noticed we haven't seen you lately and just wanted to reach out to let you know you've been on our hearts.\n\nWe hope everything is well. If there is anything you need — whether prayer, a visit, or just someone to talk to — please know that we are here for you.\n\nWe'd love to see you soon!\n\nWith care,\n${pastor}\n${church}` },
     };
     const tmpl=templates[name]; if(!tmpl) return;
-    Modal.open({ title:`✉️ ${name}`, width:'560px', body:`
+    Modal.open({ title:`${name}`, width:'560px', body:`
       <div class="form-group"><label class="form-label">Subject</label><input class="form-control" id="tmpl-subject" value="${UI.esc(tmpl.subject)}"></div>
       <div class="form-group"><label class="form-label">Message</label><textarea class="form-control" id="tmpl-body" rows="12" style="font-family:inherit;">${UI.esc(tmpl.body)}</textarea></div>
       <div style="font-size:.76rem;color:var(--text-muted);margin-top:6px;">Replace [bracketed] placeholders with specific details before sending.</div>`,
@@ -491,26 +508,45 @@ const Comms = {
   },
   _getSegFilters() {
     return {
-      name:      document.getElementById('seg-name')?.value.trim() || '',
-      source:    document.getElementById('seg-source')?.value || '',
-      status:    document.getElementById('seg-status')?.value || '',
-      ministry:  document.getElementById('seg-ministry')?.value || '',
-      family:    document.getElementById('seg-family')?.value || '',
-      hasEmail:  document.getElementById('seg-hasemail')?.checked || false,
-      hasPhone:  document.getElementById('seg-hasphone')?.checked || false,
+      name:        document.getElementById('seg-name')?.value.trim() || '',
+      source:      document.getElementById('seg-source')?.value || '',
+      status:      document.getElementById('seg-status')?.value || '',
+      ministry:    document.getElementById('seg-ministry')?.value || '',
+      family:      document.getElementById('seg-family')?.value || '',
+      hasEmail:    document.getElementById('seg-hasemail')?.checked || false,
+      hasPhone:    document.getElementById('seg-hasphone')?.checked || false,
+      joinedFrom:  document.getElementById('seg-joinedfrom')?.value || '',
+      joinedTo:    document.getElementById('seg-joinedto')?.value || '',
+      attendedWeeks: parseInt(document.getElementById('seg-attended')?.value) || 0,
+      givenMin:    parseFloat(document.getElementById('seg-givenmin')?.value) || 0,
     };
   },
   _applyFilters(seg) {
     const allMembers  = Storage.getAll('members') || [];
     const allVisitors = Storage.getAll('visitors') || [];
-    let pool = [...allMembers, ...allVisitors.map(v => ({ ...v, _source: 'visitor' }))];
+    let pool = [...allMembers, ...allVisitors.map(function(v){ return Object.assign({},v,{_source:'visitor'}); })];
     if (seg.source === 'members') pool = allMembers;
     else if (seg.source === 'visitors') pool = allVisitors;
-    if (seg.status)   pool = pool.filter(m => m.status === seg.status);
-    if (seg.ministry) pool = pool.filter(m => (m.ministries || []).includes(seg.ministry));
-    if (seg.family)   pool = pool.filter(m => m.family === seg.family);
-    if (seg.hasEmail) pool = pool.filter(m => m.email);
-    if (seg.hasPhone) pool = pool.filter(m => m.phone);
+    if (seg.status)    pool = pool.filter(function(m){ return m.status === seg.status; });
+    if (seg.ministry)  pool = pool.filter(function(m){ return (m.ministries||[]).includes(seg.ministry); });
+    if (seg.family)    pool = pool.filter(function(m){ return m.family === seg.family; });
+    if (seg.hasEmail)  pool = pool.filter(function(m){ return m.email; });
+    if (seg.hasPhone)  pool = pool.filter(function(m){ return m.phone; });
+    if (seg.joinedFrom) pool = pool.filter(function(m){ return (m.joinDate||m.createdAt||'') >= seg.joinedFrom; });
+    if (seg.joinedTo)   pool = pool.filter(function(m){ return (m.joinDate||m.createdAt||'') <= seg.joinedTo; });
+    if (seg.attendedWeeks > 0) {
+      const checkins = Storage.getAll('checkins') || [];
+      const cutoff   = new Date(Storage.today()); cutoff.setDate(cutoff.getDate() - seg.attendedWeeks * 7);
+      const cutoffStr = cutoff.toISOString().slice(0,10);
+      const attendedIds = new Set(checkins.filter(function(c){ return c.type==='member' && c.date >= cutoffStr; }).map(function(c){ return c.memberId; }));
+      pool = pool.filter(function(m){ return attendedIds.has(m.id); });
+    }
+    if (seg.givenMin > 0) {
+      const giving = Storage.getAll('giving') || [];
+      const totalByMember = {};
+      giving.forEach(function(g){ if(g.memberId) totalByMember[g.memberId] = (totalByMember[g.memberId]||0) + (Number(g.amount)||0); });
+      pool = pool.filter(function(m){ return (totalByMember[m.id]||0) >= seg.givenMin; });
+    }
     return pool;
   },
   _previewSegment() {
@@ -568,7 +604,7 @@ const Comms = {
       <div style="font-size:.76rem;color:var(--text-muted)">Merge fields: <code>{firstName}</code> <code>{lastName}</code> <code>{churchName}</code> will be replaced for each recipient.</div>
     `, footer: `<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>
       <button class="btn btn-primary" onclick="Comms._logSend('${id}')">
-        <i data-lucide="send" style="width:14px;height:14px" aria-hidden="true"></i> Log Send (${pool.length})
+        <i data-lucide="send" class="icon-sm" aria-hidden="true"></i> Log Send (${pool.length})
       </button>` });
     // Wire template auto-fill
     document.getElementById('compose-tmpl')?.addEventListener('change', function() {
@@ -592,6 +628,23 @@ const Comms = {
     Modal.close();
     Toast.success(`Logged send to ${pool.length} recipient${pool.length!==1?'s':''}`);
     Comms._setTab('segments');
+  },
+  _exportSegmentCSV() {
+    const seg  = this._getSegFilters();
+    const pool = this._applyFilters(seg);
+    if (!pool.length) { Toast.error('No recipients match this segment'); return; }
+    const headers = ['Name','Email','Phone','Status','Team/Ministry','Family'];
+    const rows = pool.map(function(m){
+      const name = ((m.firstName||m.name||'') + ' ' + (m.lastName||'')).trim();
+      return [name, m.email||'', m.phone||'', m.status||'', m.team||m.ministries?.join(';')||'', m.family||''];
+    });
+    const csv = [headers, ...rows].map(function(r){ return r.map(function(v){ return '"' + String(v).replace(/"/g,'""') + '"'; }).join(','); }).join('\n');
+    const blob = new Blob([csv], { type:'text/csv' });
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = (seg.name || 'segment') + '.csv';
+    a.click();
+    Toast.success('Exported ' + pool.length + ' recipients');
   },
   _copyTemplate() {
     const subj=document.getElementById('tmpl-subject')?.value||'';

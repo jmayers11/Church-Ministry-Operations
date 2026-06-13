@@ -16,7 +16,7 @@
 //   deltaDir    — 'up' | 'down' | 'flat'  (default: 'flat')
 //   onClickPage — Navigation page id; makes card a link
 //   accent      — 'brand' | 'success' | 'warning' | 'danger' | 'gold' | 'info'
-UI.kpi = function({ icon, value, label, meta, delta, deltaDir, onClickPage, accent = 'brand' }) {
+UI.kpi = function({ icon, value, label, meta, delta, deltaDir, onClickPage, accent = 'brand', sm = false }) {
   const ACCENTS = {
     brand:   { bg: 'var(--accent-subtle)',    fg: 'var(--accent)' },
     success: { bg: 'var(--success-bg)',       fg: 'var(--success-text)' },
@@ -47,15 +47,13 @@ UI.kpi = function({ icon, value, label, meta, delta, deltaDir, onClickPage, acce
   const numVal = typeof value === 'number' ? value
     : parseInt(String(value).replace(/[^0-9]/g, ''), 10) || 0;
 
+  const classes = ['kpi', sm ? 'kpi--sm' : '', onClickPage ? 'kpi--clickable' : ''].filter(Boolean).join(' ');
+  const iconHtml = icon ? `<div class="kpi__icon" style="background:${bg};color:${fg}"><i data-lucide="${icon}" aria-hidden="true"></i></div>` : '';
+  const topHtml = (iconHtml || deltaHtml) ? `<div class="kpi__top">${iconHtml}${deltaHtml}</div>` : '';
   return `
-    <div class="kpi${onClickPage ? ' kpi--clickable' : ''}" ${clickAttrs}>
-      <div class="kpi__top">
-        <div class="kpi__icon" style="background:${bg};color:${fg}">
-          <i data-lucide="${icon}" aria-hidden="true"></i>
-        </div>
-        ${deltaHtml}
-      </div>
-      <div class="kpi__value" data-count-target="${numVal}">${numVal.toLocaleString()}</div>
+    <div class="${classes}" ${clickAttrs}>
+      ${topHtml}
+      <div class="kpi__value" data-count-target="${numVal}">${typeof value === 'number' ? numVal.toLocaleString() : UI.esc(String(value))}</div>
       <div class="kpi__label">${UI.esc(label)}</div>
       ${meta ? `<div class="kpi__meta">${UI.esc(String(meta))}</div>` : ''}
     </div>`;
@@ -386,7 +384,7 @@ UI.tabs = function(tabs, active, handler) {
               aria-selected="${active === t.id}"
               aria-controls="tabpanel-${t.id}"
               onclick="${handler}('${t.id}')">
-        ${t.icon ? `<i data-lucide="${t.icon}" style="width:14px;height:14px;vertical-align:-2px" aria-hidden="true"></i> ` : ''}${t.label}
+        ${t.icon ? `<i data-lucide="${t.icon}" class="icon-sm" style="vertical-align:-2px" aria-hidden="true"></i> ` : ''}${t.label}
       </button>`).join('')}
   </div>`;
 };
@@ -415,9 +413,58 @@ UI.a11yEnhance = function(container) {
   });
   // 3. Ensure all buttons with only icon children have aria-label
   container.querySelectorAll('button:not([aria-label])').forEach(btn => {
-    if (btn.textContent.trim() === '' && btn.querySelector('[data-lucide]')) {
-      const iconName = btn.querySelector('[data-lucide]').getAttribute('data-lucide') || 'button';
-      btn.setAttribute('aria-label', iconName.replace(/-/g, ' '));
+    if (btn.textContent.trim() === '' && btn.querySelector('i[data-lucide], svg')) {
+      const icon = btn.querySelector('i[data-lucide]');
+      if (icon && icon.getAttribute('data-lucide')) {
+        btn.setAttribute('aria-label', icon.getAttribute('data-lucide').replace(/-/g, ' '));
+      }
+    }
+  });
+
+  // 4. Apply ARIA tab semantics to all tab bars
+  container.querySelectorAll('[id$="-tabs"]:not([role]), .tabs-bar').forEach(tabsEl => {
+    tabsEl.setAttribute('role', 'tablist');
+    const btns = Array.from(tabsEl.querySelectorAll('button.tab-btn'));
+    btns.forEach(btn => {
+      if (!btn.getAttribute('role')) btn.setAttribute('role', 'tab');
+      const isActive = btn.classList.contains('active');
+      btn.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      btn.setAttribute('tabindex', isActive ? '0' : '-1');
+    });
+    // Arrow-key navigation: attach once per tablist
+    if (!tabsEl.dataset.a11yTabsWired) {
+      tabsEl.dataset.a11yTabsWired = '1';
+      tabsEl.addEventListener('keydown', e => {
+        const tabs = Array.from(tabsEl.querySelectorAll('[role="tab"]'));
+        const idx  = tabs.indexOf(document.activeElement);
+        if (idx === -1) return;
+        let next = -1;
+        if (e.key === 'ArrowRight') next = (idx + 1) % tabs.length;
+        if (e.key === 'ArrowLeft')  next = (idx - 1 + tabs.length) % tabs.length;
+        if (e.key === 'Home')       next = 0;
+        if (e.key === 'End')        next = tabs.length - 1;
+        if (next !== -1) {
+          e.preventDefault();
+          tabs[next].focus();
+          tabs[next].click(); // activate the tab
+        }
+      });
+    }
+  });
+
+  // 5. Add role="tabpanel" to the content sibling after a tab bar
+  container.querySelectorAll('[id$="-tabs"], .tabs-bar').forEach(tabsEl => {
+    const bodyEl = tabsEl.nextElementSibling;
+    if (bodyEl && !bodyEl.getAttribute('role')) {
+      bodyEl.setAttribute('role', 'tabpanel');
+      bodyEl.setAttribute('tabindex', '0');
+      // Link panel to active tab if possible
+      const activeTab = tabsEl.querySelector('[role="tab"][aria-selected="true"]');
+      if (activeTab) {
+        const tabId = activeTab.id || ('_tab_' + Math.random().toString(36).slice(2));
+        if (!activeTab.id) activeTab.id = tabId;
+        bodyEl.setAttribute('aria-labelledby', tabId);
+      }
     }
   });
 };

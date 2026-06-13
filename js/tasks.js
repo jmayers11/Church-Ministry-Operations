@@ -65,12 +65,12 @@ Navigation.register('tasks', function render(page) {
               ${colTasks.map(t => `
                 <div class="kanban-card ${isOverdue(t) ? 'kanban-card-overdue' : ''}" data-id="${t.id}">
                   <div class="kanban-card-title">${UI.esc(t.title)}</div>
-                  ${t.category ? `<span style="font-size:.7rem;color:var(--accent);font-weight:700;">📁 ${UI.esc(t.category)}</span>` : ''}
+                  ${t.category ? `<span style="font-size:.7rem;color:var(--accent);font-weight:700;"><i data-lucide="folder" class="icon-inline" aria-hidden="true"></i> ${UI.esc(t.category)}</span>` : ''}
                   ${t.description ? `<div style="font-size:.78rem;color:var(--text-muted);margin:4px 0;line-height:1.4;">${UI.esc(t.description)}</div>` : ''}
                   <div class="kanban-card-meta">
                     ${UI.badge(t.priority, priorityColors[t.priority] || 'gray')}
-                    ${t.dueDate ? `<span style="color:${isOverdue(t)?'var(--red)':'var(--text-muted)'};">${isOverdue(t)?'⚠ ':'📅 '}${UI.fmtDate(t.dueDate)}</span>` : ''}
-                    ${t.owner ? `<span>👤 ${UI.esc(t.owner)}</span>` : ''}
+                    ${t.dueDate ? `<span style="color:${isOverdue(t)?'var(--red)':'var(--text-muted)'};">${isOverdue(t)?'<i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> ':'<i data-lucide="calendar" class="icon-inline" aria-hidden="true"></i> '}${UI.fmtDate(t.dueDate)}</span>` : ''}
+                    ${t.owner ? `<span><i data-lucide="user" class="icon-inline" aria-hidden="true"></i> ${UI.esc(t.owner)}</span>` : ''}
                   </div>
                   <div style="display:flex;gap:4px;margin-top:8px;flex-wrap:wrap;">
                     ${cols.filter(c => c.id !== col.id).map(c =>
@@ -150,7 +150,7 @@ Navigation.register('tasks', function render(page) {
             const cmp=String(av).localeCompare(String(bv));return dir==='asc'?cmp:-cmp;
           });
         }
-        if (!data.length) { wrap.innerHTML=`<table><tbody><tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">✅</div><div class="empty-state-title">No tasks match filters</div></div></td></tr></tbody></table>`; return; }
+        if (!data.length) { wrap.innerHTML=`<table><tbody><tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon"><i data-lucide="check-circle" class="icon-inline" aria-hidden="true"></i></div><div class="empty-state-title">No tasks match filters</div></div></td></tr></tbody></table>`; return; }
         wrap.innerHTML=`<table class="data-table"><thead><tr>${thL('Task','title')}${thL('Category','category')}${thL('Priority','priority')}${thL('Status','status')}${thL('Due Date','dueDate')}${thL('Owner','owner')}<th>Actions</th></tr></thead><tbody>${data.map(t => `<tr style="${isOverdue(t)?'border-left:3px solid var(--red);':''}">${
           `<td><strong>${UI.esc(t.title)}</strong>${t.description?`<br><small style="color:var(--text-muted)">${UI.esc(t.description.slice(0,60))}</small>`:''}</td>
           <td>${UI.esc(t.category||'')}</td>
@@ -169,7 +169,7 @@ Navigation.register('tasks', function render(page) {
       body.innerHTML = `
         <div class="toolbar" style="margin-bottom:12px;">
           <div class="search-input-wrap">
-            <span class="search-icon">🔍</span>
+            <i data-lucide="search" class="icon-inline search-icon-lucide" aria-hidden="true"></i>
             <input type="text" class="search-input" id="tl-search" placeholder="Search tasks…">
           </div>
           <select class="filter-select" id="tl-owner-filter">
@@ -209,7 +209,7 @@ Navigation.register('tasks', function render(page) {
             const done = ownerTasks.filter(t => t.status === 'Done').length;
             const overdue = ownerTasks.filter(t => isOverdue(t)).length;
             return `<div class="card">
-              <div style="font-weight:800;font-size:.96rem;margin-bottom:10px;">👤 ${UI.esc(owner)}</div>
+              <div style="font-weight:800;font-size:.96rem;margin-bottom:10px;"><i data-lucide="user" class="icon-inline" aria-hidden="true"></i> ${UI.esc(owner)}</div>
               <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
                 <span class="badge badge-blue">${ownerTasks.length} total</span>
                 <span class="badge badge-green">${done} done</span>
@@ -217,13 +217,13 @@ Navigation.register('tasks', function render(page) {
               </div>
               ${ownerTasks.filter(t=>t.status!=='Done').slice(0,5).map(t=>`
                 <div style="padding:5px 0;border-bottom:1px solid var(--border);font-size:.83rem;display:flex;align-items:center;gap:6px;">
-                  ${isOverdue(t)?'⚠ ':''}
+                  ${isOverdue(t)?'<i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> ':''}
                   <span style="${isOverdue(t)?'color:var(--red)':''}">${UI.esc(t.title)}</span>
                   ${UI.badge(t.priority, priorityColors[t.priority]||'gray')}
                 </div>`).join('')}
             </div>`;
           }).join('')}
-          ${!owners.length ? `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">✅</div><div class="empty-state-title">No tasks with owners assigned</div></div>` : ''}
+          ${!owners.length ? `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon"><i data-lucide="check-circle" class="icon-inline" aria-hidden="true"></i></div><div class="empty-state-title">No tasks with owners assigned</div></div>` : ''}
         </div>`;
     }
   }
@@ -232,16 +232,16 @@ Navigation.register('tasks', function render(page) {
   page.innerHTML = `
     <div class="section-header">
       <div>
-        <h2 class="section-title">✅ Task Manager</h2>
+        <h2 class="section-title">Task Manager</h2>
         <div class="section-subtitle">${allTasks.length} tasks · ${doneCount} done${overdueCount ? ` · <span style="color:var(--red)">${overdueCount} overdue</span>` : ''}</div>
       </div>
       <button class="btn btn-primary" onclick="Tasks.add()">+ Add Task</button>
     </div>
 
-    ${overdueCount ? `<div class="alert-banner alert-banner-red">⚠ <strong>${overdueCount} overdue task${overdueCount>1?'s':''}</strong> need attention.</div>` : ''}
+    ${overdueCount ? `<div class="alert-banner alert-banner-red"><i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> <strong>${overdueCount} overdue task${overdueCount>1?'s':''}</strong> need attention.</div>` : ''}
 
     <div id="tasks-tabs" style="display:flex;gap:4px;border-bottom:2px solid var(--border);margin-bottom:20px;flex-wrap:wrap;">
-      ${[['kanban','📋 Kanban'],['list','☰ List View'],['owner','👤 By Owner']].map(([t,l])=>`
+      ${[['kanban','<i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i> Kanban'],['list','<i data-lucide="list" class="icon-inline" aria-hidden="true"></i> List View'],['owner','<i data-lucide="user" class="icon-inline" aria-hidden="true"></i> By Owner']].map(([t,l])=>`
         <button class="tab-btn${activeTab===t?' active':''}" data-tab="${t}" onclick="Tasks._tab('${t}')">${l}</button>`).join('')}
     </div>
     <div id="tasks-body"></div>

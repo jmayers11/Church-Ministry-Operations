@@ -107,6 +107,27 @@ const BoardReport = (() => {
         </tr>`).join('')
       : '<tr><td colspan="4" style="color:#888;text-align:center">No events this month</td></tr>';
 
+    // Attendance trend (13 weeks)
+    const allCheckins = Storage.getAll('checkins') || [];
+    const trendRows = [];
+    for (let i = 12; i >= 0; i--) {
+      const d2 = new Date(); d2.setDate(d2.getDate() - i * 7);
+      const ym2 = d2.toISOString().slice(0, 10);
+      const week2 = d2.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const hc2 = allCheckins.find(function(c){ return c.date === ym2 && c.type === 'headcount'; });
+      const mc2 = allCheckins.filter(function(c){ return c.date === ym2 && c.type === 'member'; }).length;
+      trendRows.push({ date: ym2, week: week2, count: hc2 ? Number(hc2.count || 0) : mc2 });
+    }
+    const nonZero = trendRows.filter(function(r){ return r.count > 0; });
+    const avgAttendance = nonZero.length ? Math.round(nonZero.reduce(function(s,r){ return s+r.count; },0) / nonZero.length) : 0;
+    const attendanceTrendRows = trendRows.map(function(r) {
+      const diff = r.count > 0 ? r.count - avgAttendance : null;
+      const cls  = diff === null ? '' : diff > 0 ? 'style="color:#059669"' : diff < 0 ? 'style="color:#dc2626"' : '';
+      return '<tr><td>' + _esc(r.week) + (r.date === today ? ' <strong>(This Week)</strong>' : '') + '</td>'
+           + '<td class="num">' + (r.count || '—') + '</td>'
+           + '<td class="num" ' + cls + '>' + (diff !== null && r.count > 0 ? (diff > 0 ? '+' : '') + diff : '—') + '</td></tr>';
+    }).join('');
+
     const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -175,7 +196,7 @@ const BoardReport = (() => {
   <h1>${_esc(churchName)}</h1>
   <h2>Monthly Board Report — ${_esc(monthLabel)}</h2>
   <div class="meta">Generated ${_fmtDate(today)} &nbsp;|&nbsp; Confidential</div>
-  <button class="print-btn no-print" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <button class="print-btn no-print" onclick="window.print()"><i data-lucide="printer" class="icon-inline" aria-hidden="true"></i> Print / Save as PDF</button>
 </div>
 
 <!-- Membership & Attendance -->
@@ -212,7 +233,7 @@ const BoardReport = (() => {
     <div class="kpi${expiredBG > 0 ? ' red' : ' green'}"><div class="kpi-value">${expiredBG}</div><div class="kpi-label">Expired Background Checks</div></div>
     <div class="kpi"><div class="kpi-value">${allVols.length}</div><div class="kpi-label">Total on Roster</div></div>
   </div>
-  ${expiredBG > 0 ? `<div class="alert alert-danger">⚠ ${expiredBG} volunteer${expiredBG > 1 ? 's have' : ' has'} an expired background check. Action required before next service.</div>` : `<div class="alert alert-ok">✓ All volunteer background checks current.</div>`}
+  ${expiredBG > 0 ? `<div class="alert alert-danger"><i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> ${expiredBG} volunteer${expiredBG > 1 ? 's have' : ' has'} an expired background check. Action required before next service.</div>` : `<div class="alert alert-ok">✓ All volunteer background checks current.</div>`}
 </div>
 
 <!-- Community Care -->
@@ -229,7 +250,17 @@ const BoardReport = (() => {
     <div class="kpi green"><div class="kpi-value">${answeredMonth}</div><div class="kpi-label">Answered Prayers</div></div>
     <div class="kpi${lowStock > 0 ? ' red' : ' green'}"><div class="kpi-value">${totalPantry}</div><div class="kpi-label">Pantry Items in Stock</div></div>
   </div>
-  ${lowStock > 0 ? `<div class="alert alert-warn">⚠ ${lowStock} pantry item${lowStock > 1 ? 's are' : ' is'} at or below minimum stock level.</div>` : ''}
+  ${lowStock > 0 ? `<div class="alert alert-warn"><i data-lucide="alert-triangle" class="icon-inline" aria-hidden="true"></i> ${lowStock} pantry item${lowStock > 1 ? 's are' : ' is'} at or below minimum stock level.</div>` : ''}
+</div>
+
+<!-- Attendance Trend -->
+<div class="section">
+  <div class="section-title">Attendance Trend (13 Weeks)</div>
+  <table>
+    <thead><tr><th>Week</th><th class="num">Attendance</th><th class="num">vs Avg</th></tr></thead>
+    <tbody>${attendanceTrendRows}</tbody>
+    <tfoot><tr class="total-row"><td>Average</td><td class="num">${avgAttendance}</td><td class="num">—</td></tr></tfoot>
+  </table>
 </div>
 
 <!-- Events -->
@@ -272,3 +303,76 @@ const BoardReport = (() => {
 })();
 
 window.BoardReport = BoardReport;
+
+/* ── Board Report navigation page ───────────────────────── */
+Navigation.register('board-report', function render(page) {
+  const today   = Storage.today();
+  const ym      = today.slice(0, 7);
+  const selMonth = Storage.get('_br_month') || today.slice(0, 7);
+
+  // Generate month options (current + 11 prior)
+  const monthOptions = [];
+  for (let i = 0; i <= 11; i++) {
+    const d  = new Date();
+    d.setDate(1);
+    d.setMonth(d.getMonth() - i);
+    const val   = d.toISOString().slice(0, 7);
+    const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    monthOptions.push({ val, label });
+  }
+
+  // Quick metrics for the selected month
+  const inM = function(str){ return str && str.startsWith(selMonth); };
+  const allMembers  = Storage.getAll('members') || [];
+  const allGiving   = Storage.getAll('giving') || [];
+  const allVols     = Storage.getAll('volunteers') || [];
+  const allCare     = Storage.getAll('care') || [];
+  const allCheckins = Storage.getAll('checkins') || [];
+
+  const activeMembers = allMembers.filter(function(m){ return m.status==='Active'; }).length;
+  const newMembersM   = allMembers.filter(function(m){ return inM(m.joinDate||m.createdAt); }).length;
+  const totalGivingM  = allGiving.filter(function(g){ return inM(g.date); }).reduce(function(s,g){ return s+(Number(g.amount)||0); },0);
+  const activeVols    = allVols.filter(function(v){ return v.status==='Active'; }).length;
+  const expiredBG     = allVols.filter(function(v){ return v.bgCheck==='Expired'; }).length;
+  const careOpen      = allCare.filter(function(c){ return c.status!=='Completed'&&c.status!=='Closed'; }).length;
+
+  // This month's check-in avg
+  const monthCheckins = allCheckins.filter(function(c){ return inM(c.date) && c.type==='headcount'; });
+  const avgAtt = monthCheckins.length ? Math.round(monthCheckins.reduce(function(s,c){ return s+(Number(c.count)||0); },0)/monthCheckins.length) : 0;
+
+  const monthLabel = new Date(selMonth + '-02').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+  const offset     = monthOptions.findIndex(function(m){ return m.val === selMonth; });
+
+  page.innerHTML =
+    '<div class="section-header"><div>'
+    +'<h2 class="section-title"><i data-lucide="file-text" class="icon-inline" aria-hidden="true"></i>Board Report Generator</h2>'
+    +'<div class="section-subtitle">Generate a print-ready monthly ministry report</div>'
+    +'</div></div>'
+    +'<div class="card" style="margin-bottom:20px">'
+    +'<div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;">'
+    +'<div class="form-group" style="margin:0;flex:1;min-width:200px">'
+    +'<label class="form-label">Report Month</label>'
+    +'<select class="form-control" id="br-month-sel">'
+    +monthOptions.map(function(m){ return '<option value="'+m.val+'"'+(m.val===selMonth?' selected':'')+'>'+m.label+'</option>'; }).join('')
+    +'</select></div>'
+    +'<button class="btn btn-primary" onclick="BoardReport.generate('+(offset===0?0:'-'+offset)+')">'
+    +'<i data-lucide="file-text" class="icon-xs" aria-hidden="true"></i> Generate PDF Report</button>'
+    +'</div></div>'
+    // Preview KPIs
+    +'<h3 style="font-size:var(--text-sm);font-weight:800;margin-bottom:12px">'+monthLabel+' Snapshot</h3>'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px;">'
+    +UI.kpi({ icon:'users', value:activeMembers, label:'Active Members', accent:'brand' })
+    +UI.kpi({ icon:'user-plus', value:newMembersM, label:'New Members', accent:'success' })
+    +UI.kpi({ icon:'dollar-sign', value:'$'+(totalGivingM/1000).toFixed(1)+'k', label:'Giving This Month', accent:'info' })
+    +UI.kpi({ icon:'scan-line', value:avgAtt||'—', label:'Avg Weekly Attendance', accent:'warning' })
+    +UI.kpi({ icon:'heart-handshake', value:activeVols, label:'Active Volunteers', accent:'brand' })
+    +UI.kpi({ icon:'shield-alert', value:expiredBG, label:'Expired BG Checks', accent:expiredBG>0?'danger':'success' })
+    +UI.kpi({ icon:'heart', value:careOpen, label:'Open Care Cases', accent:careOpen>5?'warning':'brand' })
+    +'</div>'
+    +'<div class="alert-banner alert-banner-blue" style="cursor:default">'
+    +'<i data-lucide="info" class="icon-inline" aria-hidden="true"></i>'
+    +'Click <strong>Generate PDF Report</strong> to open the full report in a new window. Use your browser&#39;s <strong>Print &#x2192; Save as PDF</strong> to download.'
+    +'</div>';
+  if (typeof lucide !== 'undefined') lucide.createIcons();
+  document.getElementById('br-month-sel')?.addEventListener('change', function(){ Storage.set('_br_month', this.value); Navigation.navigate('board-report'); });
+});

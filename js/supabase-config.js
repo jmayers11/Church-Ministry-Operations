@@ -180,6 +180,21 @@ var SupabaseDB = (function () {
   }
 
   /**
+   * Send a password-reset email via Supabase Auth.
+   * Returns { ok: true } or { ok: false, error: '...' }
+   */
+  async function resetPasswordForEmail(email) {
+    if (!_client) return { ok: false, error: 'Supabase not configured.' };
+    try {
+      var { error } = await _client.auth.resetPasswordForEmail(email);
+      if (error) return { ok: false, error: error.message };
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, error: e.message || 'Unknown error' };
+    }
+  }
+
+  /**
    * Insert a new ministry request (called from portal.html).
    * Returns { ok: true, data: row } or { ok: false, error: '...' }
    */
@@ -500,22 +515,16 @@ var SupabaseDB = (function () {
     isEnabled:        isEnabled,
     isAuthenticated:  isAuthenticated,
     getSession:       getSession,
-    onAuthChange:     onAuthChange,
-    signIn:           signIn,
-    signOut:          signOut,
-    insertRequest:    insertRequest,
-    lookupRequest:    lookupRequest,
-    getRequests:      getRequests,
-    updateRequest:    updateRequest,
-    deleteRequest:    deleteRequest,
-    notifyNewRequest: notifyNewRequest,
-    tableGet:         tableGet,
-    tableUpsert:      tableUpsert,
-    tableDelete:      tableDelete,
-    syncAllTables:    syncAllTables,
-    draftResponse:    draftResponse,
+    onAuthChange:          onAuthChange,
+    signIn:                signIn,
+    signOut:               signOut,
+    resetPasswordForEmail: resetPasswordForEmail,
+    insertRequest:         insertRequest,
+    updateRequest:         updateRequest,
+    tableGet:              tableGet,
+    tableUpsert:           tableUpsert,
+    tableDelete:           tableDelete,
+    syncAllTables:         syncAllTables,
+    draftResponse:         draftResponse,
   };
-
-}());
-
-window.SupabaseDB = SupabaseDB;
+})();

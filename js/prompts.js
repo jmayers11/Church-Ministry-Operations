@@ -24,7 +24,7 @@ Navigation.register('prompts', function render(page) {
     {
       id: 'volunteer',
       label: 'Volunteer Recruitment',
-      icon: '🙌',
+      icon: '<i data-lucide="users" class="icon-inline" aria-hidden="true"></i>',
       color: 'var(--blue)',
       prompts: [
         {
@@ -70,7 +70,7 @@ Requirements:
     {
       id: 'events',
       label: 'Event Announcements',
-      icon: '📅',
+      icon: '<i data-lucide="calendar" class="icon-inline" aria-hidden="true"></i>',
       color: 'var(--purple)',
       prompts: [
         {
@@ -133,7 +133,7 @@ Include a call-to-action to register or contact the church office`,
     {
       id: 'visitors',
       label: 'Visitor Follow-Up',
-      icon: '👋',
+      icon: 'hand',
       color: 'var(--orange)',
       prompts: [
         {
@@ -194,7 +194,7 @@ The letter should:
     {
       id: 'prayer',
       label: 'Prayer Team Messages',
-      icon: '🙏',
+      icon: '<i data-lucide="hands" class="icon-inline" aria-hidden="true"></i>',
       color: 'var(--green)',
       prompts: [
         {
@@ -252,7 +252,7 @@ The message should:
     {
       id: 'newsletter',
       label: 'Newsletter Content',
-      icon: '📰',
+      icon: 'newspaper',
       color: 'var(--yellow)',
       prompts: [
         {
@@ -303,7 +303,7 @@ The letter should:
     {
       id: 'social',
       label: 'Social Media Posts',
-      icon: '📱',
+      icon: '<i data-lucide="smartphone" class="icon-inline" aria-hidden="true"></i>',
       color: 'var(--red)',
       prompts: [
         {
@@ -354,7 +354,7 @@ For each post:
     {
       id: 'reports',
       label: 'Ministry Reports',
-      icon: '📊',
+      icon: 'bar-chart-2',
       color: 'var(--text-muted)',
       prompts: [
         {
@@ -418,14 +418,14 @@ The narrative should:
     page.innerHTML = `
       <div class="section-header">
         <div>
-          <h2 class="section-title">✨ Message Template Center</h2>
+          <h2 class="section-title">Message Template Center</h2>
           <div class="section-subtitle">Copy a prompt → paste into ChatGPT or Claude → get polished content instantly</div>
         </div>
       </div>
 
       <!-- Info Banner -->
       <div style="background:var(--accent-light);border:1px solid var(--accent);border-radius:var(--radius);padding:12px 16px;margin-bottom:24px;display:flex;align-items:center;gap:12px;font-size:.86rem;">
-        <span style="font-size:1.4rem;">💡</span>
+        <i data-lucide="lightbulb" class="icon-inline" aria-hidden="true"></i>
         <div>
           <strong>How it works:</strong> Select a prompt category, choose a template, click <strong>Copy Prompt</strong>, then paste it into
           <a href="https://chat.openai.com" target="_blank" style="color:var(--accent)">ChatGPT</a> or
@@ -466,7 +466,7 @@ The narrative should:
                     <div style="font-size:.8rem;color:var(--text-muted);margin-top:3px;">${UI.esc(p.description)}</div>
                   </div>
                   <button class="btn btn-primary btn-sm" onclick="event.stopPropagation();Prompts.copy('${activeCategory}',${i})" title="Copy prompt to clipboard">
-                    📋 Copy
+                    <i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i> Copy
                   </button>
                 </div>
                 ${i === activePromptIndex ? `
@@ -474,7 +474,7 @@ The narrative should:
                     <div style="font-size:.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px;">Generated Prompt Preview</div>
                     <pre id="prompt-preview-${i}" style="white-space:pre-wrap;font-family:inherit;font-size:.82rem;line-height:1.7;background:var(--surface-2);border-radius:var(--radius);padding:14px;border:1px solid var(--border);overflow:auto;max-height:280px;">${UI.esc(p.generate())}</pre>
                     <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
-                      <button class="btn btn-primary" onclick="Prompts.copy('${activeCategory}',${i})">📋 Copy Full Prompt</button>
+                      <button class="btn btn-primary" onclick="Prompts.copy('${activeCategory}',${i})"><i data-lucide="clipboard-list" class="icon-inline" aria-hidden="true"></i> Copy Full Prompt</button>
                       <a href="https://claude.ai" target="_blank" class="btn btn-outline">Open Claude.ai ↗</a>
                       <a href="https://chat.openai.com" target="_blank" class="btn btn-outline">Open ChatGPT ↗</a>
                     </div>

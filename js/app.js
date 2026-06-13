@@ -9,10 +9,23 @@ Storage.seedIfEmpty();
 // ── 2. Apply saved theme & accent colour ────────────────────
 (function applyTheme() {
   const s = Storage.getSettings();
-  document.documentElement.setAttribute('data-theme', s.theme || 'light');
-  if (s.accentColor) {
-    document.documentElement.style.setProperty('--accent', s.accentColor);
-  }
+  // Default to OS preference on first visit
+  const defaultTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  const theme = s.theme || defaultTheme;
+  document.documentElement.setAttribute('data-theme', theme);
+  if (s.accentColor) document.documentElement.style.setProperty('--accent', s.accentColor);
+  // Sync toggle icon + aria-pressed after DOM ready
+  window.syncThemeToggle = function(t) {
+    const btn = document.getElementById('theme-toggle');
+    const ico = document.getElementById('theme-icon');
+    if (!btn) return;
+    const isDark = t === 'dark';
+    btn.setAttribute('aria-pressed', String(isDark));
+    const label = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+    btn.title = label; btn.setAttribute('aria-label', label);
+    if (ico) { ico.setAttribute('data-lucide', isDark ? 'sun' : 'moon'); if (typeof lucide !== 'undefined') lucide.createIcons(); }
+  };
+  document.addEventListener('DOMContentLoaded', () => window.syncThemeToggle(theme));
 })();
 
 // ── 3. Global Modal helper ───────────────────────────────────
@@ -442,8 +455,72 @@ window.Validate = Validate;
 // Wrapped in DOMContentLoaded so Navigation is defined before register runs
 // (navigation.js loads after app.js, so we can't call Navigation.register synchronously)
 document.addEventListener('DOMContentLoaded', function() {
+
+// ── Theme toggle (Lucide icon swap + aria-pressed) ───────────────
+document.getElementById('theme-toggle')?.addEventListener('click', () => {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const next = isDark ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  const s = Storage.getSettings();
+  Storage.saveSettings({ ...s, theme: next });
+  window.syncThemeToggle?.(next);
+});
+
+// ── Data menu dropdown (Export/Import toggle) ────────────────────
+const dataMenuBtn = document.getElementById('data-menu-btn');
+const dataMenu    = document.getElementById('data-menu');
+if (dataMenuBtn && dataMenu) {
+  dataMenuBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = dataMenu.style.display === 'block';
+    dataMenu.style.display = open ? 'none' : 'block';
+    dataMenuBtn.setAttribute('aria-expanded', String(!open));
+  });
+  document.addEventListener('click', () => {
+    if (dataMenu.style.display === 'block') {
+      dataMenu.style.display = 'none';
+      dataMenuBtn.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
 // ── Settings helpers ─────────────────────────────────────────────
 const Settings = {
+  _liveFont(font) {
+    Storage.saveSettings({ fontFamily: font });
+    Settings._applyFont(font);
+    // Update active state on font buttons
+    ['Inter','Georgia','Roboto','Merriweather','Playfair_Display'].forEach(function(f) {
+      const btn = document.getElementById('font-btn-' + f);
+      if (!btn) return;
+      const active = f.replace('_',' ') === font;
+      btn.style.borderColor = active ? 'var(--accent)' : 'var(--border)';
+      btn.style.background  = active ? 'var(--accent)' : 'var(--surface)';
+      btn.style.color       = active ? '#fff' : 'var(--text)';
+    });
+  },
+  _applyFont(font) {
+    if (!font || font === 'Inter') {
+      document.documentElement.style.removeProperty('--font-sans');
+      return;
+    }
+    // Inject Google Fonts link if needed
+    const linkId = 'gf-' + font.replace(/\s/g,'-');
+    if (!document.getElementById(linkId)) {
+      const link = document.createElement('link');
+      link.id   = linkId;
+      link.rel  = 'stylesheet';
+      link.href = 'https://fonts.googleapis.com/css2?family=' + encodeURIComponent(font) + ':wght@400;600;700;900&display=swap';
+      document.head.appendChild(link);
+    }
+    document.documentElement.style.setProperty('--font-sans', "'" + font + "', sans-serif");
+  },
+  _applyPreset(accent, sidebar) {
+    document.getElementById('set-accent').value = accent;
+    document.getElementById('set-sidebar-color').value = sidebar;
+    Settings._liveAccent(accent);
+    Settings._liveSidebar(sidebar);
+  },
   _liveAccent(color) {
     document.documentElement.style.setProperty('--accent', color);
     const swatch = document.getElementById('accent-preview-swatch');
@@ -472,16 +549,28 @@ window.Settings = Settings;
   if (s.accentColor)   document.documentElement.style.setProperty('--accent', s.accentColor);
   if (s.sidebarColor)  { document.documentElement.style.setProperty('--sidebar-bg', s.sidebarColor); }
   if (s.customCss)     Settings._applyCustomCss(s.customCss);
+  if (s.fontFamily && s.fontFamily !== 'Inter') Settings._applyFont(s.fontFamily);
 })();
 
-// ── Onboarding first-run checklist (4.7) ────────────────────────
+// ── Onboarding first-run checklist (4.7) ────────────────────
 const Onboarding = (() => {
   const STEPS = [
+    {
+      key: 'demo_choice',
+      label: 'Choose your data mode',
+      sub:   'Load sample data or start fresh',
+      done:  () => !!Storage.get('_demo_choice_made'),
+      action: null,
+      isDemo: true,
+    },
     {
       key: 'church_name',
       label: 'Set your church name',
       sub:   'Settings → Church Information',
-      done:  () => (Storage.getSettings().churchName || '').length > 3,
+      done:  () => {
+        const n = Storage.getSettings().churchName || '';
+        return n.length > 3 && n !== 'Grace Community Church';
+      },
       action: () => Navigation.navigate('settings'),
     },
     {
@@ -513,60 +602,170 @@ const Onboarding = (() => {
     const footer  = document.getElementById('onboarding-footer');
     if (!overlay || !stepsEl) return;
 
-    const doneAll = STEPS.every(s => s.done());
-    stepsEl.innerHTML = STEPS.map((s, i) => {
-      const isDone = s.done();
-      return `<div class="onboarding-step${isDone ? ' onboarding-step--done' : ''}">
-        <div class="onboarding-step__num">${isDone ? '✓' : (i + 1)}</div>
-        <div>
-          <div class="onboarding-step__label">${s.label}</div>
-          <div class="onboarding-step__sub">${s.sub}</div>
-        </div>
-        ${!isDone ? `<button class="btn btn-primary btn-sm" style="margin-left:auto;flex-shrink:0"
-            onclick="Onboarding._go(${i})">Go</button>` : ''}
-      </div>`;
+    const trackable = STEPS.filter(s => !s.isDemo);
+    const doneCount = trackable.filter(s => s.done()).length;
+    const doneAll   = STEPS.every(s => s.done());
+    const pct       = trackable.length ? Math.round(doneCount / trackable.length * 100) : 0;
+
+    const progressHtml = '<div class="onboarding-progress" aria-hidden="true">' +
+      '<div class="onboarding-progress__bar" style="width:' + pct + '%"></div>' +
+      '</div>' +
+      '<p class="onboarding-progress__label">' + doneCount + ' of ' + trackable.length + ' steps complete</p>';
+
+    const stepsHtml = STEPS.map(function(s, i) {
+      var isDone = s.done();
+      if (s.isDemo) {
+        var chosenNote = window.DEMO_MODE ? '✔ Sample data enabled' : '✔ Starting fresh';
+        return '<div class="onboarding-demo-card' + (isDone ? ' onboarding-demo-card--chosen' : '') + '">' +
+          '<div style="display:flex;align-items:flex-start;gap:14px;">' +
+            '<div class="onboarding-step__num">' + (isDone ? '✓' : (i + 1)) + '</div>' +
+            '<div>' +
+              '<div class="onboarding-step__label">' + s.label + '</div>' +
+              '<div class="onboarding-step__sub">' + s.sub + '</div>' +
+            '</div>' +
+          '</div>' +
+          (isDone
+            ? '<p style="font-size:.8rem;color:var(--text-muted);margin:6px 0 0">' + chosenNote + '</p>'
+            : '<div class="onboarding-demo-card__btns">' +
+                '<button class="btn btn-primary btn-sm" onclick="Onboarding._setDemo(true)">' +
+                  '<i data-lucide="database" class="icon-inline" aria-hidden="true"></i> Load sample data' +
+                '</button>' +
+                '<button class="btn btn-outline btn-sm" onclick="Onboarding._setDemo(false)">' +
+                  '<i data-lucide="file-plus-2" class="icon-inline" aria-hidden="true"></i> Start fresh' +
+                '</button>' +
+              '</div>' +
+              '<p style="font-size:.76rem;color:var(--text-muted);margin:6px 0 0">Sample data lets you explore all features right away</p>'
+          ) +
+        '</div>';
+      }
+      return '<div class="onboarding-step' + (isDone ? ' onboarding-step--done' : '') + '">' +
+        '<div class="onboarding-step__num">' + (isDone ? '✓' : (i + 1)) + '</div>' +
+        '<div style="flex:1">' +
+          '<div class="onboarding-step__label">' + s.label + '</div>' +
+          '<div class="onboarding-step__sub">' + s.sub + '</div>' +
+        '</div>' +
+        (isDone ? '' : '<button class="btn btn-primary btn-sm" style="flex-shrink:0" onclick="Onboarding._go(' + i + ')">Go</button>') +
+      '</div>';
     }).join('');
 
+    stepsEl.innerHTML = progressHtml + stepsHtml;
+
     footer.innerHTML = doneAll
-      ? `<button class="btn btn-primary" onclick="Onboarding.dismiss()">
-           <i data-lucide="check-circle" style="width:16px;height:16px" aria-hidden="true"></i> All done — Let's go!
-         </button>`
-      : `<button class="btn btn-ghost btn-sm" onclick="Onboarding.dismiss()">Skip for now</button>`;
+      ? '<button class="btn btn-primary" onclick="Onboarding.dismiss()">' +
+          '<i data-lucide="check-circle" class="icon-inline" aria-hidden="true"></i> All done — Let\'s go!' +
+        '</button>'
+      : '<button class="btn btn-ghost btn-sm" onclick="Onboarding.dismiss()">Skip for now</button>';
 
     if (typeof lucide !== 'undefined') lucide.createIcons();
   }
 
+  var FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),[tabindex]:not([tabindex="-1"])';
+  var _trapHandler = null;
+  var _escHandler  = null;
+
+  function _trap(e) {
+    if (e.key !== 'Tab') return;
+    var overlay = document.getElementById('onboarding-overlay');
+    if (!overlay || overlay.hasAttribute('hidden')) return;
+    var nodes = Array.from(overlay.querySelectorAll(FOCUSABLE));
+    if (!nodes.length) return;
+    var first = nodes[0], last = nodes[nodes.length - 1];
+    if (e.shiftKey) {
+      if (document.activeElement === first) { e.preventDefault(); last.focus(); }
+    } else {
+      if (document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  }
+
   function show() {
-    const overlay = document.getElementById('onboarding-overlay');
+    var overlay = document.getElementById('onboarding-overlay');
     if (!overlay) return;
     overlay.removeAttribute('hidden');
     _render();
+    if (!_trapHandler) { _trapHandler = _trap; document.addEventListener('keydown', _trapHandler); }
+    if (!_escHandler) {
+      _escHandler = function(e) { if (e.key === 'Escape') dismiss(); };
+      document.addEventListener('keydown', _escHandler);
+    }
+    requestAnimationFrame(function() {
+      var first = overlay.querySelector(FOCUSABLE);
+      if (first) first.focus();
+    });
   }
 
   function dismiss() {
-    const overlay = document.getElementById('onboarding-overlay');
+    var overlay = document.getElementById('onboarding-overlay');
     if (overlay) overlay.setAttribute('hidden', '');
     Storage.set('_onboarding_dismissed', true);
+    if (_trapHandler) { document.removeEventListener('keydown', _trapHandler); _trapHandler = null; }
+    if (_escHandler)  { document.removeEventListener('keydown', _escHandler);  _escHandler = null; }
   }
 
   function _go(stepIndex) {
     dismiss();
-    STEPS[stepIndex]?.action?.();
+    if (STEPS[stepIndex] && STEPS[stepIndex].action) STEPS[stepIndex].action();
+  }
+
+  function _setDemo(enable) {
+    localStorage.setItem('_demo_mode', enable ? 'true' : 'false');
+    Storage.set('_demo_choice_made', true);
+    window.DEMO_MODE = enable;
+    if (enable) {
+      if (typeof Toast !== 'undefined') Toast.info('Loading sample data…');
+      setTimeout(function() { location.reload(); }, 700);
+    } else {
+      _render();
+    }
   }
 
   function maybeShow() {
     if (Storage.get('_onboarding_dismissed')) return;
-    // Only show if church name hasn't been set
-    const settings = Storage.getSettings();
+    var settings = Storage.getSettings();
     if (!settings.churchName || settings.churchName === 'Grace Community Church') {
-      // First real run — show after a short delay so the page renders first
       setTimeout(show, 800);
     }
   }
 
-  return { show, dismiss, maybeShow, _go, _render };
+  return { show, dismiss, maybeShow, _go, _render, _setDemo };
 })();
 window.Onboarding = Onboarding;
+
+// ── Offline / SW-update manager (4.9) ────────────────────────
+const OfflineManager = (() => {
+  function _setBanner(isOffline) {
+    var el = document.getElementById('offline-banner');
+    if (el) el.hidden = !isOffline;
+    if (!isOffline && typeof SupabaseClient !== 'undefined' && SupabaseClient.syncAllTables) {
+      SupabaseClient.syncAllTables().catch(function(){});
+    }
+  }
+
+  function init() {
+    // Set initial state
+    if (!navigator.onLine) _setBanner(true);
+    window.addEventListener('online',  function() { _setBanner(false); });
+    window.addEventListener('offline', function() { _setBanner(true); });
+    // Re-render lucide icons in banners once they appear
+    window.addEventListener('online', function() {
+      if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
+  }
+
+  function applyUpdate() {
+    var reg = window._swReg;
+    if (reg && reg.waiting) {
+      reg.waiting.postMessage('SKIP_WAITING');
+    } else {
+      window.location.reload();
+    }
+  }
+
+  return { init, applyUpdate };
+})();
+window.OfflineManager = OfflineManager;
+
+document.addEventListener('DOMContentLoaded', function() { OfflineManager.init(); });
+
 
 Navigation.register('settings', function render(page) {
   const s = Storage.getSettings();
@@ -582,7 +781,7 @@ Navigation.register('settings', function render(page) {
 
       <!-- Church Info -->
       <div class="card">
-        <div class="card-header"><span class="card-title">⛪ Church Information</span></div>
+        <div class="card-header"><span class="card-title">Church Information</span></div>
         <div class="form-group"><label class="form-label">Church Name</label>
           <input class="form-control" id="set-name" value="${UI.esc(s.churchName)}">
         </div>
@@ -657,18 +856,44 @@ Navigation.register('settings', function render(page) {
           ${s.logoDataUrl ? `<img src="${s.logoDataUrl}" alt="Current logo" style="margin-top:8px;height:60px;border-radius:8px;object-fit:contain;">` : ''}
         </div>
         <div class="form-group">
+          <label class="form-label">Font Family</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+            ${['Inter','Georgia','Roboto','Merriweather','Playfair Display'].map(f =>
+              `<button onclick="Settings._liveFont('${f}')"
+                style="padding:4px 12px;border-radius:20px;border:2px solid ${(s.fontFamily||'Inter')===f?'var(--accent)':'var(--border)'};background:${(s.fontFamily||'Inter')===f?'var(--accent)':'var(--surface)'};color:${(s.fontFamily||'Inter')===f?'#fff':'var(--text)'};cursor:pointer;font-family:${f};font-size:.86rem" id="font-btn-${f.replace(/\s/g,'_')}">${f}</button>`
+            ).join('')}
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Theme Presets</label>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;">
+            ${[
+              {name:'Indigo',  accent:'#4f6ef7', sidebar:'#1e1b4b'},
+              {name:'Forest',  accent:'#059669', sidebar:'#14532d'},
+              {name:'Royal',   accent:'#7c3aed', sidebar:'#3b0764'},
+              {name:'Slate',   accent:'#0ea5e9', sidebar:'#0f172a'},
+              {name:'Ruby',    accent:'#dc2626', sidebar:'#3b1a1a'},
+              {name:'Amber',   accent:'#d97706', sidebar:'#451a03'},
+            ].map(p =>
+              `<button onclick="Settings._applyPreset('${p.accent}','${p.sidebar}')"
+                style="display:flex;gap:4px;align-items:center;padding:4px 10px;border-radius:20px;border:1px solid var(--border);background:var(--surface);cursor:pointer;font-size:.82rem;">
+                <span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${p.accent}"></span>${p.name}</button>`
+            ).join('')}
+          </div>
+        </div>
+        <div class="form-group">
           <label class="form-label">Custom CSS <span style="font-size:.74rem;font-weight:400;color:var(--text-muted)">(advanced — injected into &lt;head&gt;)</span></label>
           <textarea class="form-control" id="set-custom-css" rows="4" placeholder="/* e.g. :root { --radius: 0; } */"
                     style="font-family:monospace;font-size:.82rem">${UI.esc(s.customCss||'')}</textarea>
         </div>
         <button class="btn btn-primary" id="save-appearance-btn">
-          <i data-lucide="save" style="width:14px;height:14px" aria-hidden="true"></i> Save Appearance
+          <i data-lucide="save" class="icon-sm" aria-hidden="true"></i> Save Appearance
         </button>
       </div>
 
       <!-- Data Management -->
       <div class="card">
-        <div class="card-header"><span class="card-title">💾 Data Management</span></div>
+        <div class="card-header"><span class="card-title">Data Management</span></div>
         <p style="font-size:.86rem;color:var(--text-muted);margin-bottom:16px;">
           All data is stored locally in your browser. Export regularly for backup.
         </p>
@@ -678,7 +903,8 @@ Navigation.register('settings', function render(page) {
             ⬆ Import Backup (JSON)
             <input type="file" id="set-import" accept=".json" style="display:none">
           </label>
-          <button class="btn btn-danger" id="set-reset-btn">🗑 Reset All Data</button>
+          <button class="btn btn-danger" id="set-reset-btn"><i data-lucide="trash-2" class="icon-inline" aria-hidden="true"></i> Reset All Data</button>
+          <button class="btn btn-outline" id="set-revisit-btn"><i data-lucide="map" class="icon-inline" aria-hidden="true"></i> Revisit Setup Wizard</button>
         </div>
         <div style="margin-top:16px;padding:12px;background:var(--surface-2);border-radius:var(--radius);font-size:.8rem;color:var(--text-muted);">
           <strong>Records:</strong>
@@ -701,43 +927,70 @@ Navigation.register('settings', function render(page) {
       email:      document.getElementById('set-email').value.trim(),
       website:    document.getElementById('set-web').value.trim(),
     });
-    document.getElementById('sidebar-church-name').textContent = document.getElementById('set-name').value.trim();
     Toast.success('Church info saved');
+    const nameEl = document.getElementById('sidebar-church-name');
+    if (nameEl) nameEl.textContent = document.getElementById('set-name').value.trim();
   };
 
   document.getElementById('save-appearance-btn').onclick = () => {
-    const theme       = document.querySelector('input[name="theme-pick"]:checked')?.value || 'light';
-    const accent      = document.getElementById('set-accent')?.value || '#4f6ef7';
-    const sidebarColor = document.getElementById('set-sidebar-color')?.value || '#1e1b4b';
-    const customCss   = document.getElementById('set-custom-css')?.value?.trim() || '';
-
-    Storage.saveSettings({ theme, accentColor: accent, sidebarColor, customCss });
-    document.documentElement.setAttribute('data-theme', theme);
-    document.documentElement.style.setProperty('--accent', accent);
-    document.getElementById('theme-toggle').textContent = theme === 'dark' ? '☀️' : '🌙';
-    Settings._liveSidebar(sidebarColor);
+    const theme = document.querySelector('input[name="theme-pick"]:checked')?.value || 'light';
+    const accentColor  = document.getElementById('set-accent').value;
+    const sidebarColor = document.getElementById('set-sidebar-color').value;
+    const customCss    = document.getElementById('set-custom-css').value;
+    const fontFamily   = Storage.getSettings().fontFamily || 'Inter';
+    Storage.saveSettings({ theme, accentColor, sidebarColor, customCss, fontFamily });
+    window.syncThemeToggle?.(theme);
+    document.documentElement.style.setProperty('--accent', accentColor);
+    document.documentElement.style.setProperty('--sidebar-bg', sidebarColor);
     Settings._applyCustomCss(customCss);
-
-    const logoFile = document.getElementById('set-logo')?.files[0];
-    if (logoFile) {
-      const reader = new FileReader();
-      reader.onload = ev => {
-        Storage.saveSettings({ logoDataUrl: ev.target.result });
-        const logoEl = document.getElementById('church-logo');
-        if (logoEl) logoEl.innerHTML = `<img src="${ev.target.result}" alt="logo" style="width:100%;height:100%;border-radius:8px;object-fit:cover;">`;
-        Toast.success('Appearance saved');
-        Navigation.navigate('settings');
-      };
-      reader.readAsDataURL(logoFile);
-    } else {
-      Toast.success('Appearance saved');
-    }
+    Settings._applyFont(fontFamily);
+    Toast.success('Appearance saved');
   };
 
-  // Apply saved sidebar color on load
-  if (s.sidebarColor) Settings._liveSidebar(s.sidebarColor);
-  if (s.customCss)    Settings._applyCustomCss(s.customCss);
-  lucide.createIcons();
+  document.getElementById('set-logo').onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      Storage.saveSettings({ logoDataUrl: ev.target.result });
+      const logoEl = document.getElementById('church-logo');
+      if (logoEl) logoEl.innerHTML = '<img src="' + ev.target.result + '" alt="logo" style="width:100%;height:100%;border-radius:8px;object-fit:cover;">';
+      Toast.success('Logo updated');
+    };
+    reader.readAsDataURL(file);
+  };
 
+  document.getElementById('set-export-btn').onclick = () => Storage.exportAll();
+
+  document.getElementById('set-import').onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        Storage.importAll(JSON.parse(ev.target.result));
+        Toast.success('Import successful — reloading...');
+        setTimeout(() => location.reload(), 1200);
+      } catch(err) {
+        Toast.error('Import failed: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+
+  document.getElementById('set-reset-btn').onclick = () => {
+    UI.confirm('Reset ALL data? This cannot be undone.', () => {
+      localStorage.clear();
+      Toast.success('Data cleared — reloading...');
+      setTimeout(() => location.reload(), 1200);
+    });
+  };
+
+  document.getElementById('set-revisit-btn').onclick = () => {
+    Storage.remove('_onboarding_dismissed');
+    Onboarding.show();
+  };
+
+  if (typeof lucide !== 'undefined') lucide.createIcons();
 });
 });

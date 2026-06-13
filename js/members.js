@@ -168,10 +168,10 @@ Navigation.register('members', function render(page) {
       body.innerHTML = `
         ${(todayBds.length || todayAns.length) ? `
         <div class="accent-banner">
-          <div class="accent-banner__title">🎉 Celebrating Today!</div>
+          <div class="accent-banner__title"><i data-lucide="party-popper" class="icon-inline" aria-hidden="true"></i> Celebrating Today!</div>
           <div class="accent-banner__body">
-            ${todayBds.map(m=>`<div>🎂 <strong>${m.firstName} ${m.lastName}</strong> — Birthday (Turning ${m._age})</div>`).join('')}
-            ${todayAns.map(m=>`<div>💍 <strong>${m.firstName} ${m.lastName}</strong> — Anniversary (${m._years} yrs)</div>`).join('')}
+            ${todayBds.map(m=>`<div><i data-lucide="cake" class="icon-inline" aria-hidden="true"></i> <strong>${m.firstName} ${m.lastName}</strong> — Birthday (Turning ${m._age})</div>`).join('')}
+            ${todayAns.map(m=>`<div><i data-lucide="heart" class="icon-inline" aria-hidden="true"></i> <strong>${m.firstName} ${m.lastName}</strong> — Anniversary (${m._years} yrs)</div>`).join('')}
           </div>
         </div>` : ''}
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
