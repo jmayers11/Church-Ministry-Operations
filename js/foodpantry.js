@@ -1071,7 +1071,7 @@ const PantryMgr = {
   createOrder() {
     const templates = Storage.getAll('pantry_box_templates') || [];
     if (!templates.length) {
-      Toast.warn('Create a box template first (Settings tab) before creating an order.');
+      Toast.error('Create a box template first (Settings tab) before creating an order.');
       return;
     }
     const tmplOpts = templates.map(t =>
@@ -1157,8 +1157,8 @@ const PantryMgr = {
   },
 
   deleteOrder(id) {
-    UI.confirm('Cancel this order?', 'This will remove the order permanently.', () => {
-      Storage.remove('pantry_box_orders', id);
+    UI.confirm('Cancel this order? This will remove it permanently.', () => {
+      Storage.removeItem('pantry_box_orders', id);
       Toast.success('Order cancelled.');
       this._rerender?.();
     });
@@ -1173,7 +1173,7 @@ const PantryMgr = {
   returnOrder(id) {
     const order = Storage.findById('pantry_box_orders', id);
     if (!order) return;
-    UI.confirm('Return to inventory?', 'Items from this order will be added back to inventory.', () => {
+    UI.confirm('Return boxes to inventory? Items will be added back.', () => {
       const qty = order.quantity || 1;
       const inventory = Storage.getAll('pantry_inventory') || [];
       (order.bom || []).forEach(bomLine => {
