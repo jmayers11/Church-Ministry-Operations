@@ -689,4 +689,15 @@ var FPRP = (function () {
     _printWindow('Executive Report', html);
   }
 
+  return {
+    renderPlanning:     renderPlanning,
+    postRender:         postRender,
+    pantrySnapshot:     pantrySnapshot,
+    addSubstitution:    addSubstitution,
+    removeSubstitution: removeSubstitution,
+    printDonationList:  printDonationList,
+    printExecReport:    printExecReport,
+  };
+
 })();
+window.FPRP = FPRP;

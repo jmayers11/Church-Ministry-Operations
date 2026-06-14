@@ -483,7 +483,7 @@ body.sidebar-collapsed .nav-section-toggle { display: none; }
   padding: 8px 14px;
   font-size: .88rem;
   font-weight: 500;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   cursor: pointer;
   transition: color var(--motion-fast), border-color var(--motion-fast);
   white-space: nowrap;
