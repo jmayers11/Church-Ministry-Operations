@@ -1067,5 +1067,124 @@ const PantryMgr = {
     this._rerender?.();
   },
 
+  // ── Box Order methods ──────────────────────────────────────
+  createOrder() {
+    const templates = Storage.getAll('pantry_box_templates') || [];
+    if (!templates.length) {
+      Toast.warn('Create a box template first (Settings tab) before creating an order.');
+      return;
+    }
+    const tmplOpts = templates.map(t =>
+      '<option value="'+t.id+'">'+UI.esc(t.name)+'</option>'
+    ).join('');
+    Modal.open({
+      title: 'Create Box Order',
+      body: '<div class="form-group"><label class="form-label">Box Template *</label>'
+          + '<select class="form-control" id="co-tmpl">'+tmplOpts+'</select></div>'
+          + '<div class="form-group"><label class="form-label">Quantity to Build</label>'
+          + '<input class="form-control" id="co-qty" type="number" min="1" value="1"></div>'
+          + '<div class="form-group"><label class="form-label">Ordered By</label>'
+          + '<input class="form-control" id="co-by" placeholder="Your name (optional)"></div>'
+          + '<div class="form-group"><label class="form-label">Notes</label>'
+          + '<input class="form-control" id="co-notes" placeholder="Optional notes"></div>',
+      footer: '<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>'
+            + '<button class="btn btn-primary" id="co-save">Create Order</button>',
+    });
+    document.getElementById('co-save')?.addEventListener('click', () => {
+      const tmplId = document.getElementById('co-tmpl')?.value;
+      const qty    = parseInt(document.getElementById('co-qty')?.value) || 1;
+      const by     = (document.getElementById('co-by')?.value || '').trim();
+      const notes  = (document.getElementById('co-notes')?.value || '').trim();
+      const tmpl   = Storage.findById('pantry_box_templates', tmplId);
+      if (!tmpl) { Toast.error('Template not found.'); return; }
+      Storage.insert('pantry_box_orders', {
+        templateId:   tmplId,
+        templateName: tmpl.name,
+        color:        tmpl.color || 'blue',
+        quantity:     qty,
+        bom:          (tmpl.items || []).map(i => ({ itemName: i.itemName, qty: i.qty, unit: i.unit })),
+        createdBy:    by,
+        notes:        notes,
+        status:       'Open',
+        createdAt:    new Date().toISOString(),
+      });
+      Modal.close();
+      Toast.success('Box order created!');
+      this._rerender?.();
+    });
+  },
+
+  startOrder(id) {
+    Storage.update('pantry_box_orders', id, { status: 'In Progress', startedAt: new Date().toISOString() });
+    Toast.success('Order started — get building!');
+    this._rerender?.();
+  },
+
+  completeOrder(id) {
+    const order = Storage.findById('pantry_box_orders', id);
+    if (!order) return;
+    Modal.open({
+      title: 'Complete Box Order',
+      body: '<div class="form-group"><label class="form-label">Completed By</label>'
+          + '<input class="form-control" id="cmp-by" placeholder="Your name (optional)"></div>'
+          + '<div class="form-group"><label class="form-label">Notes</label>'
+          + '<input class="form-control" id="cmp-notes" value="'+UI.esc(order.notes||'')+'"></div>'
+          + '<p style="font-size:.84rem;color:var(--text-muted);margin-top:12px;">Completing this order will deduct the required items from inventory.</p>',
+      footer: '<button class="btn btn-outline" onclick="Modal.close()">Cancel</button>'
+            + '<button class="btn btn-primary" id="cmp-save">Complete & Deduct Inventory</button>',
+    });
+    document.getElementById('cmp-save')?.addEventListener('click', () => {
+      const by    = (document.getElementById('cmp-by')?.value || '').trim();
+      const notes = (document.getElementById('cmp-notes')?.value || '').trim();
+      const qty   = order.quantity || 1;
+      const inventory = Storage.getAll('pantry_inventory') || [];
+      (order.bom || []).forEach(bomLine => {
+        const best = PantryMgr._matchInv(inventory, bomLine.itemName);
+        if (!best) return;
+        const deduct = bomLine.qty * qty;
+        Storage.update('pantry_inventory', best.id, { qty: Math.max(0, (best.qty || 0) - deduct) });
+      });
+      Storage.update('pantry_box_orders', id, {
+        status:      'Completed',
+        completedAt: new Date().toISOString(),
+        completedBy: by,
+        notes:       notes,
+      });
+      Modal.close();
+      Toast.success('Order completed — inventory updated!');
+      this._rerender?.();
+    });
+  },
+
+  deleteOrder(id) {
+    UI.confirm('Cancel this order?', 'This will remove the order permanently.', () => {
+      Storage.remove('pantry_box_orders', id);
+      Toast.success('Order cancelled.');
+      this._rerender?.();
+    });
+  },
+
+  distributeOrder(id) {
+    Storage.update('pantry_box_orders', id, { status: 'Distributed', distributedAt: new Date().toISOString() });
+    Toast.success('Marked as distributed!');
+    this._rerender?.();
+  },
+
+  returnOrder(id) {
+    const order = Storage.findById('pantry_box_orders', id);
+    if (!order) return;
+    UI.confirm('Return to inventory?', 'Items from this order will be added back to inventory.', () => {
+      const qty = order.quantity || 1;
+      const inventory = Storage.getAll('pantry_inventory') || [];
+      (order.bom || []).forEach(bomLine => {
+        const best = PantryMgr._matchInv(inventory, bomLine.itemName);
+        if (best) Storage.update('pantry_inventory', best.id, { qty: (best.qty || 0) + (bomLine.qty * qty) });
+      });
+      Storage.update('pantry_box_orders', id, { status: 'Returned', returnedAt: new Date().toISOString() });
+      Toast.success('Items returned to inventory.');
+      this._rerender?.();
+    });
+  },
+
   // ----------------------------
 };

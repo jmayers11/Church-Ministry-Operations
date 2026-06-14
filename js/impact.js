@@ -135,15 +135,15 @@ Navigation.register('impact', function render(page) {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-bottom:24px;">
       <div class="card">
         <div class="card-header"><h3 class="card-title">🏠 Family Assistance Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
-        <canvas id="impact-fam-chart" height="120"></canvas>
+        <div style="position:relative;height:140px;"><canvas id="impact-fam-chart"></canvas></div>
       </div>
       <div class="card">
         <div class="card-header"><h3 class="card-title">👋 New Visitor Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
-        <canvas id="impact-vis-chart" height="120"></canvas>
+        <div style="position:relative;height:140px;"><canvas id="impact-vis-chart"></canvas></div>
       </div>
       <div class="card">
         <div class="card-header"><h3 class="card-title">❤️ Care Ministry Trend</h3><span style="font-size:.76rem;color:var(--text-muted)">6 months</span></div>
-        <canvas id="impact-care-chart" height="120"></canvas>
+        <div style="position:relative;height:140px;"><canvas id="impact-care-chart"></canvas></div>
       </div>
     </div>
 

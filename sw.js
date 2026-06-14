@@ -3,7 +3,7 @@
    Caches static assets + offline fallback page
    ============================================================= */
 
-const CACHE_NAME = 'church-dash-v39';
+const CACHE_NAME = 'church-dash-v40';
 const OFFLINE_URL = './offline.html';
 
 // Static assets to pre-cache on install
