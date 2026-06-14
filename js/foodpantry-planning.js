@@ -336,15 +336,35 @@ var FPRP = (function () {
       + '<div style="margin-top:12px;font-size:.84rem;"><strong>Primary risk:</strong> ' + hs.primaryRisk.label + ' (' + Math.round(hs.primaryRisk.val * 100) + '%)</div>'
       + '</div>';
 
-    /* ── 45-day history gate ── */
+    /* ── 45-day history gate (warning only — box capacity still shows) ── */
     if (cons.actualDays < 45) {
       html += '<div class="card" style="margin-bottom:20px;border-left:4px solid var(--warning);">'
         + '<div style="display:flex;gap:12px;align-items:flex-start;">'
         + '<i data-lucide="clock" class="icon-inline" style="color:var(--warning);flex-shrink:0;margin-top:2px;" aria-hidden="true"></i>'
-        + '<div><div style="font-weight:700;margin-bottom:4px;">Not enough history for forecasts</div>'
-        + '<div class="text-meta">Forecasting requires at least 45 days of distribution data. '
-        + (cons.actualDays > 0 ? 'Based on ' + cons.actualDays + ' days so far — ' + (45 - cons.actualDays) + ' more days needed.' : 'Complete some distributions to start tracking.')
-        + '</div></div></div></div>';
+        + '<div><div style="font-weight:700;margin-bottom:4px;">Not enough history for demand forecasts</div>'
+        + '<div class="text-meta">Demand forecasting requires at least 45 days of distribution data. '
+        + (cons.actualDays > 0 ? 'You have ' + cons.actualDays + ' days so far — ' + (45 - cons.actualDays) + ' more days needed.' : 'Complete some distributions to unlock demand forecasts.')
+        + ' Box build capacity from current inventory is shown below.</div></div></div></div>';
+
+      /* ── Show box capacity even without history ── */
+      if (d.templates.length) {
+        html += '<div class="section-label-sm">Box Build Capacity (Current Inventory)</div>';
+        html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;margin-bottom:20px;">'
+          + d.templates.map(function (t) {
+              var c = capacity(t, d.inv);
+              var acc = colorMap[t.color] || 'var(--accent)';
+              var hcol = c.health >= 80 ? 'var(--success)' : c.health >= 50 ? 'var(--warning)' : 'var(--danger)';
+              return '<div class="card" style="border-top:3px solid ' + acc + ';">'
+                + '<div style="font-weight:700;font-size:.95rem;margin-bottom:2px;">' + UI.esc(t.name) + '</div>'
+                + '<div style="font-size:1.4rem;font-weight:800;color:' + acc + ';">' + c.maxBuild + ' <span style="font-size:.8rem;font-weight:600;color:var(--text-muted)">boxes buildable</span></div>'
+                + '<div style="font-size:.84rem;margin:6px 0;">Limiting item: <strong>' + UI.esc(c.limiting || 'None') + '</strong></div>'
+                + '<div class="ministry-health-label"><span class="text-meta">Stock balance</span><span style="color:' + hcol + '">' + c.health + '%</span></div>'
+                + '<div class="progress-bar-track"><div class="progress-bar-fill" style="width:' + c.health + '%;background:' + hcol + '"></div></div></div>';
+            }).join('')
+          + '</div>';
+      } else {
+        html += '<div class="card" style="margin-bottom:20px;"><div class="text-meta">No box templates defined yet. Add templates in the Food Pantry Settings tab to see capacity.</div></div>';
+      }
       return html;
     }
 
