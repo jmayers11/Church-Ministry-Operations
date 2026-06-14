@@ -499,8 +499,8 @@ The narrative should:
           </div>
 
           <div style="display:flex;flex-direction:column;gap:10px;" id="prompt-cards-container">
-            ${cat.prompts.map((p, i) => {
-              const st = getState(cat.id, i);
+            ${_cat.prompts.map((p, i) => {
+              const st = getState(_cat.id, i);
               return `
               <div class="prompt-card" id="pcard-${i}">
                 <div class="prompt-card-header" data-expand="${i}">

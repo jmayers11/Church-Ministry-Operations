@@ -525,7 +525,7 @@ Navigation.register('foodpantry', function render(page) {
       ${tabList.map(([id,lbl])=>`
         <button class="pantry-tab ${activeTab===id?'active':''}" data-ptab="${id}"
           style="padding:10px 18px;border:none;background:none;font-size:.88rem;font-weight:600;
-          color:${activeTab===id?'var(--accent)':'var(--text-muted)'};
+          color:${activeTab===id?'var(--accent)':'var(--text-secondary)'};
           border-bottom:${activeTab===id?'2px solid var(--accent)':'2px solid transparent'};
           margin-bottom:-2px;cursor:pointer;transition:all .15s;">${lbl}</button>
       `).join('')}
@@ -556,7 +556,7 @@ Navigation.register('foodpantry', function render(page) {
       activeTab = btn.dataset.ptab;
       Storage.set('_pantryTab', activeTab);
       page.querySelectorAll('.pantry-tab').forEach(b => {
-        b.style.color       = b.dataset.ptab===activeTab ? 'var(--accent)' : 'var(--text-muted)';
+        b.style.color       = b.dataset.ptab===activeTab ? 'var(--accent)' : 'var(--text-secondary)';
         b.style.borderBottom= b.dataset.ptab===activeTab ? '2px solid var(--accent)' : '2px solid transparent';
       });
       document.getElementById('pantry-tab-content').innerHTML = renderTabContent();
